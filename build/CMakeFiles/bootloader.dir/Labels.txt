@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+D:/Projects/ESP32-Z21/ESP32_Z21/build/CMakeFiles/bootloader
+D:/Projects/ESP32-Z21/ESP32_Z21/build/CMakeFiles/bootloader.rule
+D:/Projects/ESP32-Z21/ESP32_Z21/build/CMakeFiles/bootloader-complete.rule
+D:/Projects/ESP32-Z21/ESP32_Z21/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+D:/Projects/ESP32-Z21/ESP32_Z21/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+D:/Projects/ESP32-Z21/ESP32_Z21/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+D:/Projects/ESP32-Z21/ESP32_Z21/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
+D:/Projects/ESP32-Z21/ESP32_Z21/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+D:/Projects/ESP32-Z21/ESP32_Z21/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+D:/Projects/ESP32-Z21/ESP32_Z21/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
