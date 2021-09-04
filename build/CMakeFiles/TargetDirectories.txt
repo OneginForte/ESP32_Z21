@@ -174,7 +174,6 @@ D:/Projects/ESP32-Z21/ESP32_Z21/build/esp-idf/vfs/CMakeFiles/edit_cache.dir
 D:/Projects/ESP32-Z21/ESP32_Z21/build/esp-idf/vfs/CMakeFiles/rebuild_cache.dir
 D:/Projects/ESP32-Z21/ESP32_Z21/build/esp-idf/vfs/CMakeFiles/list_install_components.dir
 D:/Projects/ESP32-Z21/ESP32_Z21/build/esp-idf/vfs/CMakeFiles/install/strip.dir
-D:/Projects/ESP32-Z21/ESP32_Z21/build/esp-idf/esp_eth/CMakeFiles/__idf_esp_eth.dir
 D:/Projects/ESP32-Z21/ESP32_Z21/build/esp-idf/esp_eth/CMakeFiles/install/local.dir
 D:/Projects/ESP32-Z21/ESP32_Z21/build/esp-idf/esp_eth/CMakeFiles/install.dir
 D:/Projects/ESP32-Z21/ESP32_Z21/build/esp-idf/esp_eth/CMakeFiles/edit_cache.dir

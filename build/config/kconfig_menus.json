@@ -11153,10 +11153,7 @@
                                 "help": "ESP32 only supports GPIO0 to input the RMII clock.",
                                 "id": "ETH_RMII_CLK_IN_GPIO",
                                 "name": "ETH_RMII_CLK_IN_GPIO",
-                                "range": [
-                                    0,
-                                    0
-                                ],
+                                "range": null,
                                 "title": null,
                                 "type": "int"
                             },
@@ -11186,10 +11183,7 @@
                                 "help": "Set the size of each buffer used by Ethernet MAC DMA.",
                                 "id": "ETH_DMA_BUFFER_SIZE",
                                 "name": "ETH_DMA_BUFFER_SIZE",
-                                "range": [
-                                    256,
-                                    1600
-                                ],
+                                "range": null,
                                 "title": "Ethernet DMA buffer size (Byte)",
                                 "type": "int"
                             },
@@ -11199,10 +11193,7 @@
                                 "help": "Number of DMA receive buffers. Each buffer's size is ETH_DMA_BUFFER_SIZE.\nLarger number of buffers could increase throughput somehow.",
                                 "id": "ETH_DMA_RX_BUFFER_NUM",
                                 "name": "ETH_DMA_RX_BUFFER_NUM",
-                                "range": [
-                                    3,
-                                    30
-                                ],
+                                "range": null,
                                 "title": "Amount of Ethernet DMA Rx buffers",
                                 "type": "int"
                             },
@@ -11212,10 +11203,7 @@
                                 "help": "Number of DMA transmit buffers. Each buffer's size is ETH_DMA_BUFFER_SIZE.\nLarger number of buffers could increase throughput somehow.",
                                 "id": "ETH_DMA_TX_BUFFER_NUM",
                                 "name": "ETH_DMA_TX_BUFFER_NUM",
-                                "range": [
-                                    3,
-                                    30
-                                ],
+                                "range": null,
                                 "title": "Amount of Ethernet DMA Tx buffers",
                                 "type": "int"
                             },
@@ -13126,10 +13114,7 @@
                                 "help": "Modbus default port number used by Modbus TCP stack",
                                 "id": "FMB_TCP_PORT_DEFAULT",
                                 "name": "FMB_TCP_PORT_DEFAULT",
-                                "range": [
-                                    0,
-                                    65535
-                                ],
+                                "range": null,
                                 "title": "Modbus TCP port number",
                                 "type": "int"
                             },
@@ -13139,10 +13124,7 @@
                                 "help": "Maximum allowed connections number for Modbus TCP stack.\nThis is used by Modbus master and slave port layer to establish connections.\nThis parameter may decrease performance of Modbus stack and can cause\nincreasing of processing time (increase only if absolutely necessary).",
                                 "id": "FMB_TCP_PORT_MAX_CONN",
                                 "name": "FMB_TCP_PORT_MAX_CONN",
-                                "range": [
-                                    1,
-                                    6
-                                ],
+                                "range": null,
                                 "title": "Maximum allowed connections for TCP stack",
                                 "type": "int"
                             },
@@ -13152,10 +13134,7 @@
                                 "help": "Modbus TCP connection timeout in seconds.\nOnce expired the current connection with the client will be closed\nand Modbus slave will be waiting for new connection to accept.",
                                 "id": "FMB_TCP_CONNECTION_TOUT_SEC",
                                 "name": "FMB_TCP_CONNECTION_TOUT_SEC",
-                                "range": [
-                                    1,
-                                    3600
-                                ],
+                                "range": null,
                                 "title": "Modbus TCP connection timeout",
                                 "type": "int"
                             }
@@ -13259,10 +13238,7 @@
                         "help": "This option defines the number of data bits per ASCII character.",
                         "id": "FMB_SERIAL_ASCII_BITS_PER_SYMB",
                         "name": "FMB_SERIAL_ASCII_BITS_PER_SYMB",
-                        "range": [
-                            7,
-                            8
-                        ],
+                        "range": null,
                         "title": "Number of data bits per ASCII character",
                         "type": "int"
                     },
@@ -13272,10 +13248,7 @@
                         "help": "This option defines response timeout of slave in milliseconds for ASCII communication mode.\nThus the timeout will expire and allow the master program to handle the error.",
                         "id": "FMB_SERIAL_ASCII_TIMEOUT_RESPOND_MS",
                         "name": "FMB_SERIAL_ASCII_TIMEOUT_RESPOND_MS",
-                        "range": [
-                            300,
-                            2000
-                        ],
+                        "range": null,
                         "title": "Response timeout for ASCII communication mode (ms)",
                         "type": "int"
                     },
@@ -14504,7 +14477,10 @@
                                 "help": "DHCP client will send this many probes before self-assigning a\nlink local address.\n\nFrom LWIP help: \"This can be set as low as 1 to get an AutoIP\naddress very quickly, but you should be prepared to handle a\nchanging IP address when DHCP overrides AutoIP.\" (In the case of\nESP-IDF, this means multiple SYSTEM_EVENT_STA_GOT_IP events.)",
                                 "id": "LWIP_AUTOIP_TRIES",
                                 "name": "LWIP_AUTOIP_TRIES",
-                                "range": null,
+                                "range": [
+                                    1,
+                                    100
+                                ],
                                 "title": "DHCP Probes before self-assigning IPv4 LL address",
                                 "type": "int"
                             },
@@ -14514,7 +14490,10 @@
                                 "help": "If the AUTOIP functionality detects this many IP conflicts while\nself-assigning an address, it will go into a rate limited mode.",
                                 "id": "LWIP_AUTOIP_MAX_CONFLICTS",
                                 "name": "LWIP_AUTOIP_MAX_CONFLICTS",
-                                "range": null,
+                                "range": [
+                                    1,
+                                    100
+                                ],
                                 "title": "Max IP conflicts before rate limiting",
                                 "type": "int"
                             },
@@ -14524,7 +14503,10 @@
                                 "help": "If rate limiting self-assignment requests, wait this long between\neach request.",
                                 "id": "LWIP_AUTOIP_RATE_LIMIT_INTERVAL",
                                 "name": "LWIP_AUTOIP_RATE_LIMIT_INTERVAL",
-                                "range": null,
+                                "range": [
+                                    5,
+                                    120
+                                ],
                                 "title": "Rate limited interval (seconds)",
                                 "type": "int"
                             }
@@ -14990,10 +14972,7 @@
                         "help": "Config max number of IPv6 packets to queue during MAC resolution.",
                         "id": "LWIP_IPV6_MEMP_NUM_ND6_QUEUE",
                         "name": "LWIP_IPV6_MEMP_NUM_ND6_QUEUE",
-                        "range": [
-                            3,
-                            20
-                        ],
+                        "range": null,
                         "title": "Max number of IPv6 packets to queue during MAC resolution",
                         "type": "int"
                     },
@@ -15003,10 +14982,7 @@
                         "help": "Config max number of entries in IPv6 neighbor cache",
                         "id": "LWIP_IPV6_ND6_NUM_NEIGHBORS",
                         "name": "LWIP_IPV6_ND6_NUM_NEIGHBORS",
-                        "range": [
-                            3,
-                            10
-                        ],
+                        "range": null,
                         "title": "Max number of entries in IPv6 neighbor cache",
                         "type": "int"
                     },
