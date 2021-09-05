@@ -1,7 +1,0 @@
-{
-    "idf.cmakeBuildArgs": [
-    
-        "--build",
-        "."
-    ]
-}
