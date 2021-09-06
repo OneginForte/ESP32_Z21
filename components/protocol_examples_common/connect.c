@@ -46,7 +46,7 @@
 #define NR_OF_IP_ADDRESSES_TO_WAIT_FOR (s_active_interfaces)
 #endif
 
-#define EXAMPLE_DO_CONNECT CONFIG_EXAMPLE_CONNECT_WIFI || CONFIG_EXAMPLE_CONNECT_ETHERNET
+#define EXAMPLE_DO_CONNECT CONFIG_EXAMPLE_CONNECT_WIFI 
 
 static int s_active_interfaces = 0;
 static xSemaphoreHandle s_semph_get_ip_addrs;
@@ -172,7 +172,7 @@ esp_err_t example_connect(void)
         return ESP_ERR_INVALID_STATE;
     }
 #endif
-    start();
+    //start();
     ESP_ERROR_CHECK(esp_register_shutdown_handler(&stop));
     ESP_LOGI(TAG, "Waiting for IP(s)");
     for (int i = 0; i < NR_OF_IP_ADDRESSES_TO_WAIT_FOR; ++i) {
