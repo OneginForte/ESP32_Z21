@@ -41,6 +41,7 @@ SOFTWARE.
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
+#include "z21header.h"
 
 #define Z21_UDP_TX_MAX_SIZE 128 // max received UDP packet size
 #define PORT 21105
@@ -123,6 +124,7 @@ static void rx_task(void *arg)
 static void udp_server_task(void *pvParameters)
 {
     char rx_buffer[128];
+    char tx_buffer[128];
     char addr_str[128];
     int addr_family = (int)pvParameters;
     int ip_protocol = 0;
@@ -193,7 +195,7 @@ static void udp_server_task(void *pvParameters)
                 // Get the sender's ip address as string
                 if (source_addr.ss_family == PF_INET)
                 {
-                    inet_ntoa_r(((struct sockaddr_in *)&source_addr)->sin_addr, addr_str, sizeof(addr_str) - 1);
+                    ip4addr_ntoa_r((const ip4_addr_t*)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                 }
                 else if (source_addr.ss_family == PF_INET6)
                 {
@@ -261,8 +263,8 @@ void cb_connection_ok(void *pvParameter)
 }
 void cb_connection_off(void *pvParameter)
 {
-    ip_event_got_ip_t *param = (ip_event_got_ip_t *)pvParameter;
-    example_disconnect();
+    //ip_event_got_ip_t *param = (ip_event_got_ip_t *)pvParameter;
+    //example_disconnect();
     ESP_LOGI(TAG, "I do not have connection. Stop UDP!");
 }
 
