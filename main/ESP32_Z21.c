@@ -42,11 +42,25 @@ SOFTWARE.
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
 
-
+#define Z21_UDP_TX_MAX_SIZE 128 // max received UDP packet size
 #define PORT 21105
 #define CONFIG_EXAMPLE_IPV4
 
+// IP settings
+#define maxIP 20 //Total number of storred IP address (clients)
+typedef struct   // Structure to hold IP's and ports
+{
+    byte IP0;
+    byte IP1;
+    byte IP2;
+    byte IP3;
+    uint16_t port;
+} listofIP;
+listofIP mem[maxIP]; // IP storage
+byte storedIP = 0;   // number of currently stored IPs
 
+// Init local variables
+unsigned char packetBuffer[Z21_UDP_TX_MAX_SIZE];
 //static const char *TAG = "example";
 
 /* @brief tag used for ESP serial console messages */
