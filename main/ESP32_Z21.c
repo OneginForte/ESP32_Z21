@@ -50,14 +50,14 @@ SOFTWARE.
 #define maxIP 20 //Total number of storred IP address (clients)
 typedef struct   // Structure to hold IP's and ports
 {
-    byte IP0;
-    byte IP1;
-    byte IP2;
-    byte IP3;
+    uint8_t IP0;
+    uint8_t IP1;
+    uint8_t IP2;
+    uint8_t IP3;
     uint16_t port;
 } listofIP;
 listofIP mem[maxIP]; // IP storage
-byte storedIP = 0;   // number of currently stored IPs
+uint8_t storedIP = 0;   // number of currently stored IPs
 
 // Init local variables
 unsigned char packetBuffer[Z21_UDP_TX_MAX_SIZE];
