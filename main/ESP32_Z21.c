@@ -50,7 +50,7 @@ SOFTWARE.
 //static const char *TAG = "example";
 
 /* @brief tag used for ESP serial console messages */
-static const char TAG[] = "main";
+static const char TAG[] = "Z21";
 
 static const int RX_BUF_SIZE = 1024;
 
@@ -189,6 +189,7 @@ static void udp_server_task(void *pvParameters)
                 rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
                 ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
                 ESP_LOGI(TAG, "%s", rx_buffer);
+                ESP_LOG_BUFFER_HEXDUMP(TAG, rx_buffer, len, ESP_LOG_INFO);
 
                 int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
                 if (err < 0)
