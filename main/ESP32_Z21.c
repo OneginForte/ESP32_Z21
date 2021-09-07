@@ -36,6 +36,7 @@ SOFTWARE.
 #include "wifi_manager.h"
 
 #include "protocol_examples_common.h"
+#include "nvs_flash.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
