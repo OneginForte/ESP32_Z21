@@ -15,36 +15,14 @@
 #include <z21.h>
 #include <z21header.h>
 
-#if defined(__arm__)
-#include <DueFlashStorage.h>
-DueFlashStorage FlashStore;
-#define FSTORAGE FlashStore
-#define FSTORAGEMODE write
-#else
-#if defined(ARDUINO_ESP8266_ESP01)
-// Generic ESP8266
-#include <EEPROM.h>
-#define FSTORAGE EEPROM
-#define FSTORAGEMODE write
-#else
-#if defined(ARDUINO_ESP8266_WEMOS_D1MINI)
-// WeMos mini and D1 R2
-#include <EEPROM.h>
-#define FSTORAGE EEPROM
-#define FSTORAGEMODE write
-#else
-// AVR based Boards follows
-#include <EEPROM.h>
-#define FSTORAGE EEPROM
-#define FSTORAGEMODE write
-#endif
-#endif
-#endif
+//need to include eeprom
 
-// Constructor /////////////////////////////////////////////////////////////////
+
 // Function that handles the creation and setup of instances
 
-z21Class::z21Class()
+
+
+void z21Class()
 {
 	// initialize this instance's variables
 	z21IPpreviousMillis = 0;
@@ -52,24 +30,28 @@ z21Class::z21Class()
 	clearIPSlots();
 }
 
-// Public Methods //////////////////////////////////////////////////////////////
-// Functions available in Wiring sketches, this library, and other libraries
+bool bitRead(uint8_t order, uint8_t num)
+{
+	return (order & (1 << num));
+}
 
 //*********************************************************************************************
 //Daten ermitteln und Auswerten
-void z21Class::receive(uint8_t client, uint8_t *packet)
+void receive(uint8_t client, uint8_t *packet)
 {
 	addIPToSlot(client, 0);
 	// send a reply, to the IP address and port that sent us the packet we received
 	int header = (packet[3] << 8) + packet[2];
-	byte data[16]; //z21 send storage
+	uint8_t data[16]; //z21 send storage
 
 	switch (header)
 	{
 	case LAN_GET_SERIAL_NUMBER:
-#if defined(SERIALDEBUG)
-		ZDebug.println("GET_SERIAL_NUMBER");
-#endif
+		ESP_LOGI(Z21_PARSER_TAG, "GET_SERIAL_NUMBER");
+
+		//ESP_LOGI(Z21_PARSER_TAG, "Socket created");
+
+
 		data[0] = z21SnLSB;
 		data[1] = z21SnMSB;
 		data[2] = 0x00;
@@ -77,9 +59,8 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 		EthSend(client, 0x08, LAN_GET_SERIAL_NUMBER, data, false, Z21bcNone); //Seriennummer 32 Bit (little endian)
 		break;
 	case LAN_GET_HWINFO:
-#if defined(SERIALDEBUG)
-		ZDebug.println("GET_HWINFO");
-#endif
+		ESP_LOGI(Z21_PARSER_TAG, "GET_HWINFO");
+
 		data[0] = z21HWTypeLSB; //HwType 32 Bit
 		data[1] = z21HWTypeMSB;
 		data[2] = 0x00;
@@ -91,9 +72,8 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 		EthSend(client, 0x0C, LAN_GET_HWINFO, data, false, Z21bcNone);
 		break;
 	case LAN_LOGOFF:
-#if defined(SERIALDEBUG)
-		ZDebug.println("LOGOFF");
-#endif
+		ESP_LOGI(Z21_PARSER_TAG, "LOGOFF");
+
 		clearIPSlot(client);
 		//Antwort von Z21: keine
 		break;
@@ -111,9 +91,8 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			switch (packet[5])
 			{ //DB0
 			case 0x21:
-#if defined(SERIALDEBUG)
-				ZDebug.println("X_GET_VERSION");
-#endif
+				ESP_LOGI(Z21_PARSER_TAG, "X_GET_VERSION");
+
 				data[0] = LAN_X_GET_VERSION; //X-Header: 0x63
 				data[1] = 0x21;							 //DB0
 				data[2] = 0x30;							 //X-Bus Version
@@ -132,16 +111,14 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 				EthSend(client, 0x08, LAN_X_Header, data, true, Z21bcNone);
 				break;
 			case 0x80:
-#if defined(SERIALDEBUG)
-				ZDebug.println("X_SET_TRACK_POWER_OFF");
-#endif
+				ESP_LOGI(Z21_PARSER_TAG, "X_SET_TRACK_POWER_OFF");
+
 				if (notifyz21RailPower)
 					notifyz21RailPower(csTrackVoltageOff);
 				break;
 			case 0x81:
-#if defined(SERIALDEBUG)
-				ZDebug.println("X_SET_TRACK_POWER_ON");
-#endif
+				ESP_LOGI(Z21_PARSER_TAG, "X_SET_TRACK_POWER_ON");
+
 				if (notifyz21RailPower)
 					notifyz21RailPower(csNormal);
 				break;
@@ -150,9 +127,8 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 		case LAN_X_CV_READ:
 			if (packet[5] == 0x11)
 			{ //DB0
-#if defined(SERIALDEBUG)
-				ZDebug.println("X_CV_READ");
-#endif
+				ESP_LOGI(Z21_PARSER_TAG, "X_CV_READ");
+
 				if (notifyz21CVREAD)
 					notifyz21CVREAD(packet[6], packet[7]); //CV_MSB, CV_LSB
 			}
@@ -160,9 +136,8 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 		case LAN_X_CV_WRITE:
 			if (packet[5] == 0x12)
 			{ //DB0
-#if defined(SERIALDEBUG)
-				ZDebug.println("X_CV_WRITE");
-#endif
+				ESP_LOGI(Z21_PARSER_TAG, "X_CV_WRITE");
+
 				if (notifyz21CVWRITE)
 					notifyz21CVWRITE(packet[6], packet[7], packet[8]); //CV_MSB, CV_LSB, value
 			}
@@ -171,43 +146,38 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			if (packet[5] == 0x30)
 			{ //DB0
 				uint8_t Adr = ((packet[6] & 0x3F) << 8) + packet[7];
-				uint8_t CVAdr = ((packet[8] & B11) << 8) + packet[9];
-				byte value = packet[10];
-				if ((packet[8] >> 2) == B111011)
+				uint8_t CVAdr = ((packet[8] & 0b11000000) << 8) + packet[9];
+				uint8_t value = packet[10];
+				if ((packet[8] >> 2) == 0b11101100)
 				{
-#if defined(SERIALDEBUG)
-					ZDebug.println("LAN_X_CV_POM_WRITE_BYTE");
-#endif
+					ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_WRITE_BYTE");
+
 					if (notifyz21CVPOMWRITEBYTE)
 						notifyz21CVPOMWRITEBYTE(Adr, CVAdr, value); //set decoder
 				}
-				else if ((packet[8] >> 2) == B111010 && value == 0)
+				else if ((packet[8] >> 2) == 0b11101000 && value == 0)
 				{
-#if defined(SERIALDEBUG)
-					ZDebug.println("LAN_X_CV_POM_WRITE_BIT");
-#endif
+					ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_WRITE_BIT");
+
 				}
 				else
 				{
-#if defined(SERIALDEBUG)
-					ZDebug.println("LAN_X_CV_POM_READ_BIYTE");
-#endif
+					ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_READ_BIYTE");
+
 					if (notifyz21CVPOMREADBYTE)
 						notifyz21CVPOMREADBYTE(Adr, CVAdr); //set decoder
 				}
 			}
 			else if (packet[5] == 0x31)
 			{ //DB0
-#if defined(SERIALDEBUG)
-				ZDebug.println("LAN_X_CV_POM_ACCESSORY");
-#endif
+				ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_ACCESSORY");
+
 			}
 			break;
 		case LAN_X_GET_TURNOUT_INFO:
 		{
-#if defined(SERIALDEBUG)
-			ZDebug.print("X_GET_TURNOUT_INFO ");
-#endif
+			ESP_LOGI(Z21_PARSER_TAG, "X_GET_TURNOUT_INFO ");
+
 			if (notifyz21AccessoryInfo)
 			{
 				data[0] = 0x43;			 //X-HEADER
@@ -223,14 +193,8 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 		}
 		case LAN_X_SET_TURNOUT:
 		{
-#if defined(SERIALDEBUG)
-			ZDebug.print("X_SET_TURNOUT Adr.:");
-			ZDebug.print((packet[5] << 8) + packet[6]);
-			ZDebug.print(":");
-			ZDebug.print(bitRead(packet[7], 0));
-			ZDebug.print("-");
-			ZDebug.println(bitRead(packet[7], 3));
-#endif
+			ESP_LOGI(Z21_PARSER_TAG, "X_SET_TURNOUT");
+
 			//bool TurnOnOff = bitRead(packet[7],3);  //Spule EIN/AUS
 			if (notifyz21Accessory)
 			{
@@ -239,9 +203,8 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			break;
 		}
 		case LAN_X_SET_STOP:
-#if defined(SERIALDEBUG)
-			ZDebug.println("X_SET_STOP");
-#endif
+			ESP_LOGI(Z21_PARSER_TAG, "X_SET_STOP");
+
 			if (notifyz21RailPower)
 				notifyz21RailPower(csEmergencyStop);
 			break;
@@ -259,26 +222,31 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			if (packet[5] == LAN_X_SET_LOCO_FUNCTION)
 			{ //DB0
 				//LAN_X_SET_LOCO_FUNCTION  Adr_MSB        Adr_LSB            Type (00=AUS/01=EIN/10=UM)      Funktion
+				//word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & 0b00111111
+				
+				uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+
 				if (notifyz21LocoFkt)
-					notifyz21LocoFkt(word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & B00111111);
+					notifyz21LocoFkt(WORD, packet[8] >> 6, packet[8] & 0b00111111);
 				//uint16_t Adr, uint8_t type, uint8_t fkt
 			}
 			else
 			{ //DB0
 				//ZDebug.print("X_SET_LOCO_DRIVE ");
-				byte steps = 14;
+				uint8_t steps = 14;
 				if ((packet[5] & 0x03) == 3)
 					steps = 128;
 				else if ((packet[5] & 0x03) == 2)
 					steps = 28;
+				
+				uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
 				if (notifyz21LocoSpeed)
-					notifyz21LocoSpeed(word(packet[6] & 0x3F, packet[7]), packet[8], steps);
+					notifyz21LocoSpeed(WORD, packet[8], steps);
 			}
 			break;
 		case LAN_X_GET_FIRMWARE_VERSION:
-#if defined(SERIALDEBUG)
-			ZDebug.println("X_GET_FIRMWARE_VERSION");
-#endif
+			ESP_LOGI(Z21_PARSER_TAG, "X_GET_FIRMWARE_VERSION");
+
 			data[0] = 0xF3;						 //identify Firmware (not change)
 			data[1] = 0x0A;						 //identify Firmware (not change)
 			data[2] = z21FWVersionMSB; //V_MSB
@@ -297,11 +265,10 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 		//no inside of the protokoll, but good to have:
 		if (notifyz21RailPower)
 			notifyz21RailPower(Railpower); //Zustand Gleisspannung Antworten
-#if defined(SERIALDEBUG)
-		ZDebug.print("SET_BROADCASTFLAGS: ");
-		ZDebug.println(addIPToSlot(client, 0x00), BIN);
+		ESP_LOGI(Z21_PARSER_TAG, "SET_BROADCASTFLAGS: ");
+		//ZDebug.println(addIPToSlot(client, 0x00), BIN);
 // 1=BC Power, Loco INFO, Trnt INFO; 2=BC �nderungen der R�ckmelder am R-Bus
-#endif
+
 		break;
 	}
 	case (LAN_GET_BROADCASTFLAGS):
@@ -312,10 +279,9 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 		data[2] = flag >> 16;
 		data[3] = flag >> 24;
 		EthSend(client, 0x08, LAN_GET_BROADCASTFLAGS, data, false, Z21bcNone);
-#if defined(SERIALDEBUG)
-		ZDebug.print("GET_BROADCASTFLAGS: ");
-		ZDebug.println(flag, BIN);
-#endif
+		ESP_LOGI(Z21_PARSER_TAG, "GET_BROADCASTFLAGS: ");
+		//ZDebug.println(flag, BIN);
+
 		break;
 	}
 	case (LAN_GET_LOCOMODE):
@@ -329,9 +295,8 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 	case (LAN_RMBUS_GETDATA):
 		if (notifyz21S88Data)
 		{
-#if defined(SERIALDEBUG)
-			ZDebug.println("RMBUS_GETDATA");
-#endif
+			ESP_LOGI(Z21_PARSER_TAG, "RMBUS_GETDATA");
+
 			//ask for group state 'Gruppenindex'
 			notifyz21S88Data(packet[4]); //normal Antwort hier nur an den anfragenden Client! (Antwort geht hier an alle!)
 		}
@@ -340,9 +305,8 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 		break;
 	case (LAN_SYSTEMSTATE_GETDATA):
 	{ //System state
-#if defined(SERIALDEBUG)
-		ZDebug.println("LAN_SYS-State");
-#endif
+			ESP_LOGI(Z21_PARSER_TAG,"LAN_SYS-State");
+
 		if (notifyz21getSystemInfo)
 			notifyz21getSystemInfo(client);
 		break;
@@ -352,7 +316,8 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 		uint16_t Adr = 0;
 		if (packet[4] == 0x01)
 		{ //RailCom-Daten f�r die gegebene Lokadresse anfordern
-			Adr = word(packet[6], packet[5]);
+			//Adr = word(packet[6], packet[5]);
+			Adr = (((uint16_t)packet[6]) << 8) | ((uint16_t)packet[5]);
 		}
 		if (notifyz21Railcom)
 			Adr = notifyz21Railcom(); //return global Railcom Adr
@@ -376,13 +341,12 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 	}
 	case (LAN_LOCONET_FROM_LAN):
 	{
-#if defined(SERIALDEBUG)
-		ZDebug.println("LOCONET_FROM_LAN");
-#endif
+		ESP_LOGI(Z21_PARSER_TAG, "LOCONET_FROM_LAN");
+
 		if (notifyz21LNSendPacket)
 		{
-			byte LNdata[packet[0] - 0x04]; //n Bytes
-			for (byte i = 0; i < (packet[0] - 0x04); i++)
+			uint8_t LNdata[packet[0] - 0x04]; //n Bytes
+			for (uint8_t i = 0; i < (packet[0] - 0x04); i++)
 				LNdata[i] = packet[0x04 + i];
 			notifyz21LNSendPacket(LNdata, packet[0] - 0x04);
 			//Melden an andere LAN-Client das Meldung auf LocoNet-Bus geschrieben wurde
@@ -397,12 +361,11 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			data[0] = packet[4];
 			data[1] = packet[5];
 			data[2] = notifyz21LNdispatch(packet[5], packet[4]); //dispatchSlot
-#if defined(SERIALDEBUG)
-			ZDebug.print("LOCONET_DISPATCH_ADDR ");
-			ZDebug.print(word(packet[5], packet[4]));
-			ZDebug.print(",");
-			ZDebug.println(data[2]);
-#endif
+			ESP_LOGI(Z21_PARSER_TAG, "LOCONET_DISPATCH_ADDR ");
+			//ZDebug.print(word(packet[5], packet[4]));
+			//ZDebug.print(",");
+			//ZDebug.println(data[2]);
+
 			EthSend(client, 0x07, LAN_LOCONET_DISPATCH_ADDR, data, false, Z21bcNone);
 		}
 		break;
@@ -410,31 +373,42 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 	case (LAN_LOCONET_DETECTOR):
 		if (notifyz21LNdetector)
 		{
-#if defined(SERIALDEBUG)
-			ZDebug.println("LOCONET_DETECTOR Abfrage");
-#endif
-			notifyz21LNdetector(packet[4], word(packet[6], packet[5])); //Anforderung Typ & Reportadresse
+			ESP_LOGI(Z21_PARSER_TAG, "LOCONET_DETECTOR Abfrage");
+			uint16_t WORD = (((uint16_t)packet[6]) << 8) | ((uint16_t)packet[5]);
+			notifyz21LNdetector(packet[4], WORD); //Anforderung Typ & Reportadresse
 		}
 		break;
 	case (LAN_CAN_DETECTOR):
 		if (notifyz21CANdetector)
 		{
-#if defined(SERIALDEBUG)
-			ZDebug.println("CAN_DETECTOR Abfrage");
-#endif
-			notifyz21CANdetector(packet[4], word(packet[6], packet[5])); //Anforderung Typ & CAN-ID
+			ESP_LOGI(Z21_PARSER_TAG, "CAN_DETECTOR Abfrage");
+			uint16_t WORD = (((uint16_t)packet[6]) << 8) | ((uint16_t)packet[5]);
+			notifyz21CANdetector(packet[4], WORD); //Anforderung Typ & CAN-ID
 		}
 		break;
 	case (0x12): //configuration read
 		// <-- 04 00 12 00
 		// 0e 00 12 00 01 00 01 03 01 00 03 00 00 00
-		for (byte i = 0; i < 10; i++)
-		{
-			data[i] = FSTORAGE.read(CONF1STORE + i);
-		}
+		data[0] = 0x0e;
+		data[1] = 0x00;
+		data[2] = 0x12;
+		data[3] = 0x00;
+		data[4] = 0x01;
+		data[5] = 0x00;
+		data[6] = 0x01;
+		data[7] = 0x03;
+		data[8] = 0x01;
+		data[9] = 0x00;
+		data[10] = 0x03;
+		data[11] = 0x00;
+		data[12] = 0x00;
+		//for (uint8_t i = 0; i < 10; i++)
+		//{
+		//data[i] = FSTORAGE.read(CONF1STORE + i);
+		//}
 		EthSend(client, 0x0e, 0x12, data, false, Z21bcNone);
-#if defined(SERIALDEBUG)
-		ZDebug.print("Z21 Eins(read) ");
+		ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(read) ");
+		/*
 		ZDebug.print("RailCom: ");
 		ZDebug.print(data[0], HEX);
 		ZDebug.print(", PWR-Button: ");
@@ -456,7 +430,7 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			break;
 		}
 		ZDebug.println();
-#endif
+		*/
 		break;
 	case (0x13):
 	{ //configuration write
@@ -468,34 +442,50 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			(0x01) Power-Button: 0=Gleisspannung aus, 1=Nothalt
 			(0x03) Auslese-Modus: 0=Nichts, 1=Bit, 2=Byte, 3=Beides
 			*/
-#if defined(SERIALDEBUG)
-		ZDebug.print("Z21 Eins(write) ");
-		ZDebug.print("RailCom: ");
-		ZDebug.print(packet[4], HEX);
-		ZDebug.print(", PWR-Button: ");
-		ZDebug.print(packet[6], HEX);
-		ZDebug.print(", ProgRead: ");
-		switch (packet[7])
-		{
-		case 0x00:
-			ZDebug.print("nothing");
-			break;
-		case 0x01:
-			ZDebug.print("Bit");
-			break;
-		case 0x02:
-			ZDebug.print("Byte");
-			break;
-		case 0x03:
-			ZDebug.print("both");
-			break;
+		ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(write) ");
+/*
+ZDebug.print("RailCom: ");
+ZDebug.print(packet[4], HEX);
+ZDebug.print(", PWR-Button: ");
+ZDebug.print(packet[6], HEX);
+ZDebug.print(", ProgRead: ");
+switch (packet[7])
+{
+case 0x00:
+	ZDebug.print("nothing");
+	break;
+case 0x01:
+	ZDebug.print("Bit");
+	break;
+case 0x02:
+	ZDebug.print("Byte");
+	break;
+case 0x03:
+	ZDebug.print("both");
+	break;
 		}
 		ZDebug.println();
-#endif
-		for (byte i = 0; i < 10; i++)
-		{
-			FSTORAGE.FSTORAGEMODE(CONF1STORE + i, packet[4 + i]);
-		}
+*/
+		
+		packet[4] = 0x0e;
+		packet[5] = 0x00;
+		packet[6] = 0x13;
+		packet[7] = 0x00;
+		packet[8] = 0x01;
+		packet[9] = 0x00;
+		packet[10] = 0x01;
+		packet[11] = 0x03;
+		packet[12] = 0x01;
+		packet[13] = 0x00;
+		packet[14] = 0x03;
+		packet[15] = 0x00;
+		packet[16] = 0x00;
+		packet[17] = 0x00;
+
+		//for (uint8_t i = 0; i < 10; i++)
+		//{
+		//	FSTORAGE.FSTORAGEMODE(CONF1STORE + i, packet[4 + i]);
+		//}
 		//Request DCC to change
 		if (notifyz21UpdateConf)
 			notifyz21UpdateConf();
@@ -504,13 +494,33 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 	case (0x16): //configuration read
 		//<-- 04 00 16 00
 		//14 00 16 00 19 06 07 01 05 14 88 13 10 27 32 00 50 46 20 4e
-		for (byte i = 0; i < 16; i++)
-		{
-			data[i] = FSTORAGE.read(CONF2STORE + i);
-		}
-		EthSend(client, 0x14, 0x16, data, false, Z21bcNone);
-#if defined(SERIALDEBUG)
-		ZDebug.print("Z21 Eins(read) ");
+	data[0] = 0x14;
+	data[1] = 0x00;
+	data[2] = 0x16;
+	data[3] = 0x00;
+	data[4] = 0x19;
+	data[5] = 0x06;
+	data[6] = 0x07;
+	data[7] = 0x01;
+	data[8] = 0x05;
+	data[9] = 0x14;
+	data[10] = 0x88;
+	data[11] = 0x13;
+	data[12] = 0x10;
+	data[13] = 0x27;
+	data[14] = 0x32;
+	data[15] = 0x00;
+	data[16] = 0x50;
+	data[17] = 0x46;
+	data[18] = 0x20;
+	data[19] = 0x4e;
+	// for (uint8_t i = 0; i < 16; i++)
+	//{
+	//	data[i] = FSTORAGE.read(CONF2STORE + i);
+	//}
+	EthSend(client, 0x14, 0x16, data, false, Z21bcNone);
+	ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(read) ");
+	/*
 		ZDebug.print("RstP(s): ");
 		ZDebug.print(data[0]);
 		ZDebug.print(", RstP(f): ");
@@ -522,8 +532,8 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 		ZDebug.print(", ProgV: ");
 		ZDebug.print(word(data[15], data[14]));
 		ZDebug.println();
-#endif
-		break;
+		*/
+	break;
 	case (0x17):
 	{ //configuration write
 //<-- 14 00 17 00 19 06 07 01 05 14 88 13 10 27 32 00 50 46 20 4e
@@ -546,38 +556,56 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			(0x20) Programmiergleis (LSB) (12-22V): 20V=0x4e20, 21V=0x5208, 22V=0x55F0
 			(0x4e) Programmiergleis (MSB)
 			*/
-#if defined(SERIALDEBUG)
-		ZDebug.print("Z21 Eins(write) ");
-		ZDebug.print("RstP(s): ");
-		ZDebug.print(packet[4]);
-		ZDebug.print(", RstP(f): ");
-		ZDebug.print(packet[5]);
-		ZDebug.print(", ProgP: ");
-		ZDebug.print(packet[6]);
-		ZDebug.print(", MainV: ");
-		ZDebug.print(word(packet[17], packet[16]));
-		ZDebug.print(", ProgV: ");
-		ZDebug.print(word(packet[19], packet[18]));
-		ZDebug.println();
-#endif
-		for (byte i = 0; i < 16; i++)
-		{
-			FSTORAGE.FSTORAGEMODE(CONF2STORE + i, packet[4 + i]);
-		}
-		//Request DCC to change
-		if (notifyz21UpdateConf)
-			notifyz21UpdateConf();
-		break;
+			ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(write) ");
+			/*
+ZDebug.print("RstP(s): ");
+ZDebug.print(packet[4]);
+ZDebug.print(", RstP(f): ");
+ZDebug.print(packet[5]);
+ZDebug.print(", ProgP: ");
+ZDebug.print(packet[6]);
+ZDebug.print(", MainV: ");
+ZDebug.print(word(packet[17], packet[16]));
+ZDebug.print(", ProgV: ");
+ZDebug.print(word(packet[19], packet[18]));
+ZDebug.println();
+*/
+			//for (uint8_t i = 0; i < 16; i++)
+			//{
+			//		FSTORAGE.FSTORAGEMODE(CONF2STORE + i, packet[4 + i]);
+			//}
+			packet[4] = 0x14;
+			packet[5] = 0x00;
+			packet[6] = 0x17;
+			packet[7] = 0x00;
+			packet[8] = 0x19;
+			packet[9] = 0x06;
+			packet[10] = 0x07;
+			packet[11] = 0x01;
+			packet[12] = 0x05;
+			packet[13] = 0x14;
+			packet[14] = 0x88;
+			packet[15] = 0x13;
+			packet[16] = 0x10;
+			packet[17] = 0x27;
+			packet[18] = 0x32;
+			packet[19] = 0x00;
+			packet[20] = 0x50;
+			packet[21] = 0x46;
+			packet[22] = 0x20;
+			packet[23] = 0x4e;
+			//Request DCC to change
+			if (notifyz21UpdateConf)
+				notifyz21UpdateConf();
+			break;
 	}
 	default:
-#if defined(SERIALDEBUG)
-		ZDebug.print("UNKNOWN_COMMAND");
-		//	for (byte i = 0; i < packet[0]; i++) {
+		ESP_LOGI(Z21_PARSER_TAG, "UNKNOWN_COMMAND");
+		//	for (uint8_t i = 0; i < packet[0]; i++) {
 		//		ZDebug.print(" 0x");
 		//		ZDebug.print(packet[i], HEX);
 		//	}
-		ZDebug.println();
-#endif
+
 		data[0] = 0x61;
 		data[1] = 0x82;
 		EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
@@ -588,7 +616,7 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 	if ((currentMillis - z21IPpreviousMillis) > z21IPinterval)
 	{
 		z21IPpreviousMillis = currentMillis;
-		for (byte i = 0; i < z21clientMAX; i++)
+		for (uint8_t i = 0; i < z21clientMAX; i++)
 		{
 			if (ActIP[i].time > 0)
 			{
@@ -605,9 +633,9 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 
 //--------------------------------------------------------------------------------------------
 //Zustand der Gleisversorgung setzten
-void z21Class::setPower(byte state)
+void setPower(uint8_t state)
 {
-	byte data[] = {LAN_X_BC_TRACK_POWER, 0x00};
+	uint8_t data[] = {LAN_X_BC_TRACK_POWER, 0x00};
 	Railpower = state;
 	switch (state)
 	{
@@ -629,24 +657,23 @@ void z21Class::setPower(byte state)
 		break;
 	}
 	EthSend(0, 0x07, LAN_X_Header, data, true, Z21bcAll_s);
-#if defined(SERIALDEBUG)
-	ZDebug.print("set_X_BC_TRACK_POWER ");
-	ZDebug.println(state, HEX);
-#endif
+	ESP_LOGI(Z21_PARSER_TAG, "set_X_BC_TRACK_POWER ");
+	//ZDebug.println(state, HEX);
+
 }
 
 //--------------------------------------------------------------------------------------------
 //Abfrage letzte Meldung �ber Gleispannungszustand
-byte z21Class::getPower()
+uint8_t getPower()
 {
 	return Railpower;
 }
 
 //--------------------------------------------------------------------------------------------
-//return request for POM read byte
-void z21Class::setCVPOMBYTE(uint16_t CVAdr, uint8_t value)
+//return request for POM read uint8_t
+void setCVPOMBYTE(uint16_t CVAdr, uint8_t value)
 {
-	byte data[5];
+	uint8_t data[5];
 	data[0] = 0x64;								 //X-Header
 	data[1] = 0x14;								 //DB0
 	data[2] = (CVAdr >> 8) & 0x3F; //CV_MSB;
@@ -657,9 +684,9 @@ void z21Class::setCVPOMBYTE(uint16_t CVAdr, uint8_t value)
 
 //--------------------------------------------------------------------------------------------
 //Gibt aktuellen Lokstatus an Anfragenden Zur�ck
-void z21Class::setLocoStateFull(int Adr, byte steps, byte speed, byte F0, byte F1, byte F2, byte F3, bool bc)
+void setLocoStateFull(int Adr, uint8_t steps, uint8_t speed, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool bc)
 {
-	byte data[9];
+	uint8_t data[9];
 	data[0] = LAN_X_LOCO_INFO; //0xEF X-HEADER
 	data[1] = (Adr >> 8) & 0x3F;
 	data[2] = Adr & 0xFF;
@@ -683,13 +710,13 @@ void z21Class::setLocoStateFull(int Adr, byte steps, byte speed, byte F0, byte F
 
 //--------------------------------------------------------------------------------------------
 //return state of S88 sensors
-void z21Class::setS88Data(byte *data, byte modules)
+void setS88Data(uint8_t *data, uint8_t modules)
 {
-	// split data into 11 bytes blocks (1 packet address + 10 data)
-	byte MAdr = 1;		 // module number in packet
-	byte datasend[11]; // array holding the data to be sent (1 packet address + 10 modules data)
+	// split data into 11 uint8_ts blocks (1 packet address + 10 data)
+	uint8_t MAdr = 1;  // module number in packet
+	uint8_t datasend[11]; // array holding the data to be sent (1 packet address + 10 modules data)
 	datasend[0] = 0;	 // fisrt byte is the packet address
-	for (byte m = 0; m < modules; m++)
+	for (uint8_t m = 0; m < modules; m++)
 	{
 		datasend[MAdr] = data[m];
 		MAdr++;
@@ -714,14 +741,14 @@ void z21Class::setS88Data(byte *data, byte modules)
 
 //--------------------------------------------------------------------------------------------
 //return state from LN detector
-void z21Class::setLNDetector(byte *data, byte DataLen)
+void setLNDetector(uint8_t *data, uint8_t DataLen)
 {
 	EthSend(0, 0x04 + DataLen, LAN_LOCONET_DETECTOR, data, false, Z21bcLocoNetGBM_s); //LAN_LOCONET_DETECTOR
 }
 
 //--------------------------------------------------------------------------------------------
 //LN Meldungen weiterleiten
-void z21Class::setLNMessage(byte *data, byte DataLen, byte bcType, bool TX)
+void setLNMessage(uint8_t *data, uint8_t DataLen, uint8_t bcType, bool TX)
 {
 	if (TX)																																 //Send by Z21 or Receive a Packet?
 		EthSend(0, 0x04 + DataLen, LAN_LOCONET_Z21_TX, data, false, bcType); //LAN_LOCONET_Z21_TX
@@ -731,9 +758,9 @@ void z21Class::setLNMessage(byte *data, byte DataLen, byte bcType, bool TX)
 
 //--------------------------------------------------------------------------------------------
 //return state from CAN detector
-void z21Class::setCANDetector(uint16_t NID, uint16_t Adr, uint8_t port, uint8_t typ, uint16_t v1, uint16_t v2)
+void setCANDetector(uint16_t NID, uint16_t Adr, uint8_t port, uint8_t typ, uint16_t v1, uint16_t v2)
 {
-	byte data[10];
+	uint8_t data[10];
 	data[0] = NID & 0x08;
 	data[1] = NID >> 8;
 	data[2] = Adr & 0x08;
@@ -749,9 +776,9 @@ void z21Class::setCANDetector(uint16_t NID, uint16_t Adr, uint8_t port, uint8_t 
 
 //--------------------------------------------------------------------------------------------
 //Return the state of accessory
-void z21Class::setTrntInfo(uint16_t Adr, bool State)
+void setTrntInfo(uint16_t Adr, bool State)
 {
-	byte data[4];
+	uint8_t data[4];
 	data[0] = LAN_X_TURNOUT_INFO; //0x43 X-HEADER
 	data[1] = Adr >> 8;						//High
 	data[2] = Adr & 0xFF;					//Low
@@ -764,9 +791,9 @@ void z21Class::setTrntInfo(uint16_t Adr, bool State)
 
 //--------------------------------------------------------------------------------------------
 //Return CV Value for Programming
-void z21Class::setCVReturn(uint16_t CV, uint8_t value)
+void setCVReturn(uint16_t CV, uint8_t value)
 {
-	byte data[5];
+	uint8_t data[5];
 	data[0] = 0x64;			 //X-Header
 	data[1] = 0x14;			 //DB0
 	data[2] = CV >> 8;	 //CV_MSB;
@@ -777,9 +804,9 @@ void z21Class::setCVReturn(uint16_t CV, uint8_t value)
 
 //--------------------------------------------------------------------------------------------
 //Return no ACK from Decoder
-void z21Class::setCVNack()
+void setCVNack()
 {
-	byte data[2];
+	uint8_t data[2];
 	data[0] = 0x61; //X-Header
 	data[1] = 0x13; //DB0
 	EthSend(0, 0x07, LAN_X_Header, data, true, Z21bcAll_s);
@@ -787,9 +814,9 @@ void z21Class::setCVNack()
 
 //--------------------------------------------------------------------------------------------
 //Return Short while Programming
-void z21Class::setCVNackSC()
+void setCVNackSC()
 {
-	byte data[2];
+	uint8_t data[2];
 	data[0] = 0x61; //X-Header
 	data[1] = 0x12; //DB0
 	EthSend(0, 0x07, LAN_X_Header, data, true, Z21bcAll_s);
@@ -797,9 +824,9 @@ void z21Class::setCVNackSC()
 
 //--------------------------------------------------------------------------------------------
 //Send Changing of SystemInfo
-void z21Class::sendSystemInfo(byte client, uint16_t maincurrent, uint16_t mainvoltage, uint16_t temp)
+void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, uint16_t temp)
 {
-	byte data[16];
+	uint8_t data[16];
 	data[0] = maincurrent & 0xFF; //MainCurrent mA
 	data[1] = maincurrent >> 8;		//MainCurrent mA
 	data[2] = data[0];						//ProgCurrent mA
@@ -829,7 +856,7 @@ void z21Class::sendSystemInfo(byte client, uint16_t maincurrent, uint16_t mainvo
 	data[14] = 0x00;							//reserved
 	data[15] = 0x00;							//reserved
 	if (client > 0)
-		EthSend(client, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcNone);	//only to the request client
+	EthSend(client, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcNone);	//only to the request client
 	EthSend(0, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcSystemInfo_s); //all that select this message (Abo)
 }
 
@@ -837,12 +864,12 @@ void z21Class::sendSystemInfo(byte client, uint16_t maincurrent, uint16_t mainvo
 // Functions only available to other functions in this library *******************************************************
 
 //--------------------------------------------------------------------------------------------
-void z21Class::EthSend(byte client, unsigned int DataLen, unsigned int Header, byte *dataString, boolean withXOR, byte BC)
+void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC)
 {
-	byte data[24]; //z21 send storage
-	byte clientOut = client;
+	uint8_t data[24]; //z21 send storage
+	uint8_t clientOut = client;
 
-	for (byte i = 0; i < z21clientMAX; i++)
+	for (uint8_t i = 0; i < z21clientMAX; i++)
 	{
 		if ((BC == 0) || (BC == Z21bcAll_s) || ((ActIP[i].time > 0) && ((BC & ActIP[i].BCFlag) > 0)))
 		{ //Boradcast & Noch aktiv
@@ -862,7 +889,7 @@ void z21Class::EthSend(byte client, unsigned int DataLen, unsigned int Header, b
 			data[3] = Header >> 8;
 			data[DataLen - 1] = 0; //XOR
 
-			for (byte i = 0; i < (DataLen - 5 + !withXOR); i++)
+			for (uint8_t i = 0; i < (DataLen - 5 + !withXOR); i++)
 			{ //Ohne Length und Header und XOR
 				if (withXOR)
 					data[DataLen - 1] = data[DataLen - 1] ^ *dataString;
@@ -875,21 +902,22 @@ void z21Class::EthSend(byte client, unsigned int DataLen, unsigned int Header, b
 			if (notifyz21EthSend)
 				notifyz21EthSend(clientOut, data); //, DataLen);
 
-#if defined(SERIALDEBUG)
-			ZDebug.print("ETX ");
+			ESP_LOGI(Z21_PARSER_TAG, "ETX ");
+			uint8_t
+				/*
 			ZDebug.print(clientOut);
 			ZDebug.print(" BC:");
 			ZDebug.print(BC & ActIP[i].BCFlag, BIN);
 			ZDebug.print(" : ");
-			for (byte i = 0; i < data[0]; i++)
+			for (uint8_t i = 0; i < data[0]; i++)
 			{
 				ZDebug.print(data[i], HEX);
 				ZDebug.print(" ");
 			}
 			ZDebug.println();
-#endif
+			*/
 
-			if (BC == 0 || (BC == Z21bcAll_s && clientOut == 0)) //END when no BC
+				if (BC == 0 || (BC == Z21bcAll_s && clientOut == 0)) //END when no BC
 				return;
 		}
 	}
@@ -897,7 +925,7 @@ void z21Class::EthSend(byte client, unsigned int DataLen, unsigned int Header, b
 
 //--------------------------------------------------------------------------------------------
 //Convert local stored flag back into a Z21 Flag
-unsigned long z21Class::getz21BcFlag(byte flag)
+unsigned long getz21BcFlag(uint8_t flag)
 {
 	unsigned long outFlag = 0;
 	if ((flag & Z21bcAll_s) != 0)
@@ -921,9 +949,9 @@ unsigned long z21Class::getz21BcFlag(byte flag)
 
 //--------------------------------------------------------------------------------------------
 //Convert Z21 LAN BC flag to local stored flag
-byte z21Class::getLocalBcFlag(unsigned long flag)
+uint8_t getLocalBcFlag(unsigned long flag)
 {
-	byte outFlag = 0;
+	uint8_t outFlag = 0;
 	if ((flag & Z21bcAll) != 0)
 		outFlag |= Z21bcAll_s;
 	if ((flag & Z21bcRBus) != 0)
@@ -945,7 +973,7 @@ byte z21Class::getLocalBcFlag(unsigned long flag)
 
 //--------------------------------------------------------------------------------------------
 // delete the stored IP-Address
-void z21Class::clearIP(byte pos)
+void clearIP(uint8_t pos)
 {
 	ActIP[pos].client = 0;
 	ActIP[pos].BCFlag = 0;
@@ -953,14 +981,14 @@ void z21Class::clearIP(byte pos)
 }
 
 //--------------------------------------------------------------------------------------------
-void z21Class::clearIPSlots()
+void clearIPSlots()
 {
 	for (int i = 0; i < z21clientMAX; i++)
 		clearIP(i);
 }
 
 //--------------------------------------------------------------------------------------------
-void z21Class::clearIPSlot(byte client)
+void clearIPSlot(uint8_t client)
 {
 	for (int i = 0; i < z21clientMAX; i++)
 	{
@@ -973,17 +1001,17 @@ void z21Class::clearIPSlot(byte client)
 }
 
 //--------------------------------------------------------------------------------------------
-byte z21Class::addIPToSlot(byte client, byte BCFlag)
+uint8_t addIPToSlot(uint8_t client, uint8_t BCFlag)
 {
-	byte Slot = z21clientMAX;
-	for (byte i = 0; i < z21clientMAX; i++)
+	uint8_t Slot = z21clientMAX;
+	for (uint8_t i = 0; i < z21clientMAX; i++)
 	{
 		if (ActIP[i].client == client)
 		{
 			ActIP[i].time = z21ActTimeIP;
 			if (BCFlag != 0) //Falls BC Flag �bertragen wurde diesen hinzuf�gen!
 				ActIP[i].BCFlag = BCFlag;
-			return ActIP[i].BCFlag; //BC Flag 4. Byte R�ckmelden
+			return ActIP[i].BCFlag; //BC Flag 4. uint8_t R�ckmelden
 		}
 		else if (ActIP[i].time == 0 && Slot == z21clientMAX)
 			Slot = i;
@@ -991,5 +1019,159 @@ byte z21Class::addIPToSlot(byte client, byte BCFlag)
 	ActIP[Slot].client = client;
 	ActIP[Slot].time = z21ActTimeIP;
 	setPower(Railpower);
-	return ActIP[Slot].BCFlag; //BC Flag 4. Byte R�ckmelden
+	return ActIP[Slot].BCFlag; //BC Flag 4. uint8_t R�ckmelden
+}
+
+// Store IP in list and return it's index
+uint8_t addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, uint16_t port)
+{
+	//suche ob IP schon vorhanden?
+	for (uint8_t i = 0; i < storedIP; i++)
+	{
+		if (mem[i].IP0 == ip0 && mem[i].IP1 == ip1 && mem[i].IP2 == ip2 && mem[i].IP3 == ip3)
+			return i + 1;
+	}
+	if (storedIP >= maxIP)
+		return 0;
+	mem[storedIP].IP0 = ip0;
+	mem[storedIP].IP1 = ip1;
+	mem[storedIP].IP2 = ip2;
+	mem[storedIP].IP3 = ip3;
+	mem[storedIP].port = port;
+	storedIP++;
+	return storedIP;
+}
+
+//--------------------------------------------------------------------------------------------
+// z21 library callback functions
+//--------------------------------------------------------------------------------------------
+void notifyz21RailPower(uint8_t State)
+{
+#if defined(DEBUGSERIAL)
+	DEBUGSERIAL.print("Power: ");
+	DEBUGSERIAL.println(State, HEX);
+#endif
+	XpressNet.setPower(State);
+}
+
+//--------------------------------------------------------------------------------------------
+void notifyz21EthSend(uint8_t client, uint8_t *data)
+{
+	if (client == 0)
+	{ //all stored
+		for (uint8_t i = 0; i < storedIP; i++)
+		{
+			IPAddress ip(mem[i].IP0, mem[i].IP1, mem[i].IP2, mem[i].IP3);
+			//Udp.beginPacket(ip, mem[i].port); //Broadcast
+			//Udp.write(data, data[0]);
+			//Udp.endPacket();
+		}
+	}
+	else
+	{
+		IPAddress ip(mem[client - 1].IP0, mem[client - 1].IP1, mem[client - 1].IP2, mem[client - 1].IP3);
+		//Udp.beginPacket(ip, mem[client - 1].port); //no Broadcast
+		//Udp.write(data, data[0]);
+		//Udp.endPacket();
+	}
+}
+
+void notifyz21getSystemInfo(uint8_t client)
+{
+	uint8_t data[16];
+	data[0] = 0x00;					 //MainCurrent mA
+	data[1] = 0x00;					 //MainCurrent mA
+	data[2] = 0x00;					 //ProgCurrent mA
+	data[3] = 0x00;					 //ProgCurrent mA
+	data[4] = 0x00;					 //FilteredMainCurrent
+	data[5] = 0x00;					 //FilteredMainCurrent
+	data[6] = 0x20;					 //Temperature
+	data[7] = 0x20;					 //Temperature
+	data[8] = 0x0F;					 //SupplyVoltage
+	data[9] = 0x00;					 //SupplyVoltage
+	data[10] = 0x00;				 //VCCVoltage
+	data[11] = 0x03;				 //VCCVoltage
+	data[12] = XpressNet.getPower(); //CentralState
+	data[13] = 0x00;				 //CentralStateEx
+	data[14] = 0x00;				 //reserved
+	data[15] = 0x00;				 //reserved
+	notifyz21EthSend(client, data);
+}
+
+//--------------------------------------------------------------------------------------------
+static void udp_server_task(void *pvParameters)
+{
+	char rx_buffer[128];
+	char tx_buffer[128];
+	char addr_str[128];
+	int addr_family = (int)pvParameters;
+	int ip_protocol = 0;
+	struct sockaddr_in6 dest_addr;
+
+	while (1)
+	{
+		struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
+		dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
+		dest_addr_ip4->sin_family = AF_INET;
+		dest_addr_ip4->sin_port = htons(PORT);
+		ip_protocol = IPPROTO_IP;
+
+		int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+		if (sock < 0)
+		{
+			ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+			break;
+		}
+		ESP_LOGI(TAG, "Socket created");
+
+		int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+		if (err < 0)
+		{
+			ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
+		}
+		ESP_LOGI(TAG, "Socket bound, port %d", PORT);
+
+		while (1)
+		{
+
+			ESP_LOGI(TAG, "Waiting for data");
+			struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
+			socklen_t socklen = sizeof(source_addr);
+			int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
+
+			// Error occurred during receiving
+			if (len < 0)
+			{
+				ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
+				break;
+			}
+			// Data received
+			else
+			{
+				// Get the sender's ip address as string
+
+				ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+
+				rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
+				ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
+				ESP_LOGI(TAG, "%s", rx_buffer);
+				ESP_LOG_BUFFER_HEXDUMP(TAG, rx_buffer, len, ESP_LOG_INFO);
+
+				int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
+				if (err < 0)
+				{
+					ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+					break;
+				}
+			}
+		}
+
+		if (sock != -1)
+		{
+			ESP_LOGE(TAG, "Shutting down socket and restarting...");
+			shutdown(sock, 0);
+			close(sock);
+		}
+	}
+	vTaskDelete(NULL);
 }

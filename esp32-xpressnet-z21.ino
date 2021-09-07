@@ -12,8 +12,6 @@
 //#define XNetRS485_TX 4   // RS485 TX pin
 //#define XNetRS485_RX 2   // RS485 RX pin
 
-
-#define ARDUINO_ESP32
 // S88n interface
 // #define S88DataPin 15 //S88 Data IN
 // #define S88ClkPin 13 //S88 Clock
