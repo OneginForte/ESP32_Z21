@@ -49,9 +49,18 @@
 //--------------------------------------------------------------
 #define z21Port 21105      // local port to listen on
 #define PORT z21Port
+
+#define Z21_UDP_TX_MAX_SIZE 128 // max received UDP packet size
+
+#define CONFIG_EXAMPLE_IPV4
+
+// Init local variables
+unsigned char packetBuffer[Z21_UDP_TX_MAX_SIZE];
+
 //**************************************************************
 static const char *Z21_TASK_TAG = "Z21_TASK";
 static const char *Z21_PARSER_TAG = "Z21_PARSER";
+static const char *Z21_SENDER_TAG = "Z21_SENDER";
 
 //**************************************************************
 //Firmware-Version der Z21:
@@ -96,6 +105,22 @@ struct TypeActIP {
   uint8_t time;		 //Zeit
 };
 
+// IP settings
+#define maxIP 20 //Total number of storred IP address (clients)
+
+typedef struct // Structure to hold IP's and ports
+{
+	uint8_t IP0;
+	uint8_t IP1;
+	uint8_t IP2;
+	uint8_t IP3;
+	uint16_t port;
+} listofIP;
+
+listofIP mem[maxIP]; // IP storage
+
+volatile uint8_t rx_buffer[128];
+
 //Variables:
 uint8_t Railpower;				   //state of the railpower
 long z21IPpreviousMillis;	   // will store last time of IP decount updated
@@ -111,7 +136,7 @@ uint8_t getPower();			  //Zusand Gleisspannung ausgeben
 void setCVPOMBYTE(uint16_t CVAdr, uint8_t value); //POM write byte return
 
 void setLocoStateFull(int Adr, uint8_t steps, uint8_t speed, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool bc); //send Loco state
-unsigned long getz21BcFlag(uint8_t flag);																			   //Convert local stored flag back into a Z21 Flag
+																		 
 
 void setS88Data(uint8_t *data, uint8_t modules); //return state of S88 sensors
 
@@ -130,7 +155,7 @@ void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, 
 
 extern void notifyz21getSystemInfo(uint8_t client) __attribute__((weak));
 
-extern void notifyz21EthSend(uint8_t client, uint8_t *data) __attribute__((weak));
+extern void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t len) __attribute__((weak));
 
 extern void notifyz21LNdetector(uint8_t typ, uint16_t Adr) __attribute__((weak));
 extern uint8_t notifyz21LNdispatch(uint8_t Adr2, uint8_t Adr) __attribute__((weak));
@@ -161,12 +186,12 @@ void clearIPSlots(void);
 void clearIPSlot(uint8_t client);
 
 void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC);
-unsigned long getz21BcFlag(uint8_t flag);
+uint32_t getz21BcFlag(uint8_t flag); //Convert local stored flag back into a Z21 Flag
 uint8_t getLocalBcFlag(uint32_t flag);
 void clearIP(uint8_t pos);
 uint8_t addIPToSlot(uint8_t client, uint8_t BCFlag);
 uint8_t addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, uint16_t port);
 void notifyz21RailPower(uint8_t State);
-void notifyz21EthSend(uint8_t client, uint8_t *data);
+
 void notifyz21getSystemInfo(uint8_t client);
 static void udp_server_task(void *pvParameters);

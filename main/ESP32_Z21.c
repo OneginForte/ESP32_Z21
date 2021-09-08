@@ -45,25 +45,7 @@ SOFTWARE.
 #include "z21header.h"
 #include "z21.h"
 
-#define Z21_UDP_TX_MAX_SIZE 128 // max received UDP packet size
 
-#define CONFIG_EXAMPLE_IPV4
-
-// IP settings
-#define maxIP 20 //Total number of storred IP address (clients)
-typedef struct   // Structure to hold IP's and ports
-{
-    uint8_t IP0;
-    uint8_t IP1;
-    uint8_t IP2;
-    uint8_t IP3;
-    uint16_t port;
-} listofIP;
-listofIP mem[maxIP]; // IP storage
-uint8_t storedIP = 0;   // number of currently stored IPs
-
-// Init local variables
-unsigned char packetBuffer[Z21_UDP_TX_MAX_SIZE];
 
 
 /* @brief tag used for ESP serial console messages */
@@ -73,6 +55,85 @@ static const int RX_BUF_SIZE = 1024;
 
 #define TXD_PIN (GPIO_NUM_17)
 #define RXD_PIN (GPIO_NUM_16)
+
+static void udp_server_task(void *pvParameters)
+{
+    //uint8_t rx_buffer[128];
+    char addr_str[128];
+    int addr_family = (int)pvParameters;
+    int ip_protocol = 0;
+    struct sockaddr_in dest_addr;
+
+    while (1)
+    {
+        struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
+        dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
+        dest_addr_ip4->sin_family = AF_INET;
+        dest_addr_ip4->sin_port = htons(PORT);
+        ip_protocol = IPPROTO_IP;
+
+        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+        if (sock < 0)
+        {
+            ESP_LOGE(Z21_TASK_TAG, "Unable to create socket: errno %d", errno);
+            break;
+        }
+        ESP_LOGI(Z21_TASK_TAG, "Socket created: %d", sock);
+
+        int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+        if (err < 0)
+        {
+            ESP_LOGE(Z21_TASK_TAG, "Socket unable to bind: errno %d", errno);
+        }
+        ESP_LOGI(Z21_TASK_TAG, "Socket bound, port %d", PORT);
+
+        while (1)
+        {
+
+            ESP_LOGI(Z21_TASK_TAG, "Waiting for data");
+            struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
+            socklen_t socklen = sizeof(source_addr);
+            int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
+
+            // Error occurred during receiving
+            if (len < 0)
+            {
+                ESP_LOGE(Z21_TASK_TAG, "recvfrom failed: errno %d", errno);
+                break;
+            }
+            // Data received
+            else
+            {
+                // Get the sender's ip address as string
+                inet_ntoa_r(((struct sockaddr_in *)&source_addr)->sin_addr, addr_str, sizeof(addr_str) - 1);
+                
+                //ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+                uint8_t client = addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), sock);
+                receive(client, rx_buffer);
+
+                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
+                ESP_LOGI(Z21_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
+                //ESP_LOGI(Z21_TASK_TAG, "%s", rx_buffer);
+                ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, rx_buffer, len, ESP_LOG_INFO);
+
+                int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
+                if (err < 0)
+                {
+                    ESP_LOGE(Z21_TASK_TAG, "Error occurred during sending: errno %d", errno);
+                    break;
+                }
+            }
+        }
+
+        if (sock != -1)
+        {
+            ESP_LOGE(Z21_TASK_TAG, "Shutting down socket and restarting...");
+            shutdown(sock, 0);
+            close(sock);
+        }
+    }
+    vTaskDelete(NULL);
+}
 
 void init_p50x(void) {
     const uart_config_t uart_config = {
@@ -146,18 +207,16 @@ void cb_connection_ok(void *pvParameter)
 
     /* transform IP to human readable string */
     char str_ip[16];
+    
     esp_ip4addr_ntoa(&param->ip_info.ip, str_ip, IP4ADDR_STRLEN_MAX);
 
     ESP_LOGI(TAG, "I have a connection and my IP is %s!", str_ip);
 
     ESP_ERROR_CHECK(example_connect());
 
-#ifdef CONFIG_EXAMPLE_IPV4
     xTaskCreate(udp_server_task, "udp_server", 4096, (void *)AF_INET, 5, NULL);
-#endif
-#ifdef CONFIG_EXAMPLE_IPV6
-    xTaskCreate(udp_server_task, "udp_server", 4096, (void *)AF_INET6, 5, NULL);
-#endif
+
+
 }
 void cb_connection_off(void *pvParameter)
 {

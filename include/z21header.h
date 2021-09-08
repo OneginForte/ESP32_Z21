@@ -75,7 +75,7 @@
 #define Z21bcRBus 0x00000002
 #define Z21bcRBus_s 0b00000010
 #define Z21bcRailcom 0x00000004 //RailCom-Daten für Abo Loks
-#define Z21bcRailcom_s 0x100
+#define Z21bcRailcom_s 0x10
 
 #define Z21bcSystemInfo 0x00000100 //LAN_SYSTEMSTATE_DATACHANGED
 #define Z21bcSystemInfo_s 0b00000100
@@ -97,8 +97,8 @@
 
 //ab FW Version 1.29:
 #define Z21bcRailComAll 0x00040000 //alles: Änderungen bei RailCom-Daten ohne Lok Abo! -> LAN_RAILCOM_DATACHANGED
-#define Z21bcRailComAll_s 0x200
+#define Z21bcRailComAll_s 0x20
 
 //ab FW Version 1.30:
 #define Z21bcCANDetector 0x00080000 //Meldungen vom Gelisbesetztmeldern am CAN-Bus
-#define Z21bcCANDetector_s 0x400
+#define Z21bcCANDetector_s 0x40

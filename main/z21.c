@@ -14,14 +14,14 @@
 // include this library's description file
 #include <z21.h>
 #include <z21header.h>
-#include "esptimer.h"
+#include "esp_timer.h"
 
 //need to include eeprom
 
 
 // Function that handles the creation and setup of instances
 
-
+uint8_t storedIP = 0; // number of currently stored IPs
 
 void z21Class()
 {
@@ -40,6 +40,7 @@ bool bitRead(uint8_t order, uint8_t num)
 //Daten ermitteln und Auswerten
 void receive(uint8_t client, uint8_t *packet)
 {
+	ESP_LOGI(Z21_PARSER_TAG, "Parser start.");
 	addIPToSlot(client, 0);
 	// send a reply, to the IP address and port that sent us the packet we received
 	int header = (packet[3] << 8) + packet[2];
@@ -267,6 +268,8 @@ void receive(uint8_t client, uint8_t *packet)
 		if (notifyz21RailPower)
 			notifyz21RailPower(Railpower); //Zustand Gleisspannung Antworten
 		ESP_LOGI(Z21_PARSER_TAG, "SET_BROADCASTFLAGS: ");
+		//ESP_LOGI(Z21_PARSER_TAG, "%d", );
+
 		//ZDebug.println(addIPToSlot(client, 0x00), BIN);
 // 1=BC Power, Loco INFO, Trnt INFO; 2=BC �nderungen der R�ckmelder am R-Bus
 
@@ -606,6 +609,7 @@ ZDebug.println();
 		//		ZDebug.print(" 0x");
 		//		ZDebug.print(packet[i], HEX);
 		//	}
+		ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, sizeof(packet), ESP_LOG_INFO);
 
 		data[0] = 0x61;
 		data[1] = 0x82;
@@ -692,11 +696,11 @@ void setLocoStateFull(int Adr, uint8_t steps, uint8_t speed, uint8_t F0, uint8_t
 	data[1] = (Adr >> 8) & 0x3F;
 	data[2] = Adr & 0xFF;
 	// Fahrstufeninformation: 0=14, 2=28, 4=128
-	if (steps & 0x03 == DCCSTEP14)
+	if ((steps & 0x03) == DCCSTEP14)
 		data[3] = 0; // 14 steps
-	if (steps & 0x03 == DCCSTEP28)
+	if ((steps & 0x03) == DCCSTEP28)
 		data[3] = 2; // 28 steps
-	if (steps & 0x03 == DCCSTEP128)
+	if ((steps & 0x03) == DCCSTEP128)
 		data[3] = 4;																													// 128 steps
 	data[4] = speed;																												//DSSS SSSS
 	data[5] = F0;																														//F0, F4, F3, F2, F1
@@ -901,10 +905,11 @@ void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t 
 			//--------------------------------------------
 			//Udp->endPacket();
 			if (notifyz21EthSend)
-				notifyz21EthSend(clientOut, data); //, DataLen);
+				notifyz21EthSend(clientOut, data, sizeof(data));
 
-			ESP_LOGI(Z21_PARSER_TAG, "ETX ");
-			uint8_t
+			ESP_LOGI(Z21_PARSER_TAG, "ETX:");
+			ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, data, sizeof(data), ESP_LOG_INFO);
+			//uint8_t
 				/*
 			ZDebug.print(clientOut);
 			ZDebug.print(" BC:");
@@ -918,17 +923,18 @@ void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t 
 			ZDebug.println();
 			*/
 
-				if (BC == 0 || (BC == Z21bcAll_s && clientOut == 0)) //END when no BC
+				if ((BC == 0) || ((BC == Z21bcAll_s) && (clientOut == 0))) //END when no BC
 				return;
+				
 		}
 	}
 }
 
 //--------------------------------------------------------------------------------------------
 //Convert local stored flag back into a Z21 Flag
-unsigned long getz21BcFlag(uint8_t flag)
+uint32_t getz21BcFlag(uint8_t flag)
 {
-	unsigned long outFlag = 0;
+	uint32_t outFlag = 0;
 	if ((flag & Z21bcAll_s) != 0)
 		outFlag |= Z21bcAll;
 	if ((flag & Z21bcRBus_s) != 0)
@@ -1048,32 +1054,127 @@ uint8_t addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, uint16_t port)
 //--------------------------------------------------------------------------------------------
 void notifyz21RailPower(uint8_t State)
 {
-#if defined(DEBUGSERIAL)
-	DEBUGSERIAL.print("Power: ");
-	DEBUGSERIAL.println(State, HEX);
-#endif
-	XpressNet.setPower(State);
+//#if defined(DEBUGSERIAL)
+	//DEBUGSERIAL.print("Power: ");
+	//DEBUGSERIAL.println(State, HEX);
+//#endif
+	setPower(State);
 }
 
 //--------------------------------------------------------------------------------------------
-void notifyz21EthSend(uint8_t client, uint8_t *data)
+void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 {
+	//char tx_buffer[128];
+	char addr_str[128];
+	uint8_t recvbuff[128];
+	char host_ip[] = HOST_IP_ADDR;
+	int addr_family = 0;
+	int ip_protocol = 0;
+
+	struct sockaddr_in dest_addr;
+	dest_addr.sin_addr.s_addr = inet_addr(HOST_IP_ADDR);
+	dest_addr.sin_family = AF_INET;
+	dest_addr.sin_port = htons(PORT);
+	addr_family = AF_INET;
+	ip_protocol = IPPROTO_IP;
+
+	struct sockaddr_storage dest_addr = {0};
+
+	int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+
+	if (sock < 0)
+	{
+		ESP_LOGE(Z21_SENDER_TAG, "Unable to create socket: errno %d", errno);
+		return;
+	}
+	ESP_LOGI(Z21_SENDER_TAG, "Socket created: %d", sock);
+
 	if (client == 0)
 	{ //all stored
-		for (uint8_t i = 0; i < storedIP; i++)
-		{
-			IPAddress ip(mem[i].IP0, mem[i].IP1, mem[i].IP2, mem[i].IP3);
+		//for (uint8_t i = 0; i < storedIP; i++)
+		//{
+			int bc = 1;
+			if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &bc, sizeof(bc)) < 0)
+			{
+				ESP_LOGE(Z21_SENDER_TAG, "Error in setting Broadcast option: errno %d", errno);
+				closesocket(sock);
+				return;
+			}
+
+			struct sockaddr_in Dest_addr;
+
+			Dest_addr.sin_family = AF_INET;
+			Dest_addr.sin_port = htons(PORT);
+			Dest_addr.sin_addr.s_addr = inet_addr("192.168.1.255");
+			//INADDR_BROADCAST;
+
+			// Recv_addr.sin_addr.s_addr = inet_addr("172.30.255.255");
+			int err = sendto(sock, data, datalen, 0, (struct sockaddr *)&Dest_addr, sizeof(Dest_addr));
+
+			if (err < 0)
+			{
+				ESP_LOGE(Z21_SENDER_TAG, "Error occurred during sending: errno %d", errno);
+				closesocket(sock);
+				return;
+			}
+
+			struct sockaddr_storage Recv_addr; // Large enough for both IPv4 or IPv6
+			socklen_t socklen = sizeof(Recv_addr);
+
+			int len = recvfrom(sock, recvbuff, sizeof(recvbuff) - 1, 0, (struct sockaddr *)&Recv_addr, &socklen);
+			//recvfrom(sock, recvbuff, sizeof(recvbuff), 0, (struct sockaddr *)&Recv_addr, &len);
+
+			ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&Recv_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+			ESP_LOGI(Z21_SENDER_TAG, "Send broadcast %d bytes to %s:", datalen, addr_str);
+			ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
+
+
+			//IPAddress ip(mem[i].IP0, mem[i].IP1, mem[i].IP2, mem[i].IP3);
 			//Udp.beginPacket(ip, mem[i].port); //Broadcast
 			//Udp.write(data, data[0]);
 			//Udp.endPacket();
-		}
+			//}
 	}
 	else
 	{
-		IPAddress ip(mem[client - 1].IP0, mem[client - 1].IP1, mem[client - 1].IP2, mem[client - 1].IP3);
+		struct sockaddr_in Dest_addr; // Large enough for both IPv4 or IPv6
+		//int len = sizeof(struct sockaddr_in);
+		//socklen_t socklen = sizeof(Recv_addr);
+		
+		ip4_addr_t Addr;
+		Dest_addr.sin_family = AF_INET;
+		Dest_addr.sin_port = htons(PORT);
+		IP4_ADDR(&Addr, mem[client - 1].IP0, mem[client - 1].IP1, mem[client - 1].IP2, mem[client - 1].IP3);
+		Dest_addr.sin_addr.s_addr = Addr.addr;
+
+		int err = sendto(sock, data, datalen, 0, (struct sockaddr *)&Dest_addr, sizeof(Dest_addr));
+		if (err < 0)
+		{
+			ESP_LOGE(Z21_TASK_TAG, "Error occurred during sending: errno %d", errno);
+			closesocket(sock);
+			return;
+		}
+
+		struct sockaddr_storage Recv_addr; // Large enough for both IPv4 or IPv6
+		socklen_t socklen = sizeof(Recv_addr);
+		int len = recvfrom(sock, recvbuff, sizeof(recvbuff) - 1, 0, (struct sockaddr *)&Recv_addr, &socklen);
+
+		ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&Recv_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+		ESP_LOGI(Z21_SENDER_TAG, "Send %d bytes to %s:", datalen, addr_str);
+		ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
+
+
+		//sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
+		//IPAddress ip(mem[client - 1].IP0, mem[client - 1].IP1, mem[client - 1].IP2, mem[client - 1].IP3);
 		//Udp.beginPacket(ip, mem[client - 1].port); //no Broadcast
 		//Udp.write(data, data[0]);
 		//Udp.endPacket();
+	}
+	if (sock != -1)
+	{
+		ESP_LOGE(Z21_SENDER_TAG, "Shutting down socket and restarting...");
+		shutdown(sock, 0);
+		close(sock);
 	}
 }
 
@@ -1092,87 +1193,11 @@ void notifyz21getSystemInfo(uint8_t client)
 	data[9] = 0x00;					 //SupplyVoltage
 	data[10] = 0x00;				 //VCCVoltage
 	data[11] = 0x03;				 //VCCVoltage
-	data[12] = XpressNet.getPower(); //CentralState
+	data[12] = getPower(); //CentralState
 	data[13] = 0x00;				 //CentralStateEx
 	data[14] = 0x00;				 //reserved
 	data[15] = 0x00;				 //reserved
-	notifyz21EthSend(client, data);
+	notifyz21EthSend(client, data, sizeof(data));
 }
 
 //--------------------------------------------------------------------------------------------
-static void udp_server_task(void *pvParameters)
-{
-	char rx_buffer[128];
-	char tx_buffer[128];
-	char addr_str[128];
-	int addr_family = (int)pvParameters;
-	int ip_protocol = 0;
-	struct sockaddr_in6 dest_addr;
-
-	while (1)
-	{
-		struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
-		dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
-		dest_addr_ip4->sin_family = AF_INET;
-		dest_addr_ip4->sin_port = htons(PORT);
-		ip_protocol = IPPROTO_IP;
-
-		int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
-		if (sock < 0)
-		{
-			ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
-			break;
-		}
-		ESP_LOGI(TAG, "Socket created");
-
-		int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-		if (err < 0)
-		{
-			ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
-		}
-		ESP_LOGI(TAG, "Socket bound, port %d", PORT);
-
-		while (1)
-		{
-
-			ESP_LOGI(TAG, "Waiting for data");
-			struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
-			socklen_t socklen = sizeof(source_addr);
-			int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
-
-			// Error occurred during receiving
-			if (len < 0)
-			{
-				ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
-				break;
-			}
-			// Data received
-			else
-			{
-				// Get the sender's ip address as string
-
-				ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
-
-				rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
-				ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
-				ESP_LOGI(TAG, "%s", rx_buffer);
-				ESP_LOG_BUFFER_HEXDUMP(TAG, rx_buffer, len, ESP_LOG_INFO);
-
-				int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
-				if (err < 0)
-				{
-					ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-					break;
-				}
-			}
-		}
-
-		if (sock != -1)
-		{
-			ESP_LOGE(TAG, "Shutting down socket and restarting...");
-			shutdown(sock, 0);
-			close(sock);
-		}
-	}
-	vTaskDelete(NULL);
-}
