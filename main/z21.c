@@ -14,6 +14,7 @@
 // include this library's description file
 #include <z21.h>
 #include <z21header.h>
+#include "esptimer.h"
 
 //need to include eeprom
 
@@ -612,7 +613,7 @@ ZDebug.println();
 	}
 	//---------------------------------------------------------------------------------------
 	//check if IP is still used:
-	unsigned long currentMillis = millis();
+	unsigned long currentMillis = (unsigned long)(esp_timer_get_time() / 1000);
 	if ((currentMillis - z21IPpreviousMillis) > z21IPinterval)
 	{
 		z21IPpreviousMillis = currentMillis;
@@ -949,7 +950,7 @@ unsigned long getz21BcFlag(uint8_t flag)
 
 //--------------------------------------------------------------------------------------------
 //Convert Z21 LAN BC flag to local stored flag
-uint8_t getLocalBcFlag(unsigned long flag)
+uint8_t getLocalBcFlag(uint32_t flag)
 {
 	uint8_t outFlag = 0;
 	if ((flag & Z21bcAll) != 0)

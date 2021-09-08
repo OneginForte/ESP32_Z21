@@ -162,7 +162,7 @@ void clearIPSlot(uint8_t client);
 
 void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC);
 unsigned long getz21BcFlag(uint8_t flag);
-uint8_t getLocalBcFlag(unsigned long flag);
+uint8_t getLocalBcFlag(uint32_t flag);
 void clearIP(uint8_t pos);
 uint8_t addIPToSlot(uint8_t client, uint8_t BCFlag);
 uint8_t addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, uint16_t port);

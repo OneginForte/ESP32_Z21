@@ -69,31 +69,31 @@
 
 //**************************************************************
 //Z21 BC Flags
-#define Z21bcNone 0b00000000
-#define Z21bcAll uint32_t(0x00000001)
+#define Z21bcNone (uint32_t)0x00000000
+#define Z21bcAll 0x00000001
 #define Z21bcAll_s 0b00000001
 #define Z21bcRBus 0x00000002
-#define Z21bcRBus_s 0x00000010
+#define Z21bcRBus_s 0b00000010
 #define Z21bcRailcom 0x00000004 //RailCom-Daten für Abo Loks
 #define Z21bcRailcom_s 0x100
 
 #define Z21bcSystemInfo 0x00000100 //LAN_SYSTEMSTATE_DATACHANGED
-#define Z21bcSystemInfo_s 0x00000100
+#define Z21bcSystemInfo_s 0b00000100
 
 //ab FW Version 1.20:
 #define Z21bcNetAll 0x00010000 // Alles, auch alle Loks ohne vorher die Lokadresse abonnieren zu müssen (für PC Steuerung)
-#define Z21bcNetAll_s 0x00001000
+#define Z21bcNetAll_s 0b00001000
 
 #define Z21bcLocoNet 0x01000000 // LocoNet Meldungen an LAN Client weiterleiten (ohne Loks und Weichen)
-#define Z21bcLocoNet_s 0x00010000
+#define Z21bcLocoNet_s 0b00010000
 #define Z21bcLocoNetLocos 0x02000000 // Lok-spezifische LocoNet Meldungen an LAN Client weiterleiten
-#define Z21bcLocoNetLocos_s 0x00100000
+#define Z21bcLocoNetLocos_s 0b00100000
 #define Z21bcLocoNetSwitches 0x04000000 // Weichen-spezifische LocoNet Meldungen an LAN Client weiterleiten
-#define Z21bcLocoNetSwitches_s 0x01000000
+#define Z21bcLocoNetSwitches_s 0b01000000
 
 //ab FW Version 1.22:
 #define Z21bcLocoNetGBM 0x08000000 //Status-Meldungen von Gleisbesetztmeldern am LocoNet-Bus
-#define Z21bcLocoNetGBM_s 0x10000000
+#define Z21bcLocoNetGBM_s 0b10000000
 
 //ab FW Version 1.29:
 #define Z21bcRailComAll 0x00040000 //alles: Änderungen bei RailCom-Daten ohne Lok Abo! -> LAN_RAILCOM_DATACHANGED
