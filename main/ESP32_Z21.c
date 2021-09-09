@@ -58,7 +58,7 @@ static const int RX_BUF_SIZE = 1024;
 
 static void udp_server_task(void *pvParameters)
 {
-    //uint8_t rx_buffer[128];
+    uint8_t rx_buffer[128];
     char addr_str[128];
     int addr_family = (int)pvParameters;
     int ip_protocol = 0;
@@ -104,10 +104,17 @@ static void udp_server_task(void *pvParameters)
             // Data received
             else
             {
+                int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
+
+                if (err < 0)
+                {
+                    ESP_LOGE(Z21_TASK_TAG, "Error occurred during sending: errno %d", errno);
+                    break;
+                }
                 // Get the sender's ip address as string
-                inet_ntoa_r(((struct sockaddr_in *)&source_addr)->sin_addr, addr_str, sizeof(addr_str) - 1);
                 
-                //ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+                ip4addr_ntoa_r((const ip4_addr_t*)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+
                 uint8_t client = addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), sock);
                 
                 receive(client, rx_buffer);
@@ -117,12 +124,7 @@ static void udp_server_task(void *pvParameters)
                 //ESP_LOGI(Z21_TASK_TAG, "%s", rx_buffer);
                 ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, rx_buffer, len, ESP_LOG_INFO);
 
-                int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
-                if (err < 0)
-                {
-                    ESP_LOGE(Z21_TASK_TAG, "Error occurred during sending: errno %d", errno);
-                    break;
-                }
+
             }
         }
 
@@ -222,7 +224,7 @@ void cb_connection_ok(void *pvParameter)
 void cb_connection_off(void *pvParameter)
 {
     //ip_event_got_ip_t *param = (ip_event_got_ip_t *)pvParameter;
-    //example_disconnect();
+    example_disconnect();
     ESP_LOGI(TAG, "I do not have connection. Stop UDP!");
 }
 

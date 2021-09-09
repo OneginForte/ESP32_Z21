@@ -59,8 +59,7 @@ unsigned char packetBuffer[Z21_UDP_TX_MAX_SIZE];
 
 //**************************************************************
 static const char *Z21_TASK_TAG = "Z21_TASK";
-static const char *Z21_PARSER_TAG = "Z21_PARSER";
-static const char *Z21_SENDER_TAG = "Z21_SENDER";
+
 
 //**************************************************************
 //Firmware-Version der Z21:
@@ -119,7 +118,7 @@ typedef struct // Structure to hold IP's and ports
 
 listofIP mem[maxIP]; // IP storage
 
-volatile uint8_t rx_buffer[128];
+//volatile uint8_t rx_buffer[128];
 
 //Variables:
 uint8_t Railpower;				   //state of the railpower

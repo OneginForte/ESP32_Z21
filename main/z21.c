@@ -20,6 +20,8 @@
 
 
 // Function that handles the creation and setup of instances
+static const char *Z21_PARSER_TAG = "Z21_PARSER";
+static const char *Z21_SENDER_TAG = "Z21_SENDER";
 
 uint8_t storedIP = 0; // number of currently stored IPs
 
@@ -1064,21 +1066,24 @@ void notifyz21RailPower(uint8_t State)
 //--------------------------------------------------------------------------------------------
 void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 {
-	//char tx_buffer[128];
+	//char rx_buffer[128];
 	char addr_str[128];
 	uint8_t recvbuff[128];
-	char host_ip[] = HOST_IP_ADDR;
+
 	int addr_family = 0;
 	int ip_protocol = 0;
+	ESP_LOGI(Z21_SENDER_TAG, "Hello in sender. Client is %d", client);
 
-	struct sockaddr_in dest_addr;
-	dest_addr.sin_addr.s_addr = inet_addr(HOST_IP_ADDR);
-	dest_addr.sin_family = AF_INET;
-	dest_addr.sin_port = htons(PORT);
+	struct sockaddr_in Dest_addr;
+
+	ip4_addr_t Addr;
+	IP4_ADDR(&Addr, mem[client - 1].IP0, mem[client - 1].IP1, mem[client - 1].IP2, mem[client - 1].IP3);
+	Dest_addr.sin_addr.s_addr = Addr.addr;
+
+	Dest_addr.sin_family = AF_INET;
+	Dest_addr.sin_port = htons(PORT);
 	addr_family = AF_INET;
 	ip_protocol = IPPROTO_IP;
-
-	struct sockaddr_storage dest_addr = {0};
 
 	int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
 
@@ -1087,12 +1092,11 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 		ESP_LOGE(Z21_SENDER_TAG, "Unable to create socket: errno %d", errno);
 		return;
 	}
+
 	ESP_LOGI(Z21_SENDER_TAG, "Socket created: %d", sock);
 
 	if (client == 0)
-	{ //all stored
-		//for (uint8_t i = 0; i < storedIP; i++)
-		//{
+	{ 
 			int bc = 1;
 			if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &bc, sizeof(bc)) < 0)
 			{
@@ -1101,13 +1105,10 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 				return;
 			}
 
-			struct sockaddr_in Dest_addr;
-
-			Dest_addr.sin_family = AF_INET;
-			Dest_addr.sin_port = htons(PORT);
-			Dest_addr.sin_addr.s_addr = inet_addr("192.168.1.255");
+			Dest_addr.sin_addr.s_addr = INADDR_BROADCAST;
 			//INADDR_BROADCAST;
-
+			//int socklen = sizeof(struct sockaddr_in);
+			socklen_t socklen = sizeof(Dest_addr);
 			// Recv_addr.sin_addr.s_addr = inet_addr("172.30.255.255");
 			int err = sendto(sock, data, datalen, 0, (struct sockaddr *)&Dest_addr, sizeof(Dest_addr));
 
@@ -1117,17 +1118,24 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 				closesocket(sock);
 				return;
 			}
+    		/*		
+			int len = recvfrom(sock, recvbuff, sizeof(recvbuff), 0, (struct sockaddr *)&Dest_addr, &socklen);
 
-			struct sockaddr_storage Recv_addr; // Large enough for both IPv4 or IPv6
-			socklen_t socklen = sizeof(Recv_addr);
-
-			int len = recvfrom(sock, recvbuff, sizeof(recvbuff) - 1, 0, (struct sockaddr *)&Recv_addr, &socklen);
-			//recvfrom(sock, recvbuff, sizeof(recvbuff), 0, (struct sockaddr *)&Recv_addr, &len);
-
-			ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&Recv_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
-			ESP_LOGI(Z21_SENDER_TAG, "Send broadcast %d bytes to %s:", datalen, addr_str);
-			ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
-
+			sendto(sock,sendMSG,strlen(sendMSG)+1,0,(sockaddr *)&Recv_addr,sizeof(Recv_addr));
+			int len = sizeof(struct sockaddr_in);
+		    recvfrom(sock,recvbuff,recvbufflen,0,(sockaddr *)&Recv_addr,&len);
+			*/
+			int len = 1;
+			if (len < 0) {
+            ESP_LOGE(Z21_SENDER_TAG, "recvfrom failed: errno %d", errno);
+            return;
+            }
+			else
+			{
+			ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&Dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+			ESP_LOGI(Z21_SENDER_TAG, "Send broadcast %d bytes to %s:", len, addr_str);
+			ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, recvbuff, len, ESP_LOG_INFO);
+			}
 
 			//IPAddress ip(mem[i].IP0, mem[i].IP1, mem[i].IP2, mem[i].IP3);
 			//Udp.beginPacket(ip, mem[i].port); //Broadcast
@@ -1137,33 +1145,31 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 	}
 	else
 	{
-		struct sockaddr_in Dest_addr; // Large enough for both IPv4 or IPv6
-		//int len = sizeof(struct sockaddr_in);
-		//socklen_t socklen = sizeof(Recv_addr);
-		
-		ip4_addr_t Addr;
-		Dest_addr.sin_family = AF_INET;
-		Dest_addr.sin_port = htons(PORT);
-		IP4_ADDR(&Addr, mem[client - 1].IP0, mem[client - 1].IP1, mem[client - 1].IP2, mem[client - 1].IP3);
-		Dest_addr.sin_addr.s_addr = Addr.addr;
 
-		int err = sendto(sock, data, datalen, 0, (struct sockaddr *)&Dest_addr, sizeof(Dest_addr));
+		int err = sendto(sock, data, datalen+1, 0, (struct sockaddr *)&Dest_addr, sizeof(Dest_addr));
 		if (err < 0)
 		{
-			ESP_LOGE(Z21_TASK_TAG, "Error occurred during sending: errno %d", errno);
+			ESP_LOGE(Z21_SENDER_TAG, "Error occurred during sending: errno %d", errno);
 			closesocket(sock);
 			return;
 		}
 
-		struct sockaddr_storage Recv_addr; // Large enough for both IPv4 or IPv6
-		socklen_t socklen = sizeof(Recv_addr);
-		int len = recvfrom(sock, recvbuff, sizeof(recvbuff) - 1, 0, (struct sockaddr *)&Recv_addr, &socklen);
+		//struct sockaddr_storage Recv_addr; // Large enough for both IPv4 or IPv6
+		//int socklen = sizeof(struct sockaddr_in);
+		socklen_t socklen = sizeof(Dest_addr);
+		int len = recvfrom(sock, recvbuff, sizeof(recvbuff), 0, (struct sockaddr *)&Dest_addr, &socklen);
 
-		ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&Recv_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
-		ESP_LOGI(Z21_SENDER_TAG, "Send %d bytes to %s:", datalen, addr_str);
-		ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
+		if (len < 0) {
+            ESP_LOGE(Z21_SENDER_TAG, "recvfrom failed: errno %d", errno);
+            return;
+            }
+		{
+		recvbuff[len] = 0; // Null-terminate whatever we received and treat like a string
+		ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&Dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+		ESP_LOGI(Z21_SENDER_TAG, "Send %d bytes to %s:", len, addr_str);
+		ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, recvbuff, len, ESP_LOG_INFO);
 
-
+		}
 		//sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
 		//IPAddress ip(mem[client - 1].IP0, mem[client - 1].IP1, mem[client - 1].IP2, mem[client - 1].IP3);
 		//Udp.beginPacket(ip, mem[client - 1].port); //no Broadcast
