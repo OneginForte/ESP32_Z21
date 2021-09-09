@@ -109,6 +109,7 @@ static void udp_server_task(void *pvParameters)
                 
                 //ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                 uint8_t client = addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), sock);
+                
                 receive(client, rx_buffer);
 
                 rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
