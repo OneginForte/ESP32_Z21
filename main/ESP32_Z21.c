@@ -58,11 +58,11 @@ static const int RX_BUF_SIZE = 1024;
 
 static void udp_client_task(void *pvParameters)
 {
-    char rx_buffer[128];
+    //char rx_buffer[128];
     //char host_ip[] = HOST_IP_ADDR;
     char addr_str[128];
-    int addr_family = 0;
-    int ip_protocol = 0;
+    //int addr_family = 0;
+    //int ip_protocol = 0;
     txBflag = 0;
     ESP_LOGI(Z21_SENDER_TAG, "Sender task started");
     while (1)
@@ -70,8 +70,8 @@ static void udp_client_task(void *pvParameters)
         struct sockaddr_in dest_addr;
         dest_addr.sin_family = AF_INET;
         dest_addr.sin_port = htons(PORT);
-        addr_family = AF_INET;
-        ip_protocol = IPPROTO_IP;
+        //addr_family = AF_INET;
+        //ip_protocol = IPPROTO_IP;
         //int sock=0;
             //struct sockaddr_storage dest_addr = {0};
             //ESP_ERROR_CHECK(get_addr_from_stdin(PORT, SOCK_DGRAM, &ip_protocol, &addr_family, &dest_addr));
@@ -87,14 +87,16 @@ static void udp_client_task(void *pvParameters)
         ESP_LOGI(Z21_SENDER_TAG, "Socket created: %d", sock);
         */
             //ESP_LOGI(Z21_SENDER_TAG, "Sending to %s %d bytes", addr_str, txBlen);
-            //int opt = 1;
-        //setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
+  
         while (1)
         {
             //ESP_LOGI(Z21_SENDER_TAG, "Wait to send...");
             if (txBflag)
             {
-                dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);//txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
+                int opt = 1;
+                setsockopt(txBsock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
+                            
+                dest_addr.sin_addr.s_addr = txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
                 ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                 ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s:", addr_str);
                 ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, (uint8_t *)&txBuffer, txBlen, ESP_LOG_INFO);
@@ -107,7 +109,7 @@ static void udp_client_task(void *pvParameters)
                     txBflag = 0;
                     break;
                 }
-                ESP_LOGI(Z21_SENDER_TAG, "%d bytes send, wait answer.", txBlen);
+                ESP_LOGI(Z21_SENDER_TAG, "%d bytes send.", txBlen);
                 txBflag = 0;
                 break;
                 /*
@@ -285,8 +287,27 @@ void monitoring_task(void *pvParameter)
 {
     for (;;)
     {
-        ESP_LOGI(TAG, "free heap: %d", esp_get_free_heap_size());
+        //ESP_LOGI(TAG, "free heap: %d", esp_get_free_heap_size());
         vTaskDelay(pdMS_TO_TICKS(10000));
+        /*
+        unsigned long currentMillis = esp_timer_get_time() / 1000;
+        
+        if (currentMillis - z21IPpreviousMillis > z21IPinterval)
+        {
+            z21IPpreviousMillis = currentMillis;
+            for (int i = 0; i < maxIP; i++)
+            {
+                if (ActIP[i].ip3 != 0)
+                { //Slot nicht leer?
+                    if (ActIP[i].time > 0)
+                        ActIP[i].time--; //Zeit herrunterrechnen
+                    else
+                    {
+                        clearIPSlot(i); //clear IP DATA
+                    }
+                }
+            }
+        }*/
     }
 }
 
@@ -328,7 +349,7 @@ void app_main()
     wifi_manager_set_callback(WM_EVENT_STA_DISCONNECTED, &cb_connection_off);
 
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
-    //xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 2048, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 2048, NULL, 1, NULL, 1);
  
     init_p50x();
     txBlen=0;

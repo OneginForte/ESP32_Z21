@@ -1083,6 +1083,7 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 			txBsock = mem[i].port;
 			memcpy((uint8_t *)&txBuffer, data, datalen);
 			txBflag=1;
+			while(txBflag){};
 			//Udp.beginPacket(ip, mem[i].port); //Broadcast
 			//Udp.write(data, data[0]);
 			//Udp.endPacket();
@@ -1108,23 +1109,27 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 
 void notifyz21getSystemInfo(uint8_t client)
 {
-	uint8_t data[16];
-	data[0] = 0x00;					 //MainCurrent mA
-	data[1] = 0x00;					 //MainCurrent mA
-	data[2] = 0x00;					 //ProgCurrent mA
-	data[3] = 0x00;					 //ProgCurrent mA
-	data[4] = 0x00;					 //FilteredMainCurrent
-	data[5] = 0x00;					 //FilteredMainCurrent
-	data[6] = 0x20;					 //Temperature
-	data[7] = 0x20;					 //Temperature
-	data[8] = 0x0F;					 //SupplyVoltage
-	data[9] = 0x00;					 //SupplyVoltage
-	data[10] = 0x00;				 //VCCVoltage
-	data[11] = 0x03;				 //VCCVoltage
-	data[12] = getPower(); //CentralState
-	data[13] = 0x00;				 //CentralStateEx
-	data[14] = 0x00;				 //reserved
-	data[15] = 0x00;				 //reserved
+	uint8_t data[20];
+	data[0] = 0x14;
+	data[1] = 0x00;	
+	data[2] = 0x80;
+	data[3] = 0x00;
+	data[4] = 0x00;					 //MainCurrent mA
+	data[5] = 0x00;					 //MainCurrent mA
+	data[6] = 0x00;					 //ProgCurrent mA
+	data[7] = 0x00;					 //ProgCurrent mA
+	data[8] = 0x00;					 //FilteredMainCurrent
+	data[9] = 0x00;					 //FilteredMainCurrent
+	data[10] = 0x20;					 //Temperature
+	data[11] = 0x20;					 //Temperature
+	data[12] = 0x0F;					 //SupplyVoltage
+	data[13] = 0x00;					 //SupplyVoltage
+	data[14] = 0x00;				 //VCCVoltage
+	data[15] = 0x03;				 //VCCVoltage
+	data[16] = getPower(); //CentralState
+	data[17] = 0x00;				 //CentralStateEx
+	data[18] = 0x00;				 //reserved
+	data[19] = 0x00;				 //reserved
 	notifyz21EthSend(client, data, sizeof(data));
 }
 

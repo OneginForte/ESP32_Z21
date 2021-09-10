@@ -106,10 +106,16 @@ HwType: #define D_HWT_Z21_OLD 0x00000200 // �schwarze Z21� (Hardware-Variant
 #define DCCSTEP28	0x02
 #define DCCSTEP128	0x03
 
-struct TypeActIP {
-  uint8_t client;    // Byte client
-  uint8_t BCFlag;	 //BoadCastFlag - see Z21type.h
-  uint8_t time;		 //Zeit
+struct TypeActIP
+{
+  uint8_t ip0;    // Byte IP
+  uint8_t ip1;    // Byte IP
+  uint8_t ip2;    // Byte IP
+  uint8_t ip3;    // Byte IP
+  uint8_t BCFlag; //BoadCastFlag 4. Byte Speichern
+  uint8_t time;   //Zeit
+  uint16_t port;
+  uint8_t client;
 };
 
 // IP settings
@@ -138,6 +144,7 @@ void z21Class(void); //Constuctor
 void receive(uint8_t client, uint8_t *packet); //Pr�fe auf neue Ethernet Daten
 
 void setPower(uint8_t state); //Zustand Gleisspannung Melden
+
 uint8_t getPower();			  //Zusand Gleisspannung ausgeben
 
 void setCVPOMBYTE(uint16_t CVAdr, uint8_t value); //POM write byte return
@@ -160,34 +167,34 @@ void setCVNackSC();							  //Return Short while Programming
 
 void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, uint16_t temp); //Send to all clients that request via BC the System Information
 
-extern void notifyz21getSystemInfo(uint8_t client) __attribute__((weak));
+void notifyz21getSystemInfo(uint8_t client) __attribute__((weak));
 
-extern void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t len) __attribute__((weak));
+ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t len) __attribute__((weak));
 
-extern void notifyz21LNdetector(uint8_t typ, uint16_t Adr) __attribute__((weak));
-extern uint8_t notifyz21LNdispatch(uint8_t Adr2, uint8_t Adr) __attribute__((weak));
-extern void notifyz21LNSendPacket(uint8_t *data, uint8_t length) __attribute__((weak));
+ void notifyz21LNdetector(uint8_t typ, uint16_t Adr) __attribute__((weak));
+ uint8_t notifyz21LNdispatch(uint8_t Adr2, uint8_t Adr) __attribute__((weak));
+ void notifyz21LNSendPacket(uint8_t *data, uint8_t length) __attribute__((weak));
 
-extern void notifyz21CANdetector(uint8_t typ, uint16_t ID) __attribute__((weak));
+ void notifyz21CANdetector(uint8_t typ, uint16_t ID) __attribute__((weak));
 
-extern void notifyz21RailPower(uint8_t State) __attribute__((weak));
+ void notifyz21RailPower(uint8_t State) __attribute__((weak));
 
-extern void notifyz21CVREAD(uint8_t cvAdrMSB, uint8_t cvAdrLSB) __attribute__((weak));
-extern void notifyz21CVWRITE(uint8_t cvAdrMSB, uint8_t cvAdrLSB, uint8_t value) __attribute__((weak));
-extern void notifyz21CVPOMWRITEBYTE(uint16_t Adr, uint16_t cvAdr, uint8_t value) __attribute__((weak));
-extern void notifyz21CVPOMREADBYTE(uint16_t Adr, uint16_t cvAdr) __attribute__((weak));
+ void notifyz21CVREAD(uint8_t cvAdrMSB, uint8_t cvAdrLSB) __attribute__((weak));
+ void notifyz21CVWRITE(uint8_t cvAdrMSB, uint8_t cvAdrLSB, uint8_t value) __attribute__((weak));
+ void notifyz21CVPOMWRITEBYTE(uint16_t Adr, uint16_t cvAdr, uint8_t value) __attribute__((weak));
+ void notifyz21CVPOMREADBYTE(uint16_t Adr, uint16_t cvAdr) __attribute__((weak));
 
-extern uint8_t notifyz21AccessoryInfo(uint16_t Adr) __attribute__((weak));
-extern void notifyz21Accessory(uint16_t Adr, bool state, bool active) __attribute__((weak));
-extern void notifyz21getLocoState(uint16_t Adr, bool bc) __attribute__((weak));
-extern void notifyz21LocoFkt(uint16_t Adr, uint8_t type, uint8_t fkt) __attribute__((weak));
-extern void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps) __attribute__((weak));
+ uint8_t notifyz21AccessoryInfo(uint16_t Adr) __attribute__((weak));
+ void notifyz21Accessory(uint16_t Adr, bool state, bool active) __attribute__((weak));
+ void notifyz21getLocoState(uint16_t Adr, bool bc) __attribute__((weak));
+ void notifyz21LocoFkt(uint16_t Adr, uint8_t type, uint8_t fkt) __attribute__((weak));
+ void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps) __attribute__((weak));
 
-extern void notifyz21S88Data(uint8_t gIndex) __attribute__((weak)); //return last state S88 Data for the Client!
+ void notifyz21S88Data(uint8_t gIndex) __attribute__((weak)); //return last state S88 Data for the Client!
 
-extern uint16_t notifyz21Railcom() __attribute__((weak)); //return global Railcom Adr
+ uint16_t notifyz21Railcom() __attribute__((weak)); //return global Railcom Adr
 
-extern void notifyz21UpdateConf() __attribute__((weak)); //information for DCC via EEPROM (RailCom, ProgMode,...)
+ void notifyz21UpdateConf() __attribute__((weak)); //information for DCC via EEPROM (RailCom, ProgMode,...)
 
 void clearIPSlots(void);
 void clearIPSlot(uint8_t client);
