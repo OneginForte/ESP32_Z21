@@ -5,6 +5,7 @@
         "random": "c",
         "array": "c",
         "string": "c",
-        "string_view": "c"
+        "string_view": "c",
+        "protocol_examples_common.h": "c"
     }
 }

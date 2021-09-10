@@ -56,6 +56,95 @@ static const int RX_BUF_SIZE = 1024;
 #define TXD_PIN (GPIO_NUM_17)
 #define RXD_PIN (GPIO_NUM_16)
 
+static void udp_client_task(void *pvParameters)
+{
+    char rx_buffer[128];
+    //char host_ip[] = HOST_IP_ADDR;
+    char addr_str[128];
+    int addr_family = 0;
+    int ip_protocol = 0;
+    ESP_LOGI(Z21_SENDER_TAG, "Sender task started");
+    while (1)
+    {
+        struct sockaddr_in dest_addr;
+        dest_addr.sin_family = AF_INET;
+        dest_addr.sin_port = htons(PORT);
+        addr_family = AF_INET;
+        ip_protocol = IPPROTO_IP;
+        int sock=0;
+            //struct sockaddr_storage dest_addr = {0};
+            //ESP_ERROR_CHECK(get_addr_from_stdin(PORT, SOCK_DGRAM, &ip_protocol, &addr_family, &dest_addr));
+            /*
+        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+
+        if (sock < 0)
+        {
+            ESP_LOGE(Z21_SENDER_TAG, "Unable to create socket: errno %d", errno);
+            break;
+        }
+        
+        ESP_LOGI(Z21_SENDER_TAG, "Socket created: %d", sock);
+        */
+            //ESP_LOGI(Z21_SENDER_TAG, "Sending to %s %d bytes", addr_str, txBlen);
+            //int opt = 1;
+            //setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
+            while (1)
+        {
+            //ESP_LOGI(Z21_SENDER_TAG, "Wait to send...");
+            while (txBflag)
+            {
+                dest_addr.sin_addr.s_addr = txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
+                ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+                ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s:", addr_str);
+                ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, (uint8_t *)&txBuffer, txBlen, ESP_LOG_INFO);
+
+                int err = sendto(txBsock, (uint8_t *)&txBuffer, txBlen, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+                //int err = send(sock, (uint8_t *)&txBuffer, txBlen, 0);
+                if (err < 0)
+                {
+                    ESP_LOGE(Z21_SENDER_TAG, "Error occurred during sending: errno %d", errno);
+                    txBflag = 0;
+                    break;
+                }
+                ESP_LOGI(Z21_SENDER_TAG, "%d bytes send, wait answer.", txBlen);
+
+                struct sockaddr_storage dest_addr; // Large enough for both IPv4 or IPv6
+                socklen_t socklen = sizeof(dest_addr);
+
+                int len = recvfrom(txBsock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&dest_addr, &socklen);
+
+                // Error occurred during receiving
+                if (len < 0)
+                {
+                    ESP_LOGE(Z21_SENDER_TAG, "Recvfrom failed: errno %d", errno);
+                    txBflag = 0;
+                    break;
+                }
+                // Data received
+                else
+                {
+                    ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+                    ESP_LOGI(Z21_SENDER_TAG, "Send  %d bytes to %s:", len, addr_str);
+                    ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, rx_buffer, len, ESP_LOG_INFO);
+                    txBflag = 0;
+                    txBsock=0;
+                    break;
+                }
+          
+            }
+            //vTaskDelay(2000 / portTICK_PERIOD_MS);
+        }
+
+        if (sock != -1)
+        {
+            ESP_LOGE(Z21_SENDER_TAG, "Shutting down socket and restarting...");
+            shutdown(sock, 0);
+            close(sock);
+        }
+    }
+    vTaskDelete(NULL);
+}
+
 static void udp_server_task(void *pvParameters)
 {
     uint8_t rx_buffer[128];
@@ -63,7 +152,7 @@ static void udp_server_task(void *pvParameters)
     int addr_family = (int)pvParameters;
     int ip_protocol = 0;
     struct sockaddr_in dest_addr;
-
+    ESP_LOGI(Z21_TASK_TAG, "Init server task.");
     while (1)
     {
         struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
@@ -86,19 +175,22 @@ static void udp_server_task(void *pvParameters)
             ESP_LOGE(Z21_TASK_TAG, "Socket unable to bind: errno %d", errno);
         }
         ESP_LOGI(Z21_TASK_TAG, "Socket bound, port %d", PORT);
-
+        ESP_LOGI(Z21_TASK_TAG, "Waiting for data");
         while (1)
         {
-
-            ESP_LOGI(Z21_TASK_TAG, "Waiting for data");
+            while (txBflag)
+            {
+                //yield();
+            }
             struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
             socklen_t socklen = sizeof(source_addr);
+            dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
             int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
 
             // Error occurred during receiving
             if (len < 0)
             {
-                ESP_LOGE(Z21_TASK_TAG, "recvfrom failed: errno %d", errno);
+                ESP_LOGE(Z21_TASK_TAG, "Recvfrom failed: errno %d", errno);
                 break;
             }
             // Data received
@@ -108,7 +200,7 @@ static void udp_server_task(void *pvParameters)
 
                 if (err < 0)
                 {
-                    ESP_LOGE(Z21_TASK_TAG, "Error occurred during sending: errno %d", errno);
+                    ESP_LOGE(Z21_TASK_TAG, "Error occurred during sending reply: errno %d", errno);
                     break;
                 }
                 // Get the sender's ip address as string
@@ -117,14 +209,12 @@ static void udp_server_task(void *pvParameters)
 
                 uint8_t client = addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), sock);
                 
-                receive(client, rx_buffer);
-
-                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
+                //rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
                 ESP_LOGI(Z21_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
                 //ESP_LOGI(Z21_TASK_TAG, "%s", rx_buffer);
                 ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, rx_buffer, len, ESP_LOG_INFO);
 
-
+                receive(client, rx_buffer);
             }
         }
 
@@ -218,8 +308,7 @@ void cb_connection_ok(void *pvParameter)
     ESP_ERROR_CHECK(example_connect());
 
     xTaskCreate(udp_server_task, "udp_server", 4096, (void *)AF_INET, 5, NULL);
-
-
+    xTaskCreate(udp_client_task, "udp_client", 4096, NULL, 5, NULL);
 }
 void cb_connection_off(void *pvParameter)
 {
@@ -240,9 +329,11 @@ void app_main()
     wifi_manager_set_callback(WM_EVENT_STA_DISCONNECTED, &cb_connection_off);
 
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
-    xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 2048, NULL, 1, NULL, 1);
+    //xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 2048, NULL, 1, NULL, 1);
  
     init_p50x();
+    txBlen=0;
+    txBflag=0;
     xTaskCreate(rx_task, "uart_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
     xTaskCreate(tx_task, "uart_tx_task", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
 

@@ -1,3 +1,6 @@
+#ifndef Z_21_H_
+#define Z_21_H_
+
 /*
   z21.h - library for Z21mobile protocoll
   Copyright (c) 2013-2016 Philipp Gahtow  All right reserved.
@@ -55,11 +58,16 @@
 #define CONFIG_EXAMPLE_IPV4
 
 // Init local variables
-unsigned char packetBuffer[Z21_UDP_TX_MAX_SIZE];
-
-//**************************************************************
+uint8_t packetBuffer[Z21_UDP_TX_MAX_SIZE];
+volatile uint8_t txBuffer[Z21_UDP_TX_MAX_SIZE];
+volatile uint8_t txBlen;
+volatile uint8_t txBflag;
+volatile uint16_t txBsock;
+volatile ip4_addr_t txAddr;
+	//**************************************************************
 static const char *Z21_TASK_TAG = "Z21_TASK";
-
+static const char *Z21_PARSER_TAG = "Z21_PARSER";
+static const char *Z21_SENDER_TAG = "Z21_SENDER";
 
 //**************************************************************
 //Firmware-Version der Z21:
@@ -194,3 +202,5 @@ void notifyz21RailPower(uint8_t State);
 
 void notifyz21getSystemInfo(uint8_t client);
 static void udp_server_task(void *pvParameters);
+
+#endif /* Z_21_H_ */

@@ -16,6 +16,8 @@ extern "C" {
 #include "esp_err.h"
 #include "esp_netif.h"
 
+#define CONFIG_EXAMPLE_CONNECT_IPV4
+
 #ifdef CONFIG_EXAMPLE_CONNECT_ETHERNET
 #define EXAMPLE_INTERFACE get_example_netif()
 #endif
@@ -29,7 +31,7 @@ extern "C" {
 #define EXAMPLE_INTERFACE NULL
 #endif
 
-/**
+      /**
  * @brief Configure Wi-Fi or Ethernet, connect, wait for IP
  *
  * This all-in-one helper function is used in protocols examples to
@@ -44,7 +46,8 @@ extern "C" {
  *
  * @return ESP_OK on successful connection
  */
-esp_err_t example_connect(void);
+      esp_err_t
+      example_connect(void);
 
 /**
  * Counterpart to example_connect, de-initializes Wi-Fi or Ethernet
