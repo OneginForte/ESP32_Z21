@@ -126,16 +126,6 @@ CONFIG_PARTITION_TABLE_OFFSET=0x8000
 # end of Partition Table
 
 #
-# Example Connection Configuration
-#
-CONFIG_EXAMPLE_CONNECT_WIFI=y
-CONFIG_EXAMPLE_WIFI_SSID="myssid"
-CONFIG_EXAMPLE_WIFI_PASSWORD="mypassword"
-# CONFIG_EXAMPLE_CONNECT_ETHERNET is not set
-# CONFIG_EXAMPLE_CONNECT_IPV6 is not set
-# end of Example Connection Configuration
-
-#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEFAULT=y

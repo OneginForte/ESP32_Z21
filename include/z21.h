@@ -208,6 +208,6 @@ uint8_t addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, uint16_t port)
 void notifyz21RailPower(uint8_t State);
 
 void notifyz21getSystemInfo(uint8_t client);
-static void udp_server_task(void *pvParameters);
+
 
 #endif /* Z_21_H_ */

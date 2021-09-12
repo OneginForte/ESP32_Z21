@@ -16,13 +16,12 @@
 #include <z21header.h>
 #include "esp_timer.h"
 
-//need to include eeprom
 
+	//need to include eeprom
 
-// Function that handles the creation and setup of instances
+	// Function that handles the creation and setup of instances
 
-
-volatile uint8_t storedIP = 0; // number of currently stored IPs
+	volatile uint8_t storedIP = 0; // number of currently stored IPs
 
 void z21Class()
 {
@@ -906,10 +905,10 @@ void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t 
 			//--------------------------------------------
 			//Udp->endPacket();
 			if (notifyz21EthSend)
-				notifyz21EthSend(clientOut, data, sizeof(data));
+				notifyz21EthSend(clientOut, data, DataLen);
 
-			ESP_LOGI(Z21_PARSER_TAG, "ETX:");
-			ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, data, sizeof(data), ESP_LOG_INFO);
+			ESP_LOGI(Z21_PARSER_TAG, "Eth send...");
+			
 			//uint8_t
 				/*
 			ZDebug.print(clientOut);
@@ -1065,7 +1064,8 @@ void notifyz21RailPower(uint8_t State)
 //--------------------------------------------------------------------------------------------
 void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 {
-	ESP_LOGI(Z21_SENDER_TAG, "Hello in sender. Client is %d", client);
+	ESP_LOGI(Z21_SENDER_TAG, "Hello in notifyz21EthSend. Client is %d, sending data:", client);
+	ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
 	ip4_addr_t Addr;
 	if (client == 0)
 	{ //all stored
@@ -1101,6 +1101,9 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 		txBsock = mem[client-1].port;
 		memcpy((uint8_t *)&txBuffer, data, datalen);
 		txBflag = 1;
+		while (txBflag)
+		{
+		};
 		//Udp.beginPacket(ip, mem[client - 1].port); //no Broadcast
 		//Udp.write(data, data[0]);
 		//Udp.endPacket();
@@ -1130,7 +1133,7 @@ void notifyz21getSystemInfo(uint8_t client)
 	data[17] = 0x00;				 //CentralStateEx
 	data[18] = 0x00;				 //reserved
 	data[19] = 0x00;				 //reserved
-	notifyz21EthSend(client, data, sizeof(data));
+	notifyz21EthSend(client, data, 20);
 }
 
 //--------------------------------------------------------------------------------------------

@@ -35,7 +35,7 @@ SOFTWARE.
 
 #include "wifi_manager.h"
 
-#include "protocol_examples_common.h"
+
 #include "nvs_flash.h"
 
 #include "lwip/err.h"
@@ -44,9 +44,7 @@ SOFTWARE.
 #include <lwip/netdb.h>
 #include "z21header.h"
 #include "z21.h"
-
-
-
+//#include "protocol_examples_common.h"
 
 /* @brief tag used for ESP serial console messages */
 static const char TAG[] = "Z21";
@@ -93,16 +91,16 @@ static void udp_client_task(void *pvParameters)
             //ESP_LOGI(Z21_SENDER_TAG, "Wait to send...");
             if (txBflag)
             {
-                int opt = 1;
-                setsockopt(txBsock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
-                            
+                //int opt = 1;
+                //setsockopt(txBsock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
+
                 dest_addr.sin_addr.s_addr = txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
                 ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                 ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s:", addr_str);
-                ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, (uint8_t *)&txBuffer, txBlen, ESP_LOG_INFO);
+                //ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, (uint8_t *)&txBuffer, txBlen, ESP_LOG_INFO);
 
                 int err = sendto(txBsock, (uint8_t *)&txBuffer, txBlen, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-                //int err = send(sock, (uint8_t *)&txBuffer, txBlen, 0);
+                //int err = send(txBsock, (uint8_t *)&txBuffer, txBlen, 0);
                 if (err < 0)
                 {
                     ESP_LOGE(Z21_SENDER_TAG, "Error occurred during sending: errno %d", errno);
@@ -138,7 +136,7 @@ static void udp_client_task(void *pvParameters)
                 */
           
             }
-            vTaskDelay(200 / portTICK_PERIOD_MS);
+            vTaskDelay(20 / portTICK_PERIOD_MS);
         }
 
     }
@@ -152,7 +150,7 @@ static void udp_server_task(void *pvParameters)
     int addr_family = (int)pvParameters;
     int ip_protocol = 0;
     struct sockaddr_in dest_addr;
-    ESP_LOGI(Z21_TASK_TAG, "Init server task.");
+    ESP_LOGI(Z21_TASK_TAG, "Init server task started.");
     while (1)
     {
         struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
@@ -325,7 +323,7 @@ void cb_connection_ok(void *pvParameter)
 
     ESP_LOGI(TAG, "I have a connection and my IP is %s!", str_ip);
 
-    ESP_ERROR_CHECK(example_connect());
+    //ESP_ERROR_CHECK(example_connect());
 
     xTaskCreate(udp_server_task, "udp_server", 4096, (void *)AF_INET, 5, NULL);
     xTaskCreate(udp_client_task, "udp_client", 4096, NULL, 5, NULL);
@@ -333,7 +331,9 @@ void cb_connection_ok(void *pvParameter)
 void cb_connection_off(void *pvParameter)
 {
     //ip_event_got_ip_t *param = (ip_event_got_ip_t *)pvParameter;
-    example_disconnect();
+    //example_disconnect();
+    vTaskDelete(udp_server_task);
+    vTaskDelete(udp_client_task);
     ESP_LOGI(TAG, "I do not have connection. Stop UDP!");
 }
 

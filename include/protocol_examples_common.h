@@ -46,8 +46,7 @@ extern "C" {
  *
  * @return ESP_OK on successful connection
  */
-      esp_err_t
-      example_connect(void);
+esp_err_t  example_connect(void);
 
 /**
  * Counterpart to example_connect, de-initializes Wi-Fi or Ethernet
