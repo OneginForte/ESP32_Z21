@@ -48,7 +48,7 @@ SOFTWARE.
 
 /* @brief tag used for ESP serial console messages */
 static const char TAG[] = "Z21";
-
+static const char *Z21_TASK_TAG = "Z21_TASK";
 static const int RX_BUF_SIZE = 1024;
 
 #define TXD_PIN (GPIO_NUM_17)
@@ -88,7 +88,6 @@ static void udp_client_task(void *pvParameters)
   
         while (1)
         {
-            //ESP_LOGI(Z21_SENDER_TAG, "Wait to send...");
             if (txBflag)
             {
                 //int opt = 1;
@@ -110,31 +109,6 @@ static void udp_client_task(void *pvParameters)
                 ESP_LOGI(Z21_SENDER_TAG, "%d bytes send.", txBlen);
                 txBflag = 0;
                 break;
-                /*
-                struct sockaddr_storage recv_addr; // Large enough for both IPv4 or IPv6
-                socklen_t socklen = sizeof(recv_addr);
-
-                int len = recvfrom(txBsock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&recv_addr, &socklen);
-
-                // Error occurred during receiving
-                if (len < 0)
-                {
-                    ESP_LOGE(Z21_SENDER_TAG, "Recvfrom failed: errno %d", errno);
-                    txBflag = 0;
-                    break;
-                }
-                // Data received
-                else
-                {
-                    ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
-                    ESP_LOGI(Z21_SENDER_TAG, "Send  %d bytes to %s:", len, addr_str);
-                    ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, rx_buffer, len, ESP_LOG_INFO);
-                    txBflag = 0;
-                    //txBsock=0;
-                    break;
-                }
-                */
-          
             }
             vTaskDelay(20 / portTICK_PERIOD_MS);
         }

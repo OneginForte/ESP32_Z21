@@ -42,7 +42,6 @@
 #include "driver/uart.h"
 #include "driver/gpio.h"
 
-#include "protocol_examples_common.h"
 #include "nvs_flash.h"
 
 #include "lwip/err.h"
@@ -65,8 +64,8 @@ volatile uint8_t txBflag;
 volatile uint16_t txBsock;
 volatile ip4_addr_t txAddr;
 	//**************************************************************
-static const char *Z21_TASK_TAG = "Z21_TASK";
-static const char *Z21_PARSER_TAG = "Z21_PARSER";
+
+
 static const char *Z21_SENDER_TAG = "Z21_SENDER";
 
 //**************************************************************

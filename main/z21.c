@@ -16,12 +16,12 @@
 #include <z21header.h>
 #include "esp_timer.h"
 
+static const char *Z21_PARSER_TAG = "Z21_PARSER";
+//need to include eeprom
 
-	//need to include eeprom
+// Function that handles the creation and setup of instances
 
-	// Function that handles the creation and setup of instances
-
-	volatile uint8_t storedIP = 0; // number of currently stored IPs
+volatile uint8_t storedIP = 0; // number of currently stored IPs
 
 void z21Class()
 {
