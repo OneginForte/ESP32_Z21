@@ -35,7 +35,8 @@ SOFTWARE.
 
 #include "wifi_manager.h"
 
-
+#include "nvs.h"
+#include "nvs_sync.h"
 #include "nvs_flash.h"
 
 #include "lwip/err.h"
@@ -54,6 +55,8 @@ static const int RX_BUF_SIZE = 1024;
 #define TXD_PIN (GPIO_NUM_17)
 #define RXD_PIN (GPIO_NUM_16)
 
+const char z21_nvs_namespace[] = "esp_z21";
+
 static void udp_client_task(void *pvParameters)
 {
     //char rx_buffer[128];
@@ -61,30 +64,15 @@ static void udp_client_task(void *pvParameters)
     char addr_str[128];
     //int addr_family = 0;
     //int ip_protocol = 0;
-    txBflag = 0;
+    
     ESP_LOGI(Z21_SENDER_TAG, "Sender task started");
+    memset(&addr_str, 0x00, sizeof(addr_str));
+
     while (1)
     {
         struct sockaddr_in dest_addr;
         dest_addr.sin_family = AF_INET;
         dest_addr.sin_port = htons(PORT);
-        //addr_family = AF_INET;
-        //ip_protocol = IPPROTO_IP;
-        //int sock=0;
-            //struct sockaddr_storage dest_addr = {0};
-            //ESP_ERROR_CHECK(get_addr_from_stdin(PORT, SOCK_DGRAM, &ip_protocol, &addr_family, &dest_addr));
-            /*
-        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
-
-        if (sock < 0)
-        {
-            ESP_LOGE(Z21_SENDER_TAG, "Unable to create socket: errno %d", errno);
-            break;
-        }
-        
-        ESP_LOGI(Z21_SENDER_TAG, "Socket created: %d", sock);
-        */
-            //ESP_LOGI(Z21_SENDER_TAG, "Sending to %s %d bytes", addr_str, txBlen);
   
         while (1)
         {
@@ -115,6 +103,7 @@ static void udp_client_task(void *pvParameters)
 
     }
     vTaskDelete(NULL);
+    free(addr_str);
 }
 
 static void udp_server_task(void *pvParameters)
@@ -125,6 +114,10 @@ static void udp_server_task(void *pvParameters)
     int ip_protocol = 0;
     struct sockaddr_in dest_addr;
     ESP_LOGI(Z21_TASK_TAG, "Init server task started.");
+
+    //memset(&rx_buffer, 0x00, sizeof(rx_buffer));
+    //memset(&addr_str, 0x00, sizeof(addr_str));
+
     while (1)
     {
         struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
@@ -199,22 +192,11 @@ static void udp_server_task(void *pvParameters)
         }
     }
     vTaskDelete(NULL);
+    //free(rx_buffer);
+    //free(addr_str);
 }
 
-void init_p50x(void) {
-    const uart_config_t uart_config = {
-        .baud_rate = 19200,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_2,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_APB,
-    };
-    // We won't use a buffer for sending data.
-    uart_driver_install(UART_NUM_1, RX_BUF_SIZE * 2, 0, 0, NULL, 0);
-    uart_param_config(UART_NUM_1, &uart_config);
-    uart_set_pin(UART_NUM_1, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-}
+
 
 int sendData(const char* logName, const char* data)
 {
@@ -250,7 +232,23 @@ static void rx_task(void *arg)
     free(data);
 }
 
+void init_p50x(void) {
+    const uart_config_t uart_config = {
+        .baud_rate = 19200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_2,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_APB,
+    };
+    // We won't use a buffer for sending data.
+    uart_driver_install(UART_NUM_1, RX_BUF_SIZE * 2, 0, 0, NULL, 0);
+    uart_param_config(UART_NUM_1, &uart_config);
+    uart_set_pin(UART_NUM_1, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
+    xTaskCreate(rx_task, "uart_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
+    xTaskCreate(tx_task, "uart_tx_task", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+}
 /**
  * @brief RTOS task that periodically prints the heap memory available.
  * @note Pure debug information, should not be ever started on production code! This is an example on how you can integrate your code with wifi-manager
@@ -306,8 +304,8 @@ void cb_connection_off(void *pvParameter)
 {
     //ip_event_got_ip_t *param = (ip_event_got_ip_t *)pvParameter;
     //example_disconnect();
-    vTaskDelete(udp_server_task);
-    vTaskDelete(udp_client_task);
+    //vTaskDelete(udp_server_task);
+    //vTaskDelete(udp_client_task);
     ESP_LOGI(TAG, "I do not have connection. Stop UDP!");
 }
 
@@ -315,21 +313,68 @@ void cb_connection_off(void *pvParameter)
 
 void app_main()
 {
+  	nvs_handle handle;
+	esp_err_t esp_err;
+	size_t sz;
+    bool change = false;
+    txBlen=0;
+    //txBflag=0;
+
+    
+    if (nvs_sync_lock(portMAX_DELAY)){
+    /* read value from flash */
+    	esp_err = nvs_open(z21_nvs_namespace, NVS_READWRITE, &handle);
+		if (esp_err != ESP_OK){
+			nvs_sync_unlock();
+			//return esp_err;
+		}
+
+		//sz = sizeof(txBflag);
+		//esp_err = nvs_get_blob(handle, "Bflag", txBflag , &sz);
+		esp_err = nvs_get_i8(handle, "Bflag", &txBflag);
+        if( (esp_err == ESP_OK  || esp_err == ESP_ERR_NVS_NOT_FOUND)&&txBflag!=0){
+			
+			esp_err = nvs_set_i8(handle, "Bflag", 0);
+			if (esp_err != ESP_OK){
+				nvs_sync_unlock();
+				//return esp_err;
+			}
+			change = true;
+			ESP_LOGI(TAG, "Wrote nope Bflag %d",txBflag);
+		}
+        ESP_LOGI(TAG, "Read stored Bflag %d",txBflag);
+        if(change){
+			esp_err = nvs_commit(handle);
+		}
+        nvs_close(handle);
+		nvs_sync_unlock();
+    }
+
     /* start the wifi manager */
     wifi_manager_start();
+/*
+nvs_handle handle;
+
+if(nvs_sync_lock( portMAX_DELAY )){  
+    if(nvs_open(wifi_manager_nvs_namespace, NVS_READWRITE, &handle) == ESP_OK){
+        // do something with NVS 
+	nvs_close(handle);
+    }
+    nvs_sync_unlock();
+}
+*/
+
 
     /* register a callback as an example to how you can integrate your code with the wifi manager */
     wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
-    wifi_manager_set_callback(WM_EVENT_STA_DISCONNECTED, &cb_connection_off);
+    wifi_manager_set_callback(WM_ORDER_DISCONNECT_STA, &cb_connection_off);
 
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
-    xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 2048, NULL, 1, NULL, 1);
+    //xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 2048, NULL, 1, NULL, 1);
  
     init_p50x();
-    txBlen=0;
-    txBflag=0;
-    xTaskCreate(rx_task, "uart_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
-    xTaskCreate(tx_task, "uart_tx_task", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+
+
 
 
 }

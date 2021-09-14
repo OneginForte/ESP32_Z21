@@ -117,6 +117,8 @@ struct TypeActIP
   uint8_t client;
 };
 
+
+
 // IP settings
 #define maxIP 20 //Total number of storred IP address (clients)
 
