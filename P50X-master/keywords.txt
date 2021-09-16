@@ -1,0 +1,42 @@
+# Datatypes (KEYWORD1)
+
+p50xClass				KEYWORD1
+
+
+# Methods and Functions (KEYWORD2)
+
+FBsend					KEYWORD2
+receive					KEYWORD2
+setPower				KEYWORD2
+setHalt					KEYWORD2
+ReturnPT				KEYWORD2
+xLokStsUpdate				KEYWORD2
+xLokStsTrottle				KEYWORD2
+Packetdata				KEYWORD2
+Packetsize				KEYWORD2
+notifyRS232				KEYWORD2
+notifyLokRequest			KEYWORD2
+notifyLokF1F4Request			KEYWORD2
+notifyLokFuncRequest			KEYWORD2
+notifyLokFunc2Request			KEYWORD2
+notifyLokFunc34Request			KEYWORD2
+notifySwitchRequest			KEYWORD2
+
+notifyPowerRequest			KEYWORD2
+
+notifyXPT_DCCRDRequest			KEYWORD2
+notifyXPT_DCCWDRequest			KEYWORD2
+notifyXPT_DCCRBRequest			KEYWORD2
+notifyXPT_DCCWBRequest			KEYWORD2
+notifyXPT_DCCRPRequest			KEYWORD2
+notifyXPT_DCCWPRequest			KEYWORD2
+notifyXDCC_PDRRequest			KEYWORD2
+notifyXDCC_PDRequest			KEYWORD2
+notifyXPT_TermRequest			KEYWORD2
+
+# Constants (LITERAL1)
+
+XPwrOff					LITERAL1
+XPwrOn					LITERAL1
+XHalt					LITERAL1
+p50xMsg					LITERAL1
