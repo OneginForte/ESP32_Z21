@@ -45,6 +45,10 @@ void receive(uint8_t client, uint8_t *packet)
 	// send a reply, to the IP address and port that sent us the packet we received
 	int header = (packet[3] << 8) + packet[2];
 	uint8_t data[16]; //z21 send storage
+	
+	#if defined(ESP32)
+	portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
+	#endif	
 
 	switch (header)
 	{
@@ -53,7 +57,8 @@ void receive(uint8_t client, uint8_t *packet)
 
 		//ESP_LOGI(Z21_PARSER_TAG, "Socket created");
 
-
+		//data[0] = FSTORAGE.read(CONFz21SnLSB);
+	    //data[1] = FSTORAGE.read(CONFz21SnMSB);
 		data[0] = z21SnLSB;
 		data[1] = z21SnMSB;
 		data[2] = 0x00;
@@ -120,6 +125,10 @@ void receive(uint8_t client, uint8_t *packet)
 				break;
 			case 0x81:
 				ESP_LOGI(Z21_PARSER_TAG, "X_SET_TRACK_POWER_ON");
+			  
+			  data[0] = LAN_X_BC_TRACK_POWER;
+			  data[1] = 0x01;
+			  EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
 
 				if (notifyz21RailPower)
 					notifyz21RailPower(csNormal);
@@ -150,14 +159,14 @@ void receive(uint8_t client, uint8_t *packet)
 				uint8_t Adr = ((packet[6] & 0x3F) << 8) + packet[7];
 				uint8_t CVAdr = ((packet[8] & 0b11000000) << 8) + packet[9];
 				uint8_t value = packet[10];
-				if ((packet[8] >> 2) == 0b11101100)
+				if ((packet[8] & 0xFC) == 0xEC)
 				{
 					ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_WRITE_BYTE");
 
 					if (notifyz21CVPOMWRITEBYTE)
 						notifyz21CVPOMWRITEBYTE(Adr, CVAdr, value); //set decoder
 				}
-				else if ((packet[8] >> 2) == 0b11101000 && value == 0)
+				else if ((packet[8] & 0xFC) == 0xE8)
 				{
 					ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_WRITE_BIT");
 
@@ -189,7 +198,7 @@ void receive(uint8_t client, uint8_t *packet)
 					data[3] = 0x02; //active
 				else
 					data[3] = 0x01;																						 //inactive
-				EthSend(client, 0x09, LAN_X_Header, data, true, Z21bcAll_s); //BC new 23.04. !!! (old = 0)
+				EthSend (client, 0x09, LAN_X_Header, data, true, Z21bcNone); //BC new 23.04. !!! (old = 0)
 			}
 			break;
 		}
@@ -204,6 +213,16 @@ void receive(uint8_t client, uint8_t *packet)
 			} //	Addresse					Links/Rechts			Spule EIN/AUS
 			break;
 		}
+		  case LAN_X_SET_EXT_ACCESSORY: {
+			ESP_LOGI(Z21_PARSER_TAG, "X_SET_EXT_ACCESSORY RAdr");
+			setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
+			break;
+		  }
+		  case LAN_X_GET_EXT_ACCESSORY_INFO: {
+ 			ESP_LOGI(Z21_PARSER_TAG, "X_EXT_ACCESSORY_INFO RArd.");
+			setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
+			break;  
+		  }		
 		case LAN_X_SET_STOP:
 			ESP_LOGI(Z21_PARSER_TAG, "X_SET_STOP");
 
@@ -211,22 +230,31 @@ void receive(uint8_t client, uint8_t *packet)
 				notifyz21RailPower(csEmergencyStop);
 			break;
 		case LAN_X_GET_LOCO_INFO:
+			
 			if (packet[5] == 0xF0)
 			{ //DB0
 				//ZDebug.print("X_GET_LOCO_INFO: ");
 				//Antwort: LAN_X_LOCO_INFO  Adr_MSB - Adr_LSB
-				if (notifyz21getLocoState)
-					notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
+				//if (notifyz21getLocoState)
+				//	notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
+			    uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+				returnLocoStateFull(client, WORD, false);
 				//Antwort via "setLocoStateFull"!
 			}
 			break;
 		case LAN_X_SET_LOCO:
+			//setLocoBusy:
+			
+			uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+			
+			addBusySlot(client,WORD);
+			
 			if (packet[5] == LAN_X_SET_LOCO_FUNCTION)
 			{ //DB0
 				//LAN_X_SET_LOCO_FUNCTION  Adr_MSB        Adr_LSB            Type (00=AUS/01=EIN/10=UM)      Funktion
 				//word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & 0b00111111
 				
-				uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+				
 
 				if (notifyz21LocoFkt)
 					notifyz21LocoFkt(WORD, packet[8] >> 6, packet[8] & 0b00111111);
@@ -241,10 +269,11 @@ void receive(uint8_t client, uint8_t *packet)
 				else if ((packet[5] & 0x03) == 2)
 					steps = 28;
 				
-				uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+				
 				if (notifyz21LocoSpeed)
 					notifyz21LocoSpeed(WORD, packet[8], steps);
 			}
+			returnLocoStateFull(client, WORD, true);
 			break;
 		case LAN_X_GET_FIRMWARE_VERSION:
 			ESP_LOGI(Z21_PARSER_TAG, "X_GET_FIRMWARE_VERSION");
@@ -255,8 +284,26 @@ void receive(uint8_t client, uint8_t *packet)
 			data[3] = z21FWVersionLSB; //V_LSB
 			EthSend(client, 0x09, LAN_X_Header, data, true, Z21bcNone);
 			break;
+		case 0x73:
+			//LAN_X_??? WLANmaus periodische Abfrage: 
+			//0x09 0x00 0x40 0x00 0x73 0x00 0xFF 0xFF 0x00
+			//length X-Header	XNet-Msg			  speed?
+			ESP_LOGI(Z21_PARSER_TAG, "LAN-X_WLANmaus");
+
+			//set Broadcastflags for WLANmaus:
+			if (addIPToSlot(client, 0x00) == 0)
+				addIPToSlot(client, Z21bcAll);
+			break;
+		default:
+			
+			ESP_LOGI(Z21_PARSER_TAG, "UNKNOWN_LAN-X_COMMAND");
+
+			data[0] = 0x61;
+			data[1] = 0x82;
+			EthSend (client, 0x07, LAN_X_Header, data, true, Z21bcNone);	
 		}
 		break;
+		//---------------------- LAN X-Header ENDE ---------------------------	
 	case (LAN_SET_BROADCASTFLAGS):
 	{
 		unsigned long bcflag = packet[7];
@@ -289,10 +336,18 @@ void receive(uint8_t client, uint8_t *packet)
 		break;
 	}
 	case (LAN_GET_LOCOMODE):
+			data[0] = packet[4];
+			data[1] = packet[5];
+			data[2] = 0;	//0=DCC Format; 1=MM Format
+			EthSend (client, 0x07, LAN_GET_LOCOMODE, data, false, Z21bcNone);
 		break;
 	case (LAN_SET_LOCOMODE):
 		break;
 	case (LAN_GET_TURNOUTMODE):
+				data[0] = packet[4];
+			data[1] = packet[5];
+			data[2] = 0;	//0=DCC Format; 1=MM Format
+			EthSend (client, 0x07, LAN_GET_LOCOMODE, data, false, Z21bcNone);
 		break;
 	case (LAN_SET_TURNOUTMODE):
 		break;
@@ -688,31 +743,84 @@ void setCVPOMBYTE(uint16_t CVAdr, uint8_t value)
 }
 
 //--------------------------------------------------------------------------------------------
-//Gibt aktuellen Lokstatus an Anfragenden Zur�ck
-void setLocoStateFull(int Adr, uint8_t steps, uint8_t speed, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool bc)
+//Zustand R�ckmeldung non - Z21 device - Busy!
+void setLocoStateExt (int Adr) 
 {
-	uint8_t data[9];
-	data[0] = LAN_X_LOCO_INFO; //0xEF X-HEADER
+	uint8_t ldata[6];
+	if (notifyz21LocoState)
+		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
+	
+	uint8_t data[9]; 
+	data[0] = LAN_X_LOCO_INFO;  //0xEF X-HEADER
 	data[1] = (Adr >> 8) & 0x3F;
 	data[2] = Adr & 0xFF;
-	// Fahrstufeninformation: 0=14, 2=28, 4=128
-	if ((steps & 0x03) == DCCSTEP14)
-		data[3] = 0; // 14 steps
-	if ((steps & 0x03) == DCCSTEP28)
-		data[3] = 2; // 28 steps
-	if ((steps & 0x03) == DCCSTEP128)
-		data[3] = 4;																													// 128 steps
-	data[4] = speed;																												//DSSS SSSS
-	data[5] = F0;																														//F0, F4, F3, F2, F1
-	data[6] = F1;																														//F5 - F12; Funktion F5 ist bit0 (LSB)
-	data[7] = F2;																														//F13-F20
-	data[8] = F3;																														//F21-F28
-	if (bc)																																	//BC?
-		EthSend(0, 14, LAN_X_Header, data, true, Z21bcAll_s | Z21bcNetAll_s); //Send Power und Funktions to all active Apps
-	else
-		EthSend(0, 14, LAN_X_Header, data, true, Z21bcNone); //Send Power und Funktions to request App
+	// Fahrstufeninformation: 0=14, 2=28, 4=128 
+	if ((ldata[0] & 0x03) == DCCSTEP14)
+		data[3] = 0;	// 14 steps
+	if ((ldata[0] & 0x03) == DCCSTEP28)
+		data[3] = 2;	// 28 steps
+	if ((ldata[0] & 0x03) == DCCSTEP128)		
+		data[3] = 4;	// 128 steps
+	data[3] = data[3] | 0x08; //BUSY!
+		
+	data[4] = (char) ldata[1];	//DSSS SSSS
+	data[5] = (char) ldata[2];    //F0, F4, F3, F2, F1
+	data[6] = (char) ldata[3];    //F5 - F12; Funktion F5 ist bit0 (LSB)
+	data[7] = (char) ldata[4];  //F13-F20
+	data[8] = (char) ldata[5];  //F21-F28
+
+	reqLocoBusy(Adr);
+	
+	EthSend(0, 14, LAN_X_Header, data, true, Z21bcAll_s | Z21bcNetAll_s);  //Send Loco Status und Funktions to all active Apps 
 }
 
+//--------------------------------------------------------------------------------------------
+//Gibt aktuellen Lokstatus an Anfragenden Zur�ck
+void returnLocoStateFull (uint8_t client, uint16_t Adr, bool bc) 
+//bc = true => to inform also other client over the change.
+//bc = false => just ask about the loco state
+{
+	uint8_t ldata[6];
+	if (notifyz21LocoState)
+		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
+	
+	uint8_t data[9]; 
+	data[0] = LAN_X_LOCO_INFO;  //0xEF X-HEADER
+	data[1] = (Adr >> 8) & 0x3F;
+	data[2] = Adr & 0xFF;
+	// Fahrstufeninformation: 0=14, 2=28, 4=128 
+	if ((ldata[0] & 0x03) == DCCSTEP14)
+		data[3] = 0;	// 14 steps
+	if ((ldata[0] & 0x03) == DCCSTEP28)
+		data[3] = 2;	// 28 steps
+	if ((ldata[0] & 0x03) == DCCSTEP128)		
+		data[3] = 4;	// 128 steps
+	data[3] = data[3] | 0x08; //BUSY!
+		
+	data[4] = (char) ldata[1];	//DSSS SSSS
+	data[5] = (char) ldata[2];  //F0, F4, F3, F2, F1
+	data[6] = (char) ldata[3];  //F5 - F12; Funktion F5 ist bit0 (LSB)
+	data[7] = (char) ldata[4];  //F13-F20
+	data[8] = (char) ldata[5];  //F21-F28
+	
+	//Info to all:
+	for (uint8_t i = 0; i < z21clientMAX; i++) {
+		if (ActIP[i].client != client) {
+			if ((ActIP[i].BCFlag & (Z21bcAll_s | Z21bcNetAll_s)) > 0) {
+				if (bc == true)
+					EthSend (ActIP[i].client, 14, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to BC Apps
+			}
+		}
+		else { //Info to client that ask:
+			if (ActIP[i].adr == Adr) {
+				data[3] = data[3] & 0b111;	//clear busy flag!
+			}
+			EthSend (client, 14, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to request App
+			data[3] = data[3] | 0x08; //BUSY!
+		}
+	}
+	
+}
 //--------------------------------------------------------------------------------------------
 //return state of S88 sensors
 void setS88Data(uint8_t *data, uint8_t modules)
@@ -860,9 +968,12 @@ void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, 
 */
 	data[14] = 0x00;							//reserved
 	data[15] = 0x00;							//reserved
-	if (client > 0)
+	if (client > 0){
 	EthSend(client, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcNone);	//only to the request client
+	}else
+	{
 	EthSend(0, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcSystemInfo_s); //all that select this message (Abo)
+	}
 }
 
 // Private Methods ///////////////////////////////////////////////////////////////////////////////////////////////////

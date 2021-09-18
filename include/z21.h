@@ -115,6 +115,7 @@ struct TypeActIP
   uint8_t time;   //Zeit
   uint16_t port;
   uint8_t client;
+  uint16_t adr;		//Loco control Adr
 };
 
 
