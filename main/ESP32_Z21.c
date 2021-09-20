@@ -50,6 +50,7 @@ SOFTWARE.
 /* @brief tag used for ESP serial console messages */
 static const char TAG[] = "Z21";
 static const char *Z21_TASK_TAG = "Z21_TASK";
+static const char *Z21_SENDER_TAG = "Z21_SENDER";
 static const int RX_BUF_SIZE = 1024;
 
 #define TXD_PIN (GPIO_NUM_17)
@@ -313,7 +314,7 @@ void app_main()
 {
   	nvs_handle handle;
 	esp_err_t esp_err;
-	size_t sz;
+	//size_t sz;
     bool change = false;
     txBlen=0;
     storedIP =0;
@@ -330,7 +331,7 @@ void app_main()
 
 		//sz = sizeof(txBflag);
 		//esp_err = nvs_get_blob(handle, "Bflag", txBflag , &sz);
-		esp_err = nvs_get_i8(handle, "Bflag", &txBflag);
+        esp_err = nvs_get_i8(handle, "Bflag", *(uint8_t *)&txBflag);
         if( (esp_err == ESP_OK  || esp_err == ESP_ERR_NVS_NOT_FOUND)&&txBflag!=0){
 			
 			esp_err = nvs_set_i8(handle, "Bflag", 0);

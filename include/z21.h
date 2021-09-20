@@ -69,7 +69,7 @@ volatile uint8_t storedIP; // number of currently stored IPs
 //**************************************************************
 
 
-static const char *Z21_SENDER_TAG = "Z21_SENDER";
+
 
 //**************************************************************
 //Firmware-Version der Z21:
