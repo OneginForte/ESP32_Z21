@@ -87,7 +87,7 @@ static void udp_client_task(void *pvParameters)
                 ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s:", addr_str);
                 //ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, (uint8_t *)&txBuffer, txBlen, ESP_LOG_INFO);
 
-                int err = sendto(txBsock, (uint8_t *)&txBuffer, txBlen, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+                int err = sendto(txBsock, (uint8_t *)&txBuffer, txBlen, 0, (struct sockaddr_in *)&dest_addr, sizeof(dest_addr));
                 //int err = send(txBsock, (uint8_t *)&txBuffer, txBlen, 0);
                 if (err < 0)
                 {
