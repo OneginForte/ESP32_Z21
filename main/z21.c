@@ -21,7 +21,7 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 
 // Function that handles the creation and setup of instances
 
-volatile uint8_t storedIP = 0; // number of currently stored IPs
+
 
 void z21Class()
 {
@@ -215,12 +215,12 @@ void receive(uint8_t client, uint8_t *packet)
 		}
 		  case LAN_X_SET_EXT_ACCESSORY: {
 			ESP_LOGI(Z21_PARSER_TAG, "X_SET_EXT_ACCESSORY RAdr");
-			setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
+			//setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
 			break;
 		  }
 		  case LAN_X_GET_EXT_ACCESSORY_INFO: {
  			ESP_LOGI(Z21_PARSER_TAG, "X_EXT_ACCESSORY_INFO RArd.");
-			setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
+			//setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
 			break;  
 		  }		
 		case LAN_X_SET_STOP:
@@ -237,18 +237,18 @@ void receive(uint8_t client, uint8_t *packet)
 				//Antwort: LAN_X_LOCO_INFO  Adr_MSB - Adr_LSB
 				//if (notifyz21getLocoState)
 				//	notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
-			    uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
-				returnLocoStateFull(client, WORD, false);
+			    //uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+				returnLocoStateFull(client, ((packet[6] & 0x3F) << 8) + packet[7], false);
 				//Antwort via "setLocoStateFull"!
 			}
 			break;
 		case LAN_X_SET_LOCO:
 			//setLocoBusy:
 			
-			uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
-			
-			addBusySlot(client,WORD);
-			
+			//uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+
+			addBusySlot(client, ((packet[6] & 0x3F) << 8) + packet[7]);
+
 			if (packet[5] == LAN_X_SET_LOCO_FUNCTION)
 			{ //DB0
 				//LAN_X_SET_LOCO_FUNCTION  Adr_MSB        Adr_LSB            Type (00=AUS/01=EIN/10=UM)      Funktion
@@ -257,7 +257,7 @@ void receive(uint8_t client, uint8_t *packet)
 				
 
 				if (notifyz21LocoFkt)
-					notifyz21LocoFkt(WORD, packet[8] >> 6, packet[8] & 0b00111111);
+					notifyz21LocoFkt(((packet[6] & 0x3F) << 8) + packet[7], packet[8] >> 6, packet[8] & 0b00111111);
 				//uint16_t Adr, uint8_t type, uint8_t fkt
 			}
 			else
@@ -271,9 +271,9 @@ void receive(uint8_t client, uint8_t *packet)
 				
 				
 				if (notifyz21LocoSpeed)
-					notifyz21LocoSpeed(WORD, packet[8], steps);
+					notifyz21LocoSpeed(((packet[6] & 0x3F) << 8) + packet[7], packet[8], steps);
 			}
-			returnLocoStateFull(client, WORD, true);
+			returnLocoStateFull(client, ((packet[6] & 0x3F) << 8) + packet[7], true);
 			break;
 		case LAN_X_GET_FIRMWARE_VERSION:
 			ESP_LOGI(Z21_PARSER_TAG, "X_GET_FIRMWARE_VERSION");
@@ -324,7 +324,7 @@ void receive(uint8_t client, uint8_t *packet)
 	}
 	case (LAN_GET_BROADCASTFLAGS):
 	{
-		unsigned long flag = getz21BcFlag(addIPToSlot(client, 0x00));
+		uint16_t flag = getz21BcFlag(addIPToSlot(client, 0x00));
 		data[0] = flag;
 		data[1] = flag >> 8;
 		data[2] = flag >> 16;
@@ -434,7 +434,7 @@ void receive(uint8_t client, uint8_t *packet)
 		{
 			ESP_LOGI(Z21_PARSER_TAG, "LOCONET_DETECTOR Abfrage");
 			uint16_t WORD = (((uint16_t)packet[6]) << 8) | ((uint16_t)packet[5]);
-			notifyz21LNdetector(packet[4], WORD); //Anforderung Typ & Reportadresse
+			notifyz21LNdetector(client, packet[4], WORD); //Anforderung Typ & Reportadresse
 		}
 		break;
 	case (LAN_CAN_DETECTOR):
@@ -442,7 +442,7 @@ void receive(uint8_t client, uint8_t *packet)
 		{
 			ESP_LOGI(Z21_PARSER_TAG, "CAN_DETECTOR Abfrage");
 			uint16_t WORD = (((uint16_t)packet[6]) << 8) | ((uint16_t)packet[5]);
-			notifyz21CANdetector(packet[4], WORD); //Anforderung Typ & CAN-ID
+			notifyz21CANdetector(client, packet[4], WORD); //Anforderung Typ & CAN-ID
 		}
 		break;
 	case (0x12): //configuration read
@@ -692,6 +692,60 @@ ZDebug.println();
 }
 
 //--------------------------------------------------------------------------------------------
+uint8_t notifyz21LNdispatch(uint8_t Adr2, uint8_t Adr)
+//return the Slot that was dispatched, 0xFF at error!
+{
+	return 0xFF;
+}
+//--------------------------------------------------------------------------------------------
+//Convert local stored flag back into a Z21 Flag
+uint32_t getz21BcFlag(uint8_t flag)
+{
+	uint32_t outFlag = 0;
+	if ((flag & Z21bcAll_s) != 0)
+		outFlag |= Z21bcAll;
+	if ((flag & Z21bcRBus_s) != 0)
+		outFlag |= Z21bcRBus;
+	if ((flag & Z21bcSystemInfo_s) != 0)
+		outFlag |= Z21bcSystemInfo;
+	if ((flag & Z21bcNetAll_s) != 0)
+		outFlag |= Z21bcNetAll;
+	if ((flag & Z21bcLocoNet_s) != 0)
+		outFlag |= Z21bcLocoNet;
+	if ((flag & Z21bcLocoNetLocos_s) != 0)
+		outFlag |= Z21bcLocoNetLocos;
+	if ((flag & Z21bcLocoNetSwitches_s) != 0)
+		outFlag |= Z21bcLocoNetSwitches;
+	if ((flag & Z21bcLocoNetGBM_s) != 0)
+		outFlag |= Z21bcLocoNetGBM;
+	return outFlag;
+}
+
+//--------------------------------------------------------------------------------------------
+//Convert Z21 LAN BC flag to local stored flag
+uint8_t getLocalBcFlag(uint32_t flag)
+{
+	uint8_t outFlag = 0;
+	if ((flag & Z21bcAll) != 0)
+		outFlag |= Z21bcAll_s;
+	if ((flag & Z21bcRBus) != 0)
+		outFlag |= Z21bcRBus_s;
+	if ((flag & Z21bcSystemInfo) != 0)
+		outFlag |= Z21bcSystemInfo_s;
+	if ((flag & Z21bcNetAll) != 0)
+		outFlag |= Z21bcNetAll_s;
+	if ((flag & Z21bcLocoNet) != 0)
+		outFlag |= Z21bcLocoNet_s;
+	if ((flag & Z21bcLocoNetLocos) != 0)
+		outFlag |= Z21bcLocoNetLocos_s;
+	if ((flag & Z21bcLocoNetSwitches) != 0)
+		outFlag |= Z21bcLocoNetSwitches_s;
+	if ((flag & Z21bcLocoNetGBM) != 0)
+		outFlag |= Z21bcLocoNetGBM_s;
+	return outFlag;
+}
+
+//--------------------------------------------------------------------------------------------
 //Zustand der Gleisversorgung setzten
 void setPower(uint8_t state)
 {
@@ -775,6 +829,130 @@ void setLocoStateExt (int Adr)
 }
 
 //--------------------------------------------------------------------------------------------
+// delete the stored IP-Address
+void clearIP(uint8_t pos)
+{
+	ActIP[pos].client = 0;
+	ActIP[pos].BCFlag = 0;
+	ActIP[pos].time = 0;
+}
+
+//--------------------------------------------------------------------------------------------
+void clearIPSlots()
+{
+	for (int i = 0; i < z21clientMAX; i++)
+		clearIP(i);
+}
+
+//--------------------------------------------------------------------------------------------
+void clearIPSlot(uint8_t client)
+{
+	for (int i = 0; i < z21clientMAX; i++)
+	{
+		if (ActIP[i].client == client)
+		{
+			clearIP(i);
+			return;
+		}
+	}
+}
+
+//--------------------------------------------------------------------------------------------
+uint8_t addIPToSlot(uint8_t client, uint8_t BCFlag)
+{
+	uint8_t Slot = z21clientMAX;
+	for (uint8_t i = 0; i < z21clientMAX; i++)
+	{
+		if (ActIP[i].client == client)
+		{
+			ActIP[i].time = z21ActTimeIP;
+			if (BCFlag != 0) //Falls BC Flag �bertragen wurde diesen hinzuf�gen!
+				ActIP[i].BCFlag = BCFlag;
+			return ActIP[i].BCFlag; //BC Flag 4. uint8_t R�ckmelden
+		}
+		else if (ActIP[i].time == 0 && Slot == z21clientMAX)
+			Slot = i;
+	}
+	ActIP[Slot].client = client;
+	ActIP[Slot].time = z21ActTimeIP;
+	setPower(Railpower);
+	return ActIP[Slot].BCFlag; //BC Flag 4. uint8_t R�ckmelden
+}
+
+//--------------------------------------------------------------------------------------------
+//check if there are slots with the same loco, set them to busy
+void setOtherSlotBusy(uint8_t slot)
+{
+	for (uint8_t i = 0; i < z21clientMAX; i++)
+	{
+		if ((i != slot) && (ActIP[slot].adr == ActIP[i].adr))
+		{					  //if in other Slot -> set busy
+			ActIP[i].adr = 0; //clean slot that informed as busy & let it activ
+							  //Inform with busy message:
+							  //not used!
+		}
+	}
+}
+
+//--------------------------------------------------------------------------------------------
+//Add loco to slot.
+void addBusySlot(uint8_t client, uint16_t adr)
+{
+	for (uint8_t i = 0; i < z21clientMAX; i++)
+	{
+		if (ActIP[i].client == client)
+		{
+			if (ActIP[i].adr != adr)
+			{						 //skip is already used by this client
+				ActIP[i].adr = adr;	 //store loco that is used
+				setOtherSlotBusy(i); //make other busy
+			}
+			break;
+		}
+	}
+}
+
+// Store IP in list and return it's index
+
+uint8_t Z21addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, unsigned int port)
+{
+	//suche ob IP schon vorhanden?
+	for (uint8_t i = 0; i < storedIP; i++)
+	{
+		if (mem[i].IP0 == ip0 && mem[i].IP1 == ip1 && mem[i].IP2 == ip2 && mem[i].IP3 == ip3 && mem[i].port == port)
+		{
+			mem[i].time = z21ActTimeIP; //setzte Zeit
+			return i + 1;
+		}
+	}
+	if (storedIP >= z21clientMAX)
+	{
+		for (uint8_t i = 0; i < storedIP; i++)
+		{
+			if (mem[i].time == 0)
+			{ //Abgelaufende IP, dort eintragen!
+				mem[i].IP0 = ip0;
+				mem[i].IP1 = ip1;
+				mem[i].IP2 = ip2;
+				mem[i].IP3 = ip3;
+				mem[i].port = port;
+				mem[i].time = z21ActTimeIP; //setzte Zeit
+				return i + 1;
+			}
+		}
+		return 0; //keine freien IPs (never reach here!)
+	}
+	mem[storedIP].IP0 = ip0;
+	mem[storedIP].IP1 = ip1;
+	mem[storedIP].IP2 = ip2;
+	mem[storedIP].IP3 = ip3;
+	mem[storedIP].port = port;
+	mem[storedIP].time = z21ActTimeIP; //setzte Zeit
+	storedIP++;
+	return storedIP;
+}
+
+//--------------------------------------------------------------------------------------------
 //Gibt aktuellen Lokstatus an Anfragenden Zur�ck
 void returnLocoStateFull (uint8_t client, uint16_t Adr, bool bc) 
 //bc = true => to inform also other client over the change.
@@ -854,9 +1032,9 @@ void setS88Data(uint8_t *data, uint8_t modules)
 
 //--------------------------------------------------------------------------------------------
 //return state from LN detector
-void setLNDetector(uint8_t *data, uint8_t DataLen)
+void setLNDetector(uint8_t client, uint8_t *data, uint8_t DataLen)
 {
-	EthSend(0, 0x04 + DataLen, LAN_LOCONET_DETECTOR, data, false, Z21bcLocoNetGBM_s); //LAN_LOCONET_DETECTOR
+	EthSend(client, 0x04 + DataLen, LAN_LOCONET_DETECTOR, data, false, Z21bcLocoNet_s); //LAN_LOCONET_DETECTOR
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1041,210 +1219,3 @@ void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t 
 	}
 }
 
-//--------------------------------------------------------------------------------------------
-//Convert local stored flag back into a Z21 Flag
-uint32_t getz21BcFlag(uint8_t flag)
-{
-	uint32_t outFlag = 0;
-	if ((flag & Z21bcAll_s) != 0)
-		outFlag |= Z21bcAll;
-	if ((flag & Z21bcRBus_s) != 0)
-		outFlag |= Z21bcRBus;
-	if ((flag & Z21bcSystemInfo_s) != 0)
-		outFlag |= Z21bcSystemInfo;
-	if ((flag & Z21bcNetAll_s) != 0)
-		outFlag |= Z21bcNetAll;
-	if ((flag & Z21bcLocoNet_s) != 0)
-		outFlag |= Z21bcLocoNet;
-	if ((flag & Z21bcLocoNetLocos_s) != 0)
-		outFlag |= Z21bcLocoNetLocos;
-	if ((flag & Z21bcLocoNetSwitches_s) != 0)
-		outFlag |= Z21bcLocoNetSwitches;
-	if ((flag & Z21bcLocoNetGBM_s) != 0)
-		outFlag |= Z21bcLocoNetGBM;
-	return outFlag;
-}
-
-//--------------------------------------------------------------------------------------------
-//Convert Z21 LAN BC flag to local stored flag
-uint8_t getLocalBcFlag(uint32_t flag)
-{
-	uint8_t outFlag = 0;
-	if ((flag & Z21bcAll) != 0)
-		outFlag |= Z21bcAll_s;
-	if ((flag & Z21bcRBus) != 0)
-		outFlag |= Z21bcRBus_s;
-	if ((flag & Z21bcSystemInfo) != 0)
-		outFlag |= Z21bcSystemInfo_s;
-	if ((flag & Z21bcNetAll) != 0)
-		outFlag |= Z21bcNetAll_s;
-	if ((flag & Z21bcLocoNet) != 0)
-		outFlag |= Z21bcLocoNet_s;
-	if ((flag & Z21bcLocoNetLocos) != 0)
-		outFlag |= Z21bcLocoNetLocos_s;
-	if ((flag & Z21bcLocoNetSwitches) != 0)
-		outFlag |= Z21bcLocoNetSwitches_s;
-	if ((flag & Z21bcLocoNetGBM) != 0)
-		outFlag |= Z21bcLocoNetGBM_s;
-	return outFlag;
-}
-
-//--------------------------------------------------------------------------------------------
-// delete the stored IP-Address
-void clearIP(uint8_t pos)
-{
-	ActIP[pos].client = 0;
-	ActIP[pos].BCFlag = 0;
-	ActIP[pos].time = 0;
-}
-
-//--------------------------------------------------------------------------------------------
-void clearIPSlots()
-{
-	for (int i = 0; i < z21clientMAX; i++)
-		clearIP(i);
-}
-
-//--------------------------------------------------------------------------------------------
-void clearIPSlot(uint8_t client)
-{
-	for (int i = 0; i < z21clientMAX; i++)
-	{
-		if (ActIP[i].client == client)
-		{
-			clearIP(i);
-			return;
-		}
-	}
-}
-
-//--------------------------------------------------------------------------------------------
-uint8_t addIPToSlot(uint8_t client, uint8_t BCFlag)
-{
-	uint8_t Slot = z21clientMAX;
-	for (uint8_t i = 0; i < z21clientMAX; i++)
-	{
-		if (ActIP[i].client == client)
-		{
-			ActIP[i].time = z21ActTimeIP;
-			if (BCFlag != 0) //Falls BC Flag �bertragen wurde diesen hinzuf�gen!
-				ActIP[i].BCFlag = BCFlag;
-			return ActIP[i].BCFlag; //BC Flag 4. uint8_t R�ckmelden
-		}
-		else if (ActIP[i].time == 0 && Slot == z21clientMAX)
-			Slot = i;
-	}
-	ActIP[Slot].client = client;
-	ActIP[Slot].time = z21ActTimeIP;
-	setPower(Railpower);
-	return ActIP[Slot].BCFlag; //BC Flag 4. uint8_t R�ckmelden
-}
-
-// Store IP in list and return it's index
-uint8_t addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, uint16_t port)
-{
-	//suche ob IP schon vorhanden?
-	for (uint8_t i = 0; i < storedIP; i++)
-	{
-		if (mem[i].IP0 == ip0 && mem[i].IP1 == ip1 && mem[i].IP2 == ip2 && mem[i].IP3 == ip3)
-			return i + 1;
-	}
-	if (storedIP >= maxIP)
-		return 0;
-	mem[storedIP].IP0 = ip0;
-	mem[storedIP].IP1 = ip1;
-	mem[storedIP].IP2 = ip2;
-	mem[storedIP].IP3 = ip3;
-	mem[storedIP].port = port;
-	storedIP++;
-	return storedIP;
-}
-
-//--------------------------------------------------------------------------------------------
-// z21 library callback functions
-//--------------------------------------------------------------------------------------------
-void notifyz21RailPower(uint8_t State)
-{
-//#if defined(DEBUGSERIAL)
-	//DEBUGSERIAL.print("Power: ");
-	//DEBUGSERIAL.println(State, HEX);
-//#endif
-	setPower(State);
-}
-
-//--------------------------------------------------------------------------------------------
-void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
-{
-	ESP_LOGI(Z21_SENDER_TAG, "Hello in notifyz21EthSend. Client is %d, sending data:", client);
-	ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
-	ip4_addr_t Addr;
-	if (client == 0)
-	{ //all stored
-		for (uint8_t i = 0; i < storedIP; i++)
-		{
-			if (mem[i].port!=0)
-			{
-			IP4_ADDR(&Addr, mem[i].IP0, mem[i].IP1, mem[i].IP2, mem[i].IP3);
-			while (txBflag)
-			{
-				//yield();
-			}
-			txAddr = Addr;
-			txBlen = datalen;
-			txBsock = mem[i].port;
-			memcpy((uint8_t *)&txBuffer, data, datalen);
-			txBflag=1;
-			while(txBflag){};
-			//Udp.beginPacket(ip, mem[i].port); //Broadcast
-			//Udp.write(data, data[0]);
-			//Udp.endPacket();
-			}
-		}
-	}
-	else
-	{
-		IP4_ADDR(&Addr, mem[client - 1].IP0, mem[client - 1].IP1, mem[client - 1].IP2, mem[client - 1].IP3);
-		while (txBflag)
-		{
-		}
-		txAddr = Addr;
-		txBlen = datalen;
-		txBsock = mem[client-1].port;
-		memcpy((uint8_t *)&txBuffer, data, datalen);
-		txBflag = 1;
-		while (txBflag)
-		{
-		};
-		//Udp.beginPacket(ip, mem[client - 1].port); //no Broadcast
-		//Udp.write(data, data[0]);
-		//Udp.endPacket();
-	}
-}
-
-void notifyz21getSystemInfo(uint8_t client)
-{
-	uint8_t data[20];
-	data[0] = 0x14;
-	data[1] = 0x00;	
-	data[2] = 0x80;
-	data[3] = 0x00;
-	data[4] = 0x00;					 //MainCurrent mA
-	data[5] = 0x00;					 //MainCurrent mA
-	data[6] = 0x00;					 //ProgCurrent mA
-	data[7] = 0x00;					 //ProgCurrent mA
-	data[8] = 0x00;					 //FilteredMainCurrent
-	data[9] = 0x00;					 //FilteredMainCurrent
-	data[10] = 0x20;					 //Temperature
-	data[11] = 0x20;					 //Temperature
-	data[12] = 0x0F;					 //SupplyVoltage
-	data[13] = 0x00;					 //SupplyVoltage
-	data[14] = 0x00;				 //VCCVoltage
-	data[15] = 0x03;				 //VCCVoltage
-	data[16] = getPower(); //CentralState
-	data[17] = 0x00;				 //CentralStateEx
-	data[18] = 0x00;				 //reserved
-	data[19] = 0x00;				 //reserved
-	notifyz21EthSend(client, data, 20);
-}
-
-//--------------------------------------------------------------------------------------------

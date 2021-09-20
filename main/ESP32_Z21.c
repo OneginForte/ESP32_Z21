@@ -172,7 +172,7 @@ static void udp_server_task(void *pvParameters)
                 
                 ip4addr_ntoa_r((const ip4_addr_t*)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
 
-                uint8_t client = addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), sock);
+                uint8_t client = Z21addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), sock);
                 
                 //rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
                 ESP_LOGI(Z21_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
@@ -309,8 +309,6 @@ void cb_connection_off(void *pvParameter)
     ESP_LOGI(TAG, "I do not have connection. Stop UDP!");
 }
 
-
-
 void app_main()
 {
   	nvs_handle handle;
@@ -318,11 +316,12 @@ void app_main()
 	size_t sz;
     bool change = false;
     txBlen=0;
-    //txBflag=0;
+    storedIP =0;
+        //txBflag=0;
 
-    
-    if (nvs_sync_lock(portMAX_DELAY)){
-    /* read value from flash */
+        if (nvs_sync_lock(portMAX_DELAY))
+    {
+        /* read value from flash */
     	esp_err = nvs_open(z21_nvs_namespace, NVS_READWRITE, &handle);
 		if (esp_err != ESP_OK){
 			nvs_sync_unlock();
@@ -378,3 +377,109 @@ if(nvs_sync_lock( portMAX_DELAY )){
 
 
 }
+
+
+//--------------------------------------------------------------------------------------------
+// z21 library callback functions
+//--------------------------------------------------------------------------------------------
+void notifyz21RailPower(uint8_t State)
+{
+    //#if defined(DEBUGSERIAL)
+    //DEBUGSERIAL.print("Power: ");
+    //DEBUGSERIAL.println(State, HEX);
+    //#endif
+    setPower(State);
+}
+
+//--------------------------------------------------------------------------------------------
+void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
+{
+    ESP_LOGI(Z21_SENDER_TAG, "Hello in notifyz21EthSend. Client is %d, sending data:", client);
+    ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
+    ip4_addr_t Addr;
+    if (client == 0)
+    { //all stored
+        for (uint8_t i = 0; i < storedIP; i++)
+        {
+            if (mem[i].port != 0)
+            {
+                IP4_ADDR(&Addr, mem[i].IP0, mem[i].IP1, mem[i].IP2, mem[i].IP3);
+                while (txBflag)
+                {
+                    //yield();
+                }
+                txAddr = Addr;
+                txBlen = datalen;
+                txBsock = mem[i].port;
+                memcpy((uint8_t *)&txBuffer, data, datalen);
+                txBflag = 1;
+                while (txBflag)
+                {
+                };
+                //Udp.beginPacket(ip, mem[i].port); //Broadcast
+                //Udp.write(data, data[0]);
+                //Udp.endPacket();
+            }
+        }
+    }
+    else
+    {
+        IP4_ADDR(&Addr, mem[client - 1].IP0, mem[client - 1].IP1, mem[client - 1].IP2, mem[client - 1].IP3);
+        while (txBflag)
+        {
+        }
+        txAddr = Addr;
+        txBlen = datalen;
+        txBsock = mem[client - 1].port;
+        memcpy((uint8_t *)&txBuffer, data, datalen);
+        txBflag = 1;
+        while (txBflag)
+        {
+        };
+        //Udp.beginPacket(ip, mem[client - 1].port); //no Broadcast
+        //Udp.write(data, data[0]);
+        //Udp.endPacket();
+    }
+}
+//--------------------------------------------------------------------------------------------
+void notifyz21LNdetector(uint8_t client, uint8_t typ, uint16_t ID)
+{
+    if (typ == 0x80)
+    { //SIC Abfrage
+        uint8_t data[4];
+        data[0] = 0x01; //Typ
+        data[1] = ID & 0xFF;
+        data[2] = ID >> 8;
+        data[3] = 0x00001;//getBasicAccessoryInfo(Adr); //Zustand Rückmelder
+        setLNDetector(client, data, 4);
+    }
+}
+
+
+void notifyz21getSystemInfo(uint8_t client)
+{
+    uint8_t data[20];
+    data[0] = 0x14;
+    data[1] = 0x00;
+    data[2] = 0x80;
+    data[3] = 0x00;
+    data[4] = 0x00;        //MainCurrent mA
+    data[5] = 0x00;        //MainCurrent mA
+    data[6] = 0x00;        //ProgCurrent mA
+    data[7] = 0x00;        //ProgCurrent mA
+    data[8] = 0x00;        //FilteredMainCurrent
+    data[9] = 0x00;        //FilteredMainCurrent
+    data[10] = 0x20;       //Temperature
+    data[11] = 0x20;       //Temperature
+    data[12] = 0x0F;       //SupplyVoltage
+    data[13] = 0x00;       //SupplyVoltage
+    data[14] = 0x00;       //VCCVoltage
+    data[15] = 0x03;       //VCCVoltage
+    data[16] = getPower(); //CentralState
+    data[17] = 0x00;       //CentralStateEx
+    data[18] = 0x00;       //reserved
+    data[19] = 0x00;       //reserved
+    notifyz21EthSend(client, data, 20);
+}
+
+//--------------------------------------------------------------------------------------------
