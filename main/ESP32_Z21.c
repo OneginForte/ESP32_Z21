@@ -69,34 +69,42 @@ static void udp_client_task(void *pvParameters)
     ESP_LOGI(Z21_SENDER_TAG, "Sender task started");
     memset(&addr_str, 0x00, sizeof(addr_str));
 
+    struct sockaddr_in dest_addr;
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(PORT);
+    int opt = 1;
+    setsockopt(txBsock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
     while (1)
     {
-        struct sockaddr_in dest_addr;
-        dest_addr.sin_family = AF_INET;
-        dest_addr.sin_port = htons(PORT);
-        int opt = 1;
-        setsockopt(txBsock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
         while (1)
         {
-            if (txBflag)
+            if (txSendFlag)
             {
+                if (txBflag)
+                {
+                    dest_addr.sin_addr.s_addr = htonl(INADDR_BROADCAST); // txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);                ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+                    ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New broadcast!");
+                }
+                else
+                {
+                    dest_addr.sin_addr.s_addr = txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
+                    ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+                    ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s:", addr_str);
+                }
+                txBflag=0;
 
-
-                dest_addr.sin_addr.s_addr = txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
-                ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
-                ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s:", addr_str);
                 //ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, (uint8_t *)&txBuffer, txBlen, ESP_LOG_INFO);
 
-                int err = sendto(txBsock, (uint8_t *)&txBuffer, txBlen, 0, (struct sockaddr_in *)&dest_addr, sizeof(dest_addr));
+                int err = sendto(txBsock, (uint8_t *)&txBuffer, txBlen, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
                 //int err = send(txBsock, (uint8_t *)&txBuffer, txBlen, 0);
                 if (err < 0)
                 {
                     ESP_LOGE(Z21_SENDER_TAG, "Error occurred during sending: errno %d", errno);
-                    txBflag = 0;
+                    txSendFlag = 0;
                     break;
                 }
                 ESP_LOGI(Z21_SENDER_TAG, "%d bytes send.", txBlen);
-                txBflag = 0;
+                txSendFlag = 0;
                 break;
             }
             vTaskDelay(20 / portTICK_PERIOD_MS);
@@ -140,11 +148,13 @@ static void udp_server_task(void *pvParameters)
         {
             ESP_LOGE(Z21_TASK_TAG, "Socket unable to bind: errno %d", errno);
         }
+        listen(sock, 5);
+
         ESP_LOGI(Z21_TASK_TAG, "Socket bound, port %d", PORT);
         ESP_LOGI(Z21_TASK_TAG, "Waiting for data");
         while (1)
         {
-            if (!txBflag)
+            if (!txSendFlag)
             {
                 
             
@@ -162,14 +172,6 @@ static void udp_server_task(void *pvParameters)
             // Data received
             else
             {
-                //int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
-
-                //if (err < 0)
-                //{
-                //    ESP_LOGE(Z21_TASK_TAG, "Error occurred during sending reply: errno %d", errno);
-                //    break;
-                //}
-                // Get the sender's ip address as string
                 
                 ip4addr_ntoa_r((const ip4_addr_t*)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
 
@@ -183,6 +185,7 @@ static void udp_server_task(void *pvParameters)
                 receive(client, rx_buffer);
             }
             }
+            
         }
 
         if (sock != -1)
@@ -317,10 +320,11 @@ void app_main()
 	//size_t sz;
     bool change = false;
     txBlen=0;
-    storedIP =0;
-        //txBflag=0;
+    txBflag=0;
+    storedIP = 0;
+    //txSendFlag=0;
 
-        if (nvs_sync_lock(portMAX_DELAY))
+    if (nvs_sync_lock(portMAX_DELAY))
     {
         /* read value from flash */
     	esp_err = nvs_open(z21_nvs_namespace, NVS_READWRITE, &handle);
@@ -329,20 +333,20 @@ void app_main()
 			//return esp_err;
 		}
 
-		//sz = sizeof(txBflag);
-		//esp_err = nvs_get_blob(handle, "Bflag", txBflag , &sz);
-        esp_err = nvs_get_i8(handle, "Bflag", *(uint8_t *)&txBflag);
-        if( (esp_err == ESP_OK  || esp_err == ESP_ERR_NVS_NOT_FOUND)&&txBflag!=0){
+		//sz = sizeof(txSendFlag);
+		//esp_err = nvs_get_blob(handle, "Bflag", txSendFlag , &sz);
+        esp_err = nvs_get_u8(handle, "Bflag", (uint8_t *)&txSendFlag);
+        if( (esp_err == ESP_OK  || esp_err == ESP_ERR_NVS_NOT_FOUND)&&txSendFlag!=0){
 			
-			esp_err = nvs_set_i8(handle, "Bflag", 0);
+			esp_err = nvs_set_u8(handle, "Bflag", 0);
 			if (esp_err != ESP_OK){
 				nvs_sync_unlock();
 				//return esp_err;
 			}
 			change = true;
-			ESP_LOGI(TAG, "Wrote nope Bflag %d",txBflag);
+			ESP_LOGI(TAG, "Wrote nope Bflag %d",txSendFlag);
 		}
-        ESP_LOGI(TAG, "Read stored Bflag %d",txBflag);
+        ESP_LOGI(TAG, "Read stored Bflag %d",txSendFlag);
         if(change){
 			esp_err = nvs_commit(handle);
 		}
@@ -402,39 +406,40 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
     { //all stored
         for (uint8_t i = 0; i < storedIP; i++)
         {
-            if (mem[i].port != 0)
-            {
-                IP4_ADDR(&Addr, mem[i].IP0, mem[i].IP1, mem[i].IP2, mem[i].IP3);
-                while (txBflag)
+           // if (mem[i].port != 0)
+            //{
+                //IP4_ADDR(&Addr, mem[i].IP0, mem[i].IP1, mem[i].IP2, mem[i].IP3);
+                while (txSendFlag)
                 {
                     //yield();
                 }
-                txAddr = Addr;
+                //txAddr = Addr;
                 txBlen = datalen;
-                txBsock = mem[i].port;
+                txBsock = mem [0].port;
                 memcpy((uint8_t *)&txBuffer, data, datalen);
-                txBflag = 1;
-                while (txBflag)
+                txBflag=1;
+                txSendFlag = 1;
+                while (txSendFlag)
                 {
                 };
                 //Udp.beginPacket(ip, mem[i].port); //Broadcast
                 //Udp.write(data, data[0]);
                 //Udp.endPacket();
-            }
+           // }
         }
     }
     else
     {
         IP4_ADDR(&Addr, mem[client - 1].IP0, mem[client - 1].IP1, mem[client - 1].IP2, mem[client - 1].IP3);
-        while (txBflag)
+        while (txSendFlag)
         {
         }
         txAddr = Addr;
         txBlen = datalen;
         txBsock = mem[client - 1].port;
         memcpy((uint8_t *)&txBuffer, data, datalen);
-        txBflag = 1;
-        while (txBflag)
+        txSendFlag = 1;
+        while (txSendFlag)
         {
         };
         //Udp.beginPacket(ip, mem[client - 1].port); //no Broadcast
