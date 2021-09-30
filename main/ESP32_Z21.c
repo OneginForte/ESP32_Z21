@@ -74,13 +74,13 @@ static void udp_client_task(void *pvParameters)
         struct sockaddr_in dest_addr;
         dest_addr.sin_family = AF_INET;
         dest_addr.sin_port = htons(PORT);
-  
+        int opt = 1;
+        setsockopt(txBsock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
         while (1)
         {
             if (txBflag)
             {
-                //int opt = 1;
-                //setsockopt(txBsock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
+
 
                 dest_addr.sin_addr.s_addr = txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
                 ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
