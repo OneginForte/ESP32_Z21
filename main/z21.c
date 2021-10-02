@@ -1196,7 +1196,7 @@ void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t 
 			if (notifyz21EthSend)
 				notifyz21EthSend(clientOut, data, DataLen);
 
-			ESP_LOGI(Z21_PARSER_TAG, "Eth send...");
+			ESP_LOGI(Z21_PARSER_TAG, "Eth sended...");
 			
 			//uint8_t
 				/*
