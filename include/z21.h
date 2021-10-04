@@ -62,7 +62,8 @@ volatile uint8_t txBuffer[Z21_UDP_TX_MAX_SIZE];
 volatile uint8_t txBlen;
 volatile uint8_t txBflag;
 volatile uint8_t txSendFlag;
-volatile uint16_t txBsock;
+volatile uint16_t txport;
+volatile int global_sock;
 volatile ip4_addr_t txAddr;
 
 volatile uint8_t storedIP; // number of currently stored IPs
