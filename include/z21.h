@@ -53,15 +53,19 @@
 #define PORT z21Port
 
 #define Z21_UDP_TX_MAX_SIZE 128 // max received UDP packet size
-
+#define Z21_UDP_RX_MAX_SIZE 128 // max received UDP packet size
 #define CONFIG_EXAMPLE_IPV4
 
 // Init local variables
 uint8_t packetBuffer[Z21_UDP_TX_MAX_SIZE];
 volatile uint8_t txBuffer[Z21_UDP_TX_MAX_SIZE];
+volatile uint8_t rxBuffer[Z21_UDP_RX_MAX_SIZE];
 volatile uint8_t txBlen;
+volatile uint8_t rxlen;
 volatile uint8_t txBflag;
 volatile uint8_t txSendFlag;
+volatile uint8_t rxFlag;
+volatile uint8_t rxclient;
 volatile uint16_t txport;
 volatile int global_sock;
 volatile ip4_addr_t txAddr;

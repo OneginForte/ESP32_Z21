@@ -7,6 +7,10 @@
         "string": "c",
         "string_view": "c",
         "*.tcc": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "cstring": "cpp",
+        "*.inc": "cpp",
+        "uart.h": "c",
+        "esp_int_wdt.h": "c"
     }
 }

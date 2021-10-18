@@ -45,10 +45,10 @@ void receive(uint8_t client, uint8_t *packet)
 	// send a reply, to the IP address and port that sent us the packet we received
 	int header = (packet[3] << 8) + packet[2];
 	uint8_t data[16]; //z21 send storage
-	
-	#if defined(ESP32)
-	portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
-	#endif	
+	ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, Z21_UDP_RX_MAX_SIZE, ESP_LOG_INFO);
+	//#if defined(ESP32)
+	//portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
+	//#endif	
 
 	switch (header)
 	{

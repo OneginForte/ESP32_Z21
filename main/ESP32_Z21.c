@@ -30,6 +30,7 @@ SOFTWARE.
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#include  "esp_int_wdt.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
 
@@ -45,12 +46,12 @@ SOFTWARE.
 #include <lwip/netdb.h>
 #include "z21header.h"
 #include "z21.h"
-//#include "protocol_examples_common.h"
+    //#include "protocol_examples_common.h"
 
-/* @brief tag used for ESP serial console messages */
-static const char TAG[] = "Z21";
-static const char *Z21_TASK_TAG = "Z21_TASK";
-static const char *Z21_SENDER_TAG = "Z21_SENDER";
+    /* @brief tag used for ESP serial console messages */
+    static const char TAG[] = "Z21";
+static const char *Z21_TASK_TAG = "Z21_UDP_RECIEVER";
+static const char *Z21_SENDER_TAG = "Z21_UDP_SENDER";
 static const int RX_BUF_SIZE = 1024;
 
 #define TXD_PIN (GPIO_NUM_17)
@@ -112,7 +113,7 @@ static void udp_sender_task(void *pvParameters)
                 txSendFlag = 0;
                 break;
             }
-            vTaskDelay(1 / portTICK_PERIOD_MS);
+            //vTaskDelay(1 / portTICK_PERIOD_MS);
         }
 
     }
@@ -147,11 +148,7 @@ static void udp_server_task(void *pvParameters)
         } else {
         ESP_LOGI(Z21_TASK_TAG, "Socket created: %d", sock);
 
-    while (1)
-    {
-
-
-        int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+       int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
         if (err < 0)
         {
             ESP_LOGE(Z21_TASK_TAG, "Socket unable to bind: errno %d", errno);
@@ -191,7 +188,15 @@ static void udp_server_task(void *pvParameters)
                 //ESP_LOGI(Z21_TASK_TAG, "%s", rx_buffer);
                 ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, rx_buffer, len, ESP_LOG_INFO);
 
-                receive(client, rx_buffer);
+                while (rxFlag)
+                {
+                //    if (rxFlag==0)break;
+                };
+                memcpy(rx_buffer, (uint8_t *)&rxBuffer, len);
+                rxlen=len;
+                rxclient=client;
+                rxFlag = 1;
+                //receive(rxclient, rxBuffer);
             }
             }
             
@@ -204,7 +209,6 @@ static void udp_server_task(void *pvParameters)
             close(sock);
         }
 
-    }
     }
     shutdown(sock, SHUT_RDWR);
     close(sock);
@@ -340,6 +344,7 @@ void app_main()
     bool change = false;
     txBlen=0;
     txBflag=0;
+    rxFlag=0;
     storedIP = 0;
     //txSendFlag=0;
 
@@ -396,9 +401,21 @@ if(nvs_sync_lock( portMAX_DELAY )){
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
     //xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 2048, NULL, 1, NULL, 1);
  
-    init_p50x();
+    //init_p50x();
 
+while (1) {
+    
 
+        if (rxFlag == 1)
+        {
+            receive(rxclient, (uint8_t *)&rxBuffer);
+            ESP_LOGI(TAG, "Parser done!");
+            //memset((uint8_t *)&rxBuffer, 0, 128);
+            rxlen = 0;
+            rxclient = 0;
+            rxFlag = 0;
+        }
+}
 
 
 }
@@ -439,9 +456,9 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
                 memcpy((uint8_t *)&txBuffer, data, datalen);
                 txBflag=1;
                 txSendFlag = 1;
-                while (txSendFlag)
-                {
-                };
+                //while (txSendFlag)
+                //{
+                //};
                 //Udp.beginPacket(ip, mem[i].port); //Broadcast
                 //Udp.write(data, data[0]);
                 //Udp.endPacket();
@@ -453,15 +470,15 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
         IP4_ADDR(&Addr, mem[client - 1].IP0, mem[client - 1].IP1, mem[client - 1].IP2, mem[client - 1].IP3);
         while (txSendFlag)
         {
-        }
+        };
         txAddr = Addr;
         txBlen = datalen;
         txport = mem[client - 1].port;
         memcpy((uint8_t *)&txBuffer, data, datalen);
         txSendFlag = 1;
-        while (txSendFlag)
-        {
-        };
+        //while (txSendFlag)
+        //{
+        //};
         //Udp.beginPacket(ip, mem[client - 1].port); //no Broadcast
         //Udp.write(data, data[0]);
         //Udp.endPacket();
@@ -489,8 +506,8 @@ void notifyz21getSystemInfo(uint8_t client)
     data[1] = 0x00;
     data[2] = 0x80;
     data[3] = 0x00;
-    data[4] = 0x00;        //MainCurrent mA
-    data[5] = 0x00;        //MainCurrent mA
+    data[4] = 0x10;        //MainCurrent mA
+    data[5] = 0x10;        //MainCurrent mA
     data[6] = 0x00;        //ProgCurrent mA
     data[7] = 0x00;        //ProgCurrent mA
     data[8] = 0x00;        //FilteredMainCurrent
@@ -498,8 +515,8 @@ void notifyz21getSystemInfo(uint8_t client)
     data[10] = 0x20;       //Temperature
     data[11] = 0x20;       //Temperature
     data[12] = 0x0F;       //SupplyVoltage
-    data[13] = 0x00;       //SupplyVoltage
-    data[14] = 0x00;       //VCCVoltage
+    data[13] = 0x0F;       //SupplyVoltage
+    data[14] = 0x0F;       //VCCVoltage
     data[15] = 0x03;       //VCCVoltage
     data[16] = getPower(); //CentralState
     data[17] = 0x00;       //CentralStateEx
