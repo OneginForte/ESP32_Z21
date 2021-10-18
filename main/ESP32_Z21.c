@@ -186,17 +186,17 @@ static void udp_server_task(void *pvParameters)
                 ESP_LOGI(Z21_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
                 ESP_LOGI(Z21_TASK_TAG, "Outgoing port %d", htons(from_port));
                 //ESP_LOGI(Z21_TASK_TAG, "%s", rx_buffer);
-                ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, rx_buffer, len, ESP_LOG_INFO);
+                //ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, rx_buffer, len, ESP_LOG_INFO);
 
-                while (rxFlag)
-                {
+                //while (rxFlag)
+                //{
                 //    if (rxFlag==0)break;
-                };
-                memcpy(rx_buffer, (uint8_t *)&rxBuffer, len);
-                rxlen=len;
-                rxclient=client;
-                rxFlag = 1;
-                //receive(rxclient, rxBuffer);
+                //}
+                //memcpy((uint8_t *)&rxBuffer, rx_buffer, len);
+                //rxlen=len;
+                //rxclient=client;
+                //rxFlag = 1;
+                receive(client, rx_buffer);
             }
             }
             
@@ -345,6 +345,8 @@ void app_main()
     txBlen=0;
     txBflag=0;
     rxFlag=0;
+    rxlen = 0;
+    rxclient = 0;
     storedIP = 0;
     //txSendFlag=0;
 
@@ -404,16 +406,16 @@ if(nvs_sync_lock( portMAX_DELAY )){
     //init_p50x();
 
 while (1) {
-    
 
-        if (rxFlag == 1)
-        {
-            receive(rxclient, (uint8_t *)&rxBuffer);
-            ESP_LOGI(TAG, "Parser done!");
-            //memset((uint8_t *)&rxBuffer, 0, 128);
-            rxlen = 0;
-            rxclient = 0;
-            rxFlag = 0;
+    if (rxFlag == 1) // && txSendFlag==0
+    {
+        ESP_LOGI(TAG, "Prepare parser");
+        receive(rxclient, (uint8_t *)&rxBuffer);
+        ESP_LOGI(TAG, "Parser done!");
+        // memset((uint8_t *)&rxBuffer, 0, 128);
+        rxlen = 0;
+        rxclient = 0;
+        rxFlag = 0;
         }
 }
 
@@ -452,7 +454,7 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
                 }
                 //txAddr = Addr;
                 txBlen = datalen;
-                txport = mem[0].port;
+                //txport = mem[0].port;
                 memcpy((uint8_t *)&txBuffer, data, datalen);
                 txBflag=1;
                 txSendFlag = 1;

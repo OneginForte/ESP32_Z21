@@ -41,11 +41,13 @@ bool bitRead(uint8_t order, uint8_t num)
 void receive(uint8_t client, uint8_t *packet)
 {
 	ESP_LOGI(Z21_PARSER_TAG, "Parser start.");
+	//ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
 	addIPToSlot(client, 0);
 	// send a reply, to the IP address and port that sent us the packet we received
 	int header = (packet[3] << 8) + packet[2];
 	uint8_t data[16]; //z21 send storage
-	ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, Z21_UDP_RX_MAX_SIZE, ESP_LOG_INFO);
+
+
 	//#if defined(ESP32)
 	//portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
 	//#endif	
@@ -875,7 +877,7 @@ uint8_t addIPToSlot(uint8_t client, uint8_t BCFlag)
 	}
 	ActIP[Slot].client = client;
 	ActIP[Slot].time = z21ActTimeIP;
-	setPower(Railpower);
+	//setPower(Railpower);
 	return ActIP[Slot].BCFlag; //BC Flag 4. uint8_t R�ckmelden
 }
 
