@@ -21,8 +21,6 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 
 // Function that handles the creation and setup of instances
 
-
-
 void z21Class()
 {
 	// initialize this instance's variables
@@ -35,7 +33,12 @@ bool bitRead(uint8_t order, uint8_t num)
 {
 	return (order & (1 << num));
 }
-
+bool bitWrite(uint8_t order, uint8_t num, bool bit) {
+    if (bit) 
+	{return (order | (1 << num));}
+	else 
+	{return (order & ~(1 << num));}
+}
 //*********************************************************************************************
 //Daten ermitteln und Auswerten
 void receive(uint8_t client, uint8_t *packet)
@@ -1177,7 +1180,7 @@ void notifyz21LocoState(uint16_t Adr, uint8_t data[])
 }
 
 //--------------------------------------------------------------------------------------------
-//Gibt aktuellen Lokstatus an Anfragenden Zur�ck
+//Gibt aktuellen Lokstatus an Anfragenden Zuruck
 void returnLocoStateFull (uint8_t client, uint16_t Adr, bool bc) 
 //bc = true => to inform also other client over the change.
 //bc = false => just ask about the loco state
@@ -1238,6 +1241,173 @@ void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps)
 	default:
 		setSpeed128(Adr, speed);
 	}
+}
+//--------------------------------------------------------------------------------------------
+uint8_t getFunktion0to4(uint16_t address)	//gibt Funktionszustand - F0 F4 F3 F2 F1 zurьck
+{
+	return LokDataUpdate[LokStsgetSlot(address)].f0 & 0x1F;
+}
+
+uint8_t getFunktion5to8(uint16_t address)	//gibt Funktionszustand - F8 F7 F6 F5 zurьck
+{
+	return LokDataUpdate[LokStsgetSlot(address)].f1 & 0x0F;
+}
+
+uint8_t getFunktion9to12(uint16_t address)	//gibt Funktionszustand - F12 F11 F10 F9 zurьck
+{
+	return LokDataUpdate[LokStsgetSlot(address)].f1 >> 4;
+}
+
+uint8_t getFunktion13to20(uint16_t address)	//gibt Funktionszustand F20 - F13 zurьck
+{
+	return LokDataUpdate[LokStsgetSlot(address)].f2;
+}
+
+uint8_t getFunktion21to28(uint16_t address)	//gibt Funktionszustand F28 - F21 zurьck
+{
+	return LokDataUpdate[LokStsgetSlot(address)].f3;
+}
+//--------------------------------------------------------------------------------------------
+
+bool setFunctions0to4(uint16_t address, uint8_t functions)
+{
+	if (address == 0)	//check if Adr is ok?
+		return false;
+
+
+  uint8_t data[] = { 0x80 };
+  
+  //Obnoxiously, the headlights (F0, AKA FL) are not controlled
+  //by bit 0, but in DCC via bit 4. !
+  data[0] |= functions & 0x1F;		//new - normal way of DCC! F0, F4, F3, F2, F1
+
+
+
+  LokDataUpdate[LokStsgetSlot(address)].f0 = functions & 0x1F;	//write into register to SAVE
+
+  //return low_priority_queue.insertPacket(&p);
+  return true;
+}
+
+
+bool setFunctions5to8(uint16_t address, uint8_t functions)
+{
+	if (address == 0)	//check if Adr is ok?
+		return false;
+
+  uint8_t data[] = { 0xB0 };
+  data[0] |= functions & 0x0F;
+
+  LokDataUpdate[LokStsgetSlot(address)].f1 = (LokDataUpdate[LokStsgetSlot(address)].f1 | 0x0F) & (functions | 0xF0);	//write into register to SAVE
+
+  //return low_priority_queue.insertPacket(&p);
+  return true;
+}
+
+bool setFunctions9to12(uint16_t address, uint8_t functions)
+{
+	if (address == 0)	//check if Adr is ok?
+		return false;
+
+  uint8_t data[] = { 0xA0 };
+  //least significant four functions (F5--F8)
+  data[0] |= functions & 0x0F;
+  
+  LokDataUpdate[LokStsgetSlot(address)].f1 = (LokDataUpdate[LokStsgetSlot(address)].f1 | 0xF0) & ((functions << 4) | 0x0F);	//write into register to SAVE
+
+  //return low_priority_queue.insertPacket(&p);
+  return true;
+}
+
+bool setFunctions13to20(uint16_t address, uint8_t functions)	//F20 F19 F18 F17 F16 F15 F14 F13
+{
+	if (address == 0)	//check if Adr is ok?
+		return false;
+
+	
+	uint8_t data[] = { 0b11011110, 0x00 }; 
+	data[1] = functions;	//significant functions (F20--F13)
+
+	LokDataUpdate[LokStsgetSlot(address)].f2 = functions; //write into register to SAVE
+	//return low_priority_queue.insertPacket(&p);
+	return true;
+}
+
+bool setFunctions21to28(uint16_t address, uint8_t functions)	//F28 F27 F26 F25 F24 F23 F22 F21
+{
+	if (address == 0)	//check if Adr is ok?
+		return false;
+
+	int8_t data[] = { 0b11011111, 0x00}; 
+	data[1] = functions; //significant functions (F28--F21)
+
+	LokDataUpdate[LokStsgetSlot(address)].f3 = functions; //write into register to SAVE
+	//return low_priority_queue.insertPacket(&p);
+	return true;
+}
+//--------------------------------------------------------------------------------------------
+//Lokfunktion setzten
+void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
+{			//type => 0 = AUS; 1 = EIN; 2 = UM; 3 = error
+	bool fktbit = 0;	//neue zu дndernde fkt bit
+	if (type == 1)	//ein
+		fktbit = 1;
+	uint8_t Slot = LokStsgetSlot(address);
+	//zu дnderndes bit bestimmen und neu setzten:
+	if (fkt <= 4) {
+		uint8_t func = LokDataUpdate[Slot].f0 & 0x1F;	//letztes Zustand der Funktionen 000 F0 F4..F1
+		if (type == 2) { //um
+			if (fkt == 0)
+				fktbit = !(bitRead(func, 4));
+			else fktbit = !(bitRead(func, fkt - 1));
+		}
+		if (fkt == 0)
+			bitWrite(func, 4, fktbit);
+		else bitWrite(func, fkt - 1, fktbit);
+		//Daten senden:
+		setFunctions0to4(address, func);	//func = 0 0 0 F0 F4 F3 F2 F1
+	}
+	else if ((fkt >= 5) && (fkt <= 8)) {
+		uint8_t funcG2 = LokDataUpdate[Slot].f1 & 0x0F;	//letztes Zustand der Funktionen 0000 F8..F5
+		if (type == 2) //um
+			fktbit = !(bitRead(funcG2, fkt - 5));
+		bitWrite(funcG2, fkt - 5, fktbit);
+		//Daten senden:
+		setFunctions5to8(address, funcG2);	//funcG2 = 0 0 0 0 F8 F7 F6 F5
+	}
+	else if ((fkt >= 9) && (fkt <= 12)) {
+		uint8_t funcG3 = LokDataUpdate[Slot].f1 >> 4;	//letztes Zustand der Funktionen 0000 F12..F9
+		if (type == 2) //um
+			fktbit = !(bitRead(funcG3, fkt - 9));
+		bitWrite(funcG3, fkt - 9, fktbit);
+		//Daten senden:
+		setFunctions9to12(address, funcG3); 	//funcG3 = 0 0 0 0 F12 F11 F10 F9
+	}
+	else if ((fkt >= 13) && (fkt <= 20)) {
+		uint8_t funcG4 = LokDataUpdate[Slot].f2;
+		if (type == 2) //um
+			fktbit = !(bitRead(funcG4, fkt - 13));
+		bitWrite(funcG4, fkt - 13, fktbit);
+		//Daten senden:
+		setFunctions13to20(address, funcG4);	//funcG4 = F20 F19 F18 F17 F16 F15 F14 F13
+	}
+	else if ((fkt >= 21) && (fkt <= 28)) {
+		uint8_t funcG5 = LokDataUpdate[Slot].f3;
+		if (type == 2) //um
+			fktbit = !(bitRead(funcG5, fkt - 21));
+		bitWrite(funcG5, fkt - 21, fktbit);
+		//Daten senden:
+		setFunctions21to28(address, funcG5);	//funcG5 = F28 F27 F26 F25 F24 F23 F22 F21
+	}
+	//getLocoStateFull(address, true);	//Alle aktiven Gerдte Senden!
+}
+//--------------------------------------------------------------------------------------------
+void notifyz21LocoFkt(uint16_t Adr, uint8_t state, uint8_t fkt)
+{
+
+  setLocoFunc(Adr, state, fkt); 
+
+
 }
 
 //--------------------------------------------------------------------------------------------

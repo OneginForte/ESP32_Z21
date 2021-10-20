@@ -46,10 +46,11 @@ SOFTWARE.
 #include <lwip/netdb.h>
 #include "z21header.h"
 #include "z21.h"
-    //#include "protocol_examples_common.h"
 
-    /* @brief tag used for ESP serial console messages */
-    static const char TAG[] = "Z21";
+//#include "protocol_examples_common.h"
+
+/* @brief tag used for ESP serial console messages */
+static const char TAG[] = "Z21";
 static const char *Z21_TASK_TAG = "Z21_UDP_RECIEVER";
 static const char *Z21_SENDER_TAG = "Z21_UDP_SENDER";
 static const int RX_BUF_SIZE = 1024;
@@ -217,7 +218,7 @@ static void udp_server_task(void *pvParameters)
 }
 
 
-
+ 
 int sendData(const char* logName, const char* data)
 {
     const int len = strlen(data);
