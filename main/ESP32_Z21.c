@@ -88,14 +88,14 @@ static void udp_sender_task(void *pvParameters)
                 {
                     dest_addr.sin_port = htons(PORT);
                     dest_addr.sin_addr.s_addr = htonl(INADDR_BROADCAST); // txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);                ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
-                    ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New broadcast!");
+                    //ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New broadcast!");
                 }
                 else
                 {
                     dest_addr.sin_addr.s_addr = txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
                     dest_addr.sin_port=txport;
                     ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
-                    ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s, %d:", addr_str, htons (dest_addr.sin_port));
+                    //ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s, %d:", addr_str, htons (dest_addr.sin_port));
                 }
                 txBflag=0;
 
@@ -109,7 +109,7 @@ static void udp_sender_task(void *pvParameters)
                     txSendFlag = 0;
                     break;
                 }
-                ESP_LOGI(Z21_SENDER_TAG, "%d bytes send.", txBlen);
+                //ESP_LOGI(Z21_SENDER_TAG, "%d bytes send.", txBlen);
                 txSendFlag = 0;
                 break;
             }
@@ -146,7 +146,7 @@ static void udp_server_task(void *pvParameters)
             ESP_LOGE(Z21_TASK_TAG, "Unable to create socket: errno %d", errno);
             //break;
         } else {
-        ESP_LOGI(Z21_TASK_TAG, "Socket created: %d", sock);
+        //ESP_LOGI(Z21_TASK_TAG, "Socket created: %d", sock);
 
        int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
         if (err < 0)
@@ -155,8 +155,8 @@ static void udp_server_task(void *pvParameters)
         }
         listen(sock, 5);
 
-        ESP_LOGI(Z21_TASK_TAG, "Socket bound, port %d", PORT);
-        ESP_LOGI(Z21_TASK_TAG, "Waiting for data");
+        //ESP_LOGI(Z21_TASK_TAG, "Socket bound, port %d", PORT);
+        //ESP_LOGI(Z21_TASK_TAG, "Waiting for data");
         while (1)
         {
             if (!txSendFlag)
@@ -183,8 +183,8 @@ static void udp_server_task(void *pvParameters)
                 uint8_t client = Z21addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), from_port);
                 
                 //rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
-                ESP_LOGI(Z21_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
-                ESP_LOGI(Z21_TASK_TAG, "Outgoing port %d", htons(from_port));
+                //ESP_LOGI(Z21_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
+                //ESP_LOGI(Z21_TASK_TAG, "Outgoing port %d", htons(from_port));
                 //ESP_LOGI(Z21_TASK_TAG, "%s", rx_buffer);
                 //ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, rx_buffer, len, ESP_LOG_INFO);
 
@@ -348,9 +348,11 @@ void app_main()
     rxlen = 0;
     rxclient = 0;
     storedIP = 0;
-    //txSendFlag=0;
+    slotFullNext=0;
+    DCCdefaultSteps=128;
+        // txSendFlag=0;
 
-    if (nvs_sync_lock(portMAX_DELAY))
+        if (nvs_sync_lock(portMAX_DELAY))
     {
         /* read value from flash */
     	esp_err = nvs_open(z21_nvs_namespace, NVS_READWRITE, &handle);
@@ -438,8 +440,8 @@ void notifyz21RailPower(uint8_t State)
 //--------------------------------------------------------------------------------------------
 void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 {
-    ESP_LOGI(Z21_SENDER_TAG, "Hello in notifyz21EthSend. Client is %d, sending data:", client);
-    ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
+    //ESP_LOGI(Z21_SENDER_TAG, "Hello in notifyz21EthSend. Client is %d, sending data:", client);
+    //ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
     ip4_addr_t Addr;
     if (client == 0)
     { //all stored

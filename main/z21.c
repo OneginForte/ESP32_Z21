@@ -246,7 +246,7 @@ void receive(uint8_t client, uint8_t *packet)
 			break;
 		case LAN_X_SET_LOCO:
 			//setLocoBusy:
-			
+			ESP_LOGI(Z21_PARSER_TAG, "LAN_X_SET_LOCO aka setLocoBusy");
 			//uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
 
 			addBusySlot(client, ((packet[6] & 0x3F) << 8) + packet[7]);
@@ -317,7 +317,7 @@ void receive(uint8_t client, uint8_t *packet)
 		if (notifyz21RailPower)
 			notifyz21RailPower(Railpower); //Zustand Gleisspannung Antworten
 		ESP_LOGI(Z21_PARSER_TAG, "SET_BROADCASTFLAGS: ");
-		//ESP_LOGI(Z21_PARSER_TAG, "%d", );
+		ESP_LOGI(Z21_PARSER_TAG, "%d", (int)bcflag);
 
 		//ZDebug.println(addIPToSlot(client, 0x00), BIN);
 // 1=BC Power, Loco INFO, Trnt INFO; 2=BC �nderungen der R�ckmelder am R-Bus
@@ -955,6 +955,228 @@ uint8_t Z21addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, unsigned in
 }
 
 //--------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------
+uint8_t LokStsgetSlot(uint16_t adr) // gibt Slot f�r Adresse zur�ck / erzeugt neuen Slot (0..126)
+{
+	uint8_t Slot;
+	for (Slot = 0; Slot < SlotMax; Slot++)
+	{
+		if ((LokDataUpdate[Slot].adr & 0x3FFF) == adr)
+			return Slot; // Lok gefunden, Slot ausgeben
+		if ((LokDataUpdate[Slot].adr & 0x3FFF) == 0)
+		{
+			// Empty? neuer freier Slot - keine weitern Lok's!
+			LokStsSetNew(Slot, adr); // Eintragen
+			return Slot;
+		}
+	}
+	// kein Slot mehr vorhanden!
+	// start am Anfang mit dem �berschreiben vorhandender Slots
+	Slot = slotFullNext;
+	LokStsSetNew(Slot, adr); // clear Slot!
+	slotFullNext++;
+	if (slotFullNext >= SlotMax)
+		slotFullNext = 0;
+	return Slot;
+}
+
+bool setSpeed14(uint16_t address, uint8_t speed)
+{
+	if (address == 0) // check if Adr is ok?
+		return false;
+
+	uint8_t slot = LokStsgetSlot(address);
+	LokDataUpdate[slot].speed = speed;			  // write Dir and Speed into register to SAVE
+	if ((LokDataUpdate[slot].adr >> 14) != DCC14) // 0=>14steps, write speed steps into register
+		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC14 << 14);
+
+	uint8_t speed_data_uint8_ts[] = {0x40}; // speed indecator
+	/*
+	if (speed == 1) //estop!
+		//return eStop(address);//
+		speed_data_uint8_ts[0] |= 0x01; //estop
+	else if (speed == 0) //regular stop!
+		speed_data_uint8_ts[0] |= 0x00; //stop
+	else //movement
+		speed_data_uint8_ts[0] |= map(speed, 2, 127, 2, 15); //convert from [2-127] to [1-14]
+	speed_data_uint8_ts[0] |= (0x20 * bitRead(speed, 7)); //flip bit 3 to indicate direction;
+	*/
+	speed_data_uint8_ts[0] |= speed & 0x1F;		   // 5 Bit Speed
+	speed_data_uint8_ts[0] |= (speed & 0x80) >> 2; // Dir
+
+	/*
+	DCCPacket p(address);
+	p.addData(speed_data_uint8_ts, 1);
+
+	p.setRepeat(SPEED_REPEAT);
+
+	p.setKind(speed_packet_kind);
+
+	// speed packets get refreshed indefinitely, and so the repeat doesn't need to be set.
+	// speed packets go to the high proirity queue
+	// return(high_priority_queue.insertPacket(&p));
+	if (railpower == ESTOP) // donot send to rails now!
+		return periodic_refresh_queue.insertPacket(&p);
+	return repeat_queue.insertPacket(&p);
+	*/
+	return true;
+}
+
+bool setSpeed28(uint16_t address, uint8_t speed)
+{
+	if (address == 0) // check if Adr is ok?
+		return false;
+
+	uint8_t slot = LokStsgetSlot(address);
+	LokDataUpdate[slot].speed = speed;			  // speed & B01111111 + Dir;	//write into register to SAVE
+	if ((LokDataUpdate[slot].adr >> 14) != DCC28) // 2=>28steps, write into register
+		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC28 << 14);
+
+	uint8_t speed_data_uint8_ts[] = {0x40}; // Speed indecator
+	/*
+	if(speed == 1) //estop!
+	  //return eStop(address);//
+	  speed_data_uint8_ts[0] |= 0x01; //estop
+	else if (speed == 0) //regular stop!
+	  speed_data_uint8_ts[0] |= 0x00; //stop
+	else //movement
+	{
+	  speed_data_uint8_ts[0] |= map(speed, 2, 127, 2, 0x1F); //convert from [2-127] to [2-31]
+	  //most least significant bit has to be shufled around
+	  speed_data_uint8_ts[0] = (speed_data_uint8_ts[0]&0xE0) | ((speed_data_uint8_ts[0]&0x1F) >> 1) | ((speed_data_uint8_ts[0]&0x01) << 4);
+	}
+	speed_data_uint8_ts[0] |= (0x20 * bitRead(speed, 7)); //flip bit 3 to indicate direction;
+	*/
+	speed_data_uint8_ts[0] |= speed & 0x1F;		   // 5 Bit Speed
+	speed_data_uint8_ts[0] |= (speed & 0x80) >> 2; // Dir
+/*
+	DCCPacket p(address);
+	p.addData(speed_data_uint8_ts, 1);
+
+	p.setRepeat(SPEED_REPEAT);
+
+	p.setKind(speed_packet_kind);
+
+	// speed packets get refreshed indefinitely, and so the repeat doesn't need to be set.
+	// speed packets go to the high proirity queue
+	// return(high_priority_queue.insertPacket(&p));
+	if (railpower == ESTOP) // donot send to rails now!
+		return periodic_refresh_queue.insertPacket(&p);
+	return repeat_queue.insertPacket(&p);
+	*/
+	return true;
+}
+
+bool setSpeed128(uint16_t address, uint8_t speed)
+{
+	if (address == 0)
+	{
+		//	Serial.println("ERROR ADR0");
+		return false;
+	}
+	uint8_t slot = LokStsgetSlot(address);
+	LokDataUpdate[slot].speed = speed;			   // write Speed and Dir into register to SAVE
+	if ((LokDataUpdate[slot].adr >> 14) != DCC128) // 3=>128steps, write into register
+		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC128 << 14);
+
+	uint8_t speed_data_uint8_ts[] = {0x3F, 0x00};
+
+	//	if (speed == 1) //estop!
+	//		return eStop(address);//speed_data_uint8_ts[1] |= 0x01; //estop
+	// else
+	speed_data_uint8_ts[1] = speed; // no conversion necessary.
+
+	// why do we get things like this?
+	//  03 3F 16 15 3F (speed packet addressed to loco 03)
+	//  03 3F 11 82 AF  (speed packet addressed to loco 03, speed hex 0x11);
+	/*
+	DCCPacket p(address);
+	p.addData(speed_data_uint8_ts, 2);
+
+	p.setRepeat(SPEED_REPEAT);
+
+	p.setKind(speed_packet_kind);
+
+	// speed packets get refreshed indefinitely, and so the repeat doesn't need to be set.
+	// speed packets go to the high proirity queue
+
+	// return(high_priority_queue.insertPacket(&p));
+	if (railpower == ESTOP) // donot send to rails now!
+		return periodic_refresh_queue.insertPacket(&p);
+	return repeat_queue.insertPacket(&p);
+	*/
+	return true;
+}
+
+bool setSpeed(uint16_t address, uint8_t speed)
+{
+	// set Loco to speed with default settings!
+	switch (DCCdefaultSteps)
+	{
+	case 14:
+		return (setSpeed14(address, speed));
+	case 28:
+		return (setSpeed28(address, speed));
+	case 128:
+		return (setSpeed128(address, speed));
+	}
+	return false; // invalid number of steps specified.
+}
+
+//--------------------------------------------------------------------------------------------
+void LokStsSetNew(uint8_t Slot, uint16_t adr) // Neue Lok eintragen mit Adresse
+{
+	LokDataUpdate[Slot].adr = adr | (DCCdefaultSteps << 14); // 0x4000; //0xC000;	// c = '3' => 128 Fahrstufen
+	LokDataUpdate[Slot].speed = 0x80;						 // default direction is forward
+	LokDataUpdate[Slot].f0 = 0x00;
+	LokDataUpdate[Slot].f1 = 0x00;
+	LokDataUpdate[Slot].f2 = 0x00;
+	LokDataUpdate[Slot].f3 = 0x00;
+
+// generate first drive information:
+
+	setSpeed(LokDataUpdate[Slot].adr, LokDataUpdate[Slot].speed);
+
+}
+
+
+/*
+//--------------------------------------------------------------------------------------------
+//Gibt aktuellen Lokstatus an Anfragenden zur�ck
+void DCCPacketScheduler::getLocoStateFull(uint16_t adr)
+{
+	byte Slot = LokStsgetSlot(adr);
+	byte Speed = LokDataUpdate[Slot].speed;
+	if (notifyLokAll)
+		notifyLokAll(adr, LokDataUpdate[Slot].adr >> 14, Speed, LokDataUpdate[Slot].f0 & 0x1F,
+		LokDataUpdate[Slot].f1, LokDataUpdate[Slot].f2, LokDataUpdate[Slot].f3);
+}
+*/
+
+//--------------------------------------------------------------------------------------------
+//aktuellen Zustand aller Funktionen und Speed der Lok
+void getLocoData(uint16_t adr, uint8_t data[])
+{
+	//uint8_t Steps, uint8_t Speed, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3
+	uint8_t Slot = LokStsgetSlot(adr);
+	data[0] = LokDataUpdate[Slot].adr >> 14; 	//Steps
+	data[1] = LokDataUpdate[Slot].speed;
+	data[2] = LokDataUpdate[Slot].f0 & 0x1F;	//F0 - F4
+	data[3] = LokDataUpdate[Slot].f1;
+	data[4] = LokDataUpdate[Slot].f2;
+	data[5] = LokDataUpdate[Slot].f3;
+}
+
+
+//--------------------------------------------------------------------------------------------
+void notifyz21LocoState(uint16_t Adr, uint8_t data[])
+{
+
+	getLocoData(Adr, data);
+
+}
+
+//--------------------------------------------------------------------------------------------
 //Gibt aktuellen Lokstatus an Anfragenden Zur�ck
 void returnLocoStateFull (uint8_t client, uint16_t Adr, bool bc) 
 //bc = true => to inform also other client over the change.
@@ -1001,6 +1223,23 @@ void returnLocoStateFull (uint8_t client, uint16_t Adr, bool bc)
 	}
 	
 }
+
+//--------------------------------------------------------------------------------------------
+void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps)
+{
+	switch (steps)
+	{
+	case 14:
+		setSpeed14(Adr, speed);
+		break;
+	case 28:
+		setSpeed28(Adr, speed);
+		break;
+	default:
+		setSpeed128(Adr, speed);
+	}
+}
+
 //--------------------------------------------------------------------------------------------
 //return state of S88 sensors
 void setS88Data(uint8_t *data, uint8_t modules)

@@ -72,10 +72,28 @@ volatile ip4_addr_t txAddr;
 
 volatile uint8_t storedIP; // number of currently stored IPs
 
+#define SlotMax 36 // Slots f�r Lokdaten
+uint8_t slotFullNext; // if no free slot, override existing slots
+uint8_t DCCdefaultSteps;
+
+// DCC Speed Steps
+#define DCC14 0x01
+#define DCC28 0x02
+#define DCC128 0x03
+
+typedef struct // Lokdaten	(Lok Events)
+{
+	uint16_t adr; // SS1, SS0, A13, A12| A11, A10, A9, A8| A7, A6, A5, A4| A3, A2, A1, A0
+	// A0-A13 = Adresse
+	// SS = Fahrstufen-speedsteps (0=error, 1=14, 2=28, 3=128)
+	uint8_t speed; // Dir, Speed 0..127 (0x00 - 0x7F) -> 0SSS SSSS + (0x80) -> D000 0000
+	uint8_t f0;	   // X   X   X   F0 | F4  F3  F2  F1
+	uint8_t f1;	   // F12 F11 F10 F9 | F8  F7  F6  F5
+	uint8_t f2;	   // F20 F19 F18 F17| F16 F15 F14 F13
+	uint8_t f3;	   // F28 F27 F26 F25| F24 F23 F22 F21
+} NetLok;
+NetLok LokDataUpdate[SlotMax]; // Speicher zu widerholdene Lok Daten
 //**************************************************************
-
-
-
 
 //**************************************************************
 //Firmware-Version der Z21:
@@ -181,11 +199,10 @@ void setCVNackSC();							  //Return Short while Programming
 
 void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, uint16_t temp); //Send to all clients that request via BC the System Information
 
+void LokStsSetNew(uint8_t Slot, uint16_t adr);
 
-
-
-//Functions:
-void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc); //Antwort auf Statusabfrage
+	// Functions:
+void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc); // Antwort auf Statusabfrage
 void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC);
 uint8_t getLocalBcFlag(uint32_t flag); //Convert Z21 LAN BC flag to local stored flag
 uint8_t Z21addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, unsigned int port); 
