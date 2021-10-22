@@ -53,7 +53,7 @@ SOFTWARE.
 static const char TAG[] = "Z21";
 static const char *Z21_TASK_TAG = "Z21_UDP_RECIEVER";
 static const char *Z21_SENDER_TAG = "Z21_UDP_SENDER";
-static const int RX_BUF_SIZE = 1024;
+static const int P50X_RX_BUF_SIZE = 128;
 
 #define TXD_PIN (GPIO_NUM_17)
 #define RXD_PIN (GPIO_NUM_16)
@@ -229,7 +229,7 @@ int sendData(const char* logName, const char* data)
 
 static void tx_task(void *arg)
 {
-    static const char *TX_TASK_TAG = "TX_TASK";
+    static const char *TX_TASK_TAG = "P50X_TX_TASK";
     esp_log_level_set(TX_TASK_TAG, ESP_LOG_INFO);
     while (1) {
         sendData(TX_TASK_TAG, "Hello world");
@@ -239,14 +239,14 @@ static void tx_task(void *arg)
 
 static void rx_task(void *arg)
 {
-    static const char *RX_TASK_TAG = "RX_TASK";
+    static const char *RX_TASK_TAG = "P50X_RX_TASK";
     esp_log_level_set(RX_TASK_TAG, ESP_LOG_INFO);
-    uint8_t* data = (uint8_t*) malloc(RX_BUF_SIZE+1);
+    uint8_t *data = (uint8_t *)malloc(P50X_RX_BUF_SIZE);
     while (1) {
-        const int rxBytes = uart_read_bytes(UART_NUM_1, data, RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
+        const int rxBytes = uart_read_bytes(UART_NUM_1, data, P50X_RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
         if (rxBytes > 0) {
-            data[rxBytes] = 0;
-            ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'", rxBytes, data);
+            //data[rxBytes] = 0;
+            ESP_LOGI(RX_TASK_TAG, "Read from P50x %d bytes:", rxBytes);
             ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, rxBytes, ESP_LOG_INFO);
         }
     }
@@ -263,7 +263,7 @@ void init_p50x(void) {
         .source_clk = UART_SCLK_APB,
     };
     // We won't use a buffer for sending data.
-    uart_driver_install(UART_NUM_1, RX_BUF_SIZE * 2, 0, 0, NULL, 0);
+    uart_driver_install(UART_NUM_1, P50X_RX_BUF_SIZE * 2, 0, 0, NULL, 0);
     uart_param_config(UART_NUM_1, &uart_config);
     uart_set_pin(UART_NUM_1, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
@@ -278,15 +278,16 @@ void monitoring_task(void *pvParameter)
 {
     for (;;)
     {
-        ESP_LOGI(TAG, "free heap: %d", esp_get_free_heap_size());
-        vTaskDelay(pdMS_TO_TICKS(10000));
-        /*
+        //ESP_LOGI(TAG, "free heap: %d", esp_get_free_heap_size());
+        esp_get_free_heap_size();
+            // vTaskDelay(pdMS_TO_TICKS(10000));
+
         unsigned long currentMillis = esp_timer_get_time() / 1000;
-        
+
         if (currentMillis - z21IPpreviousMillis > z21IPinterval)
         {
             z21IPpreviousMillis = currentMillis;
-            for (int i = 0; i < maxIP; i++)
+            for (int i = 0; i < z21clientMAX; i++)
             {
                 if (ActIP[i].ip3 != 0)
                 { //Slot nicht leer?
@@ -298,7 +299,7 @@ void monitoring_task(void *pvParameter)
                     }
                 }
             }
-        }*/
+        }
     }
 }
 
@@ -404,7 +405,7 @@ if(nvs_sync_lock( portMAX_DELAY )){
 
 
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
-    //xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 2048, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 2048, NULL, 1, NULL, 1);
  
     //init_p50x();
 

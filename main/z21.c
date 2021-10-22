@@ -33,314 +33,315 @@ bool bitRead(uint8_t order, uint8_t num)
 {
 	return (order & (1 << num));
 }
-bool bitWrite(uint8_t order, uint8_t num, bool bit) {
-    if (bit) 
-	{return (order | (1 << num));}
-	else 
-	{return (order & ~(1 << num));}
-}
-//*********************************************************************************************
-//Daten ermitteln und Auswerten
-void receive(uint8_t client, uint8_t *packet)
+void bitWrite(uint8_t *order, uint8_t num, bool bit)
 {
-	ESP_LOGI(Z21_PARSER_TAG, "Parser start.");
-	//ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
-	addIPToSlot(client, 0);
-	// send a reply, to the IP address and port that sent us the packet we received
-	int header = (packet[3] << 8) + packet[2];
-	uint8_t data[16]; //z21 send storage
-
-
-	//#if defined(ESP32)
-	//portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
-	//#endif	
-
-	switch (header)
+	if (bit)
 	{
-	case LAN_GET_SERIAL_NUMBER:
-		ESP_LOGI(Z21_PARSER_TAG, "GET_SERIAL_NUMBER");
+		*order = *order | (1 << num);
+	}
+	else
+	{
+		*order = *order & ~(1 << num);
+	}
+}
+	//*********************************************************************************************
+	// Daten ermitteln und Auswerten
+	void receive(uint8_t client, uint8_t * packet)
+	{
+		ESP_LOGI(Z21_PARSER_TAG, "Parser start.");
+		// ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
+		addIPToSlot(client, 0);
+		// send a reply, to the IP address and port that sent us the packet we received
+		int header = (packet[3] << 8) + packet[2];
+		uint8_t data[16]; // z21 send storage
 
-		//ESP_LOGI(Z21_PARSER_TAG, "Socket created");
+		//#if defined(ESP32)
+		// portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
+		//#endif
 
-		//data[0] = FSTORAGE.read(CONFz21SnLSB);
-	    //data[1] = FSTORAGE.read(CONFz21SnMSB);
-		data[0] = z21SnLSB;
-		data[1] = z21SnMSB;
-		data[2] = 0x00;
-		data[3] = 0x00;
-		EthSend(client, 0x08, LAN_GET_SERIAL_NUMBER, data, false, Z21bcNone); //Seriennummer 32 Bit (little endian)
-		break;
-	case LAN_GET_HWINFO:
-		ESP_LOGI(Z21_PARSER_TAG, "GET_HWINFO");
+		switch (header)
+		{
+		case LAN_GET_SERIAL_NUMBER:
+			ESP_LOGI(Z21_PARSER_TAG, "GET_SERIAL_NUMBER");
 
-		data[0] = z21HWTypeLSB; //HwType 32 Bit
-		data[1] = z21HWTypeMSB;
-		data[2] = 0x00;
-		data[3] = 0x00;
-		data[4] = z21FWVersionLSB; //FW Version 32 Bit
-		data[5] = z21FWVersionMSB;
-		data[6] = 0x00;
-		data[7] = 0x00;
-		EthSend(client, 0x0C, LAN_GET_HWINFO, data, false, Z21bcNone);
-		break;
-	case LAN_LOGOFF:
-		ESP_LOGI(Z21_PARSER_TAG, "LOGOFF");
+			// ESP_LOGI(Z21_PARSER_TAG, "Socket created");
 
-		clearIPSlot(client);
-		//Antwort von Z21: keine
-		break;
-	case LAN_GET_CODE: //SW Feature-Umfang der Z21
-		/*#define Z21_NO_LOCK        0x00  // keine Features gesperrt 
-			#define z21_START_LOCKED   0x01  // �z21 start�: Fahren und Schalten per LAN gesperrt 
-			#define z21_START_UNLOCKED 0x02  // �z21 start�: alle Feature-Sperren aufgehoben */
-		data[0] = 0x00; //keine Features gesperrt
-		EthSend(client, 0x05, LAN_GET_CODE, data, false, Z21bcNone);
-		break;
-	case (LAN_X_Header):
-		switch (packet[4])
-		{ //X-Header
-		case LAN_X_GET_SETTING:
-			switch (packet[5])
-			{ //DB0
-			case 0x21:
-				ESP_LOGI(Z21_PARSER_TAG, "X_GET_VERSION");
+			// data[0] = FSTORAGE.read(CONFz21SnLSB);
+			// data[1] = FSTORAGE.read(CONFz21SnMSB);
+			data[0] = z21SnLSB;
+			data[1] = z21SnMSB;
+			data[2] = 0x00;
+			data[3] = 0x00;
+			EthSend(client, 0x08, LAN_GET_SERIAL_NUMBER, data, false, Z21bcNone); // Seriennummer 32 Bit (little endian)
+			break;
+		case LAN_GET_HWINFO:
+			ESP_LOGI(Z21_PARSER_TAG, "GET_HWINFO");
 
-				data[0] = LAN_X_GET_VERSION; //X-Header: 0x63
-				data[1] = 0x21;							 //DB0
-				data[2] = 0x30;							 //X-Bus Version
-				data[3] = 0x12;							 //ID der Zentrale
+			data[0] = z21HWTypeLSB; // HwType 32 Bit
+			data[1] = z21HWTypeMSB;
+			data[2] = 0x00;
+			data[3] = 0x00;
+			data[4] = z21FWVersionLSB; // FW Version 32 Bit
+			data[5] = z21FWVersionMSB;
+			data[6] = 0x00;
+			data[7] = 0x00;
+			EthSend(client, 0x0C, LAN_GET_HWINFO, data, false, Z21bcNone);
+			break;
+		case LAN_LOGOFF:
+			ESP_LOGI(Z21_PARSER_TAG, "LOGOFF");
+
+			clearIPSlot(client);
+			// Antwort von Z21: keine
+			break;
+		case LAN_GET_CODE: // SW Feature-Umfang der Z21
+			/*#define Z21_NO_LOCK        0x00  // keine Features gesperrt
+				#define z21_START_LOCKED   0x01  // �z21 start�: Fahren und Schalten per LAN gesperrt
+				#define z21_START_UNLOCKED 0x02  // �z21 start�: alle Feature-Sperren aufgehoben */
+			data[0] = 0x00; // keine Features gesperrt
+			EthSend(client, 0x05, LAN_GET_CODE, data, false, Z21bcNone);
+			break;
+		case (LAN_X_Header):
+			switch (packet[4])
+			{ // X-Header
+			case LAN_X_GET_SETTING:
+				switch (packet[5])
+				{ // DB0
+				case 0x21:
+					ESP_LOGI(Z21_PARSER_TAG, "X_GET_VERSION");
+
+					data[0] = LAN_X_GET_VERSION; // X-Header: 0x63
+					data[1] = 0x21;				 // DB0
+					data[2] = 0x30;				 // X-Bus Version
+					data[3] = 0x12;				 // ID der Zentrale
+					EthSend(client, 0x09, LAN_X_Header, data, true, Z21bcNone);
+					break;
+				case 0x24:
+					data[0] = LAN_X_STATUS_CHANGED; // X-Header: 0x62
+					data[1] = 0x22;					// DB0
+					data[2] = Railpower;			// DB1: Status
+					// ZDebug.print("X_GET_STATUS ");
+					// csEmergencyStop  0x01 // Der Nothalt ist eingeschaltet
+					// csTrackVoltageOff  0x02 // Die Gleisspannung ist abgeschaltet
+					// csShortCircuit  0x04 // Kurzschluss
+					// csProgrammingModeActive 0x20 // Der Programmiermodus ist aktiv
+					EthSend(client, 0x08, LAN_X_Header, data, true, Z21bcNone);
+					break;
+				case 0x80:
+					ESP_LOGI(Z21_PARSER_TAG, "X_SET_TRACK_POWER_OFF");
+
+					if (notifyz21RailPower)
+						notifyz21RailPower(csTrackVoltageOff);
+					break;
+				case 0x81:
+					ESP_LOGI(Z21_PARSER_TAG, "X_SET_TRACK_POWER_ON");
+
+					data[0] = LAN_X_BC_TRACK_POWER;
+					data[1] = 0x01;
+					EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
+
+					if (notifyz21RailPower)
+						notifyz21RailPower(csNormal);
+					break;
+				}
+				break; // ENDE DB0
+			case LAN_X_CV_READ:
+				if (packet[5] == 0x11)
+				{ // DB0
+					ESP_LOGI(Z21_PARSER_TAG, "X_CV_READ");
+
+					if (notifyz21CVREAD)
+						notifyz21CVREAD(packet[6], packet[7]); // CV_MSB, CV_LSB
+				}
+				break;
+			case LAN_X_CV_WRITE:
+				if (packet[5] == 0x12)
+				{ // DB0
+					ESP_LOGI(Z21_PARSER_TAG, "X_CV_WRITE");
+
+					if (notifyz21CVWRITE)
+						notifyz21CVWRITE(packet[6], packet[7], packet[8]); // CV_MSB, CV_LSB, value
+				}
+				break;
+			case LAN_X_CV_POM:
+				if (packet[5] == 0x30)
+				{ // DB0
+					uint8_t Adr = ((packet[6] & 0x3F) << 8) + packet[7];
+					uint8_t CVAdr = ((packet[8] & 0b11000000) << 8) + packet[9];
+					uint8_t value = packet[10];
+					if ((packet[8] & 0xFC) == 0xEC)
+					{
+						ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_WRITE_BYTE");
+
+						if (notifyz21CVPOMWRITEBYTE)
+							notifyz21CVPOMWRITEBYTE(Adr, CVAdr, value); // set decoder
+					}
+					else if ((packet[8] & 0xFC) == 0xE8)
+					{
+						ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_WRITE_BIT");
+					}
+					else
+					{
+						ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_READ_BIYTE");
+
+						if (notifyz21CVPOMREADBYTE)
+							notifyz21CVPOMREADBYTE(Adr, CVAdr); // set decoder
+					}
+				}
+				else if (packet[5] == 0x31)
+				{ // DB0
+					ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_ACCESSORY");
+				}
+				break;
+			case LAN_X_GET_TURNOUT_INFO:
+			{
+				ESP_LOGI(Z21_PARSER_TAG, "X_GET_TURNOUT_INFO ");
+
+				if (notifyz21AccessoryInfo)
+				{
+					data[0] = 0x43;		 // X-HEADER
+					data[1] = packet[5]; // High
+					data[2] = packet[6]; // Low
+					if (notifyz21AccessoryInfo((packet[5] << 8) + packet[6]) == true)
+						data[3] = 0x02; // active
+					else
+						data[3] = 0x01;											// inactive
+					EthSend(client, 0x09, LAN_X_Header, data, true, Z21bcNone); // BC new 23.04. !!! (old = 0)
+				}
+				break;
+			}
+			case LAN_X_SET_TURNOUT:
+			{
+				ESP_LOGI(Z21_PARSER_TAG, "X_SET_TURNOUT");
+
+				// bool TurnOnOff = bitRead(packet[7],3);  //Spule EIN/AUS
+				if (notifyz21Accessory)
+				{
+					notifyz21Accessory((packet[5] << 8) + packet[6], bitRead(packet[7], 0), bitRead(packet[7], 3));
+				} //	Addresse					Links/Rechts			Spule EIN/AUS
+				break;
+			}
+			case LAN_X_SET_EXT_ACCESSORY:
+			{
+				ESP_LOGI(Z21_PARSER_TAG, "X_SET_EXT_ACCESSORY RAdr");
+				// setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
+				break;
+			}
+			case LAN_X_GET_EXT_ACCESSORY_INFO:
+			{
+				ESP_LOGI(Z21_PARSER_TAG, "X_EXT_ACCESSORY_INFO RArd.");
+				// setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
+				break;
+			}
+			case LAN_X_SET_STOP:
+				ESP_LOGI(Z21_PARSER_TAG, "X_SET_STOP");
+
+				if (notifyz21RailPower)
+					notifyz21RailPower(csEmergencyStop);
+				break;
+			case LAN_X_GET_LOCO_INFO:
+
+				if (packet[5] == 0xF0)
+				{ // DB0
+					// ZDebug.print("X_GET_LOCO_INFO: ");
+					// Antwort: LAN_X_LOCO_INFO  Adr_MSB - Adr_LSB
+					// if (notifyz21getLocoState)
+					//	notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
+					// uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+					returnLocoStateFull(client, ((packet[6] & 0x3F) << 8) + packet[7], false);
+					// Antwort via "setLocoStateFull"!
+				}
+				break;
+			case LAN_X_SET_LOCO:
+				// setLocoBusy:
+				ESP_LOGI(Z21_PARSER_TAG, "LAN_X_SET_LOCO aka setLocoBusy");
+				// uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+
+				addBusySlot(client, ((packet[6] & 0x3F) << 8) + packet[7]);
+
+				if (packet[5] == LAN_X_SET_LOCO_FUNCTION)
+				{ // DB0
+					// LAN_X_SET_LOCO_FUNCTION  Adr_MSB        Adr_LSB            Type (00=AUS/01=EIN/10=UM)      Funktion
+					// word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & 0b00111111
+
+					if (notifyz21LocoFkt)
+						notifyz21LocoFkt(((packet[6] & 0x3F) << 8) + packet[7], packet[8] >> 6, packet[8] & 0b00111111);
+					// uint16_t Adr, uint8_t type, uint8_t fkt
+				}
+				else
+				{ // DB0
+					// ZDebug.print("X_SET_LOCO_DRIVE ");
+					uint8_t steps = 14;
+					if ((packet[5] & 0x03) == 3)
+						steps = 128;
+					else if ((packet[5] & 0x03) == 2)
+						steps = 28;
+
+					if (notifyz21LocoSpeed)
+						notifyz21LocoSpeed(((packet[6] & 0x3F) << 8) + packet[7], packet[8], steps);
+				}
+				returnLocoStateFull(client, ((packet[6] & 0x3F) << 8) + packet[7], true);
+				break;
+			case LAN_X_GET_FIRMWARE_VERSION:
+				ESP_LOGI(Z21_PARSER_TAG, "X_GET_FIRMWARE_VERSION");
+
+				data[0] = 0xF3;			   // identify Firmware (not change)
+				data[1] = 0x0A;			   // identify Firmware (not change)
+				data[2] = z21FWVersionMSB; // V_MSB
+				data[3] = z21FWVersionLSB; // V_LSB
 				EthSend(client, 0x09, LAN_X_Header, data, true, Z21bcNone);
 				break;
-			case 0x24:
-				data[0] = LAN_X_STATUS_CHANGED; //X-Header: 0x62
-				data[1] = 0x22;									//DB0
-				data[2] = Railpower;						//DB1: Status
-				//ZDebug.print("X_GET_STATUS ");
-				//csEmergencyStop  0x01 // Der Nothalt ist eingeschaltet
-				//csTrackVoltageOff  0x02 // Die Gleisspannung ist abgeschaltet
-				//csShortCircuit  0x04 // Kurzschluss
-				//csProgrammingModeActive 0x20 // Der Programmiermodus ist aktiv
-				EthSend(client, 0x08, LAN_X_Header, data, true, Z21bcNone);
-				break;
-			case 0x80:
-				ESP_LOGI(Z21_PARSER_TAG, "X_SET_TRACK_POWER_OFF");
+			case 0x73:
+				// LAN_X_??? WLANmaus periodische Abfrage:
+				// 0x09 0x00 0x40 0x00 0x73 0x00 0xFF 0xFF 0x00
+				// length X-Header	XNet-Msg			  speed?
+				ESP_LOGI(Z21_PARSER_TAG, "LAN-X_WLANmaus");
 
-				if (notifyz21RailPower)
-					notifyz21RailPower(csTrackVoltageOff);
+				// set Broadcastflags for WLANmaus:
+				if (addIPToSlot(client, 0x00) == 0)
+					addIPToSlot(client, Z21bcAll);
 				break;
-			case 0x81:
-				ESP_LOGI(Z21_PARSER_TAG, "X_SET_TRACK_POWER_ON");
-			  
-			  data[0] = LAN_X_BC_TRACK_POWER;
-			  data[1] = 0x01;
-			  EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
+			default:
 
-				if (notifyz21RailPower)
-					notifyz21RailPower(csNormal);
-				break;
-			}
-			break; //ENDE DB0
-		case LAN_X_CV_READ:
-			if (packet[5] == 0x11)
-			{ //DB0
-				ESP_LOGI(Z21_PARSER_TAG, "X_CV_READ");
+				ESP_LOGI(Z21_PARSER_TAG, "UNKNOWN_LAN-X_COMMAND");
 
-				if (notifyz21CVREAD)
-					notifyz21CVREAD(packet[6], packet[7]); //CV_MSB, CV_LSB
+				data[0] = 0x61;
+				data[1] = 0x82;
+				EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
 			}
 			break;
-		case LAN_X_CV_WRITE:
-			if (packet[5] == 0x12)
-			{ //DB0
-				ESP_LOGI(Z21_PARSER_TAG, "X_CV_WRITE");
-
-				if (notifyz21CVWRITE)
-					notifyz21CVWRITE(packet[6], packet[7], packet[8]); //CV_MSB, CV_LSB, value
-			}
-			break;
-		case LAN_X_CV_POM:
-			if (packet[5] == 0x30)
-			{ //DB0
-				uint8_t Adr = ((packet[6] & 0x3F) << 8) + packet[7];
-				uint8_t CVAdr = ((packet[8] & 0b11000000) << 8) + packet[9];
-				uint8_t value = packet[10];
-				if ((packet[8] & 0xFC) == 0xEC)
-				{
-					ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_WRITE_BYTE");
-
-					if (notifyz21CVPOMWRITEBYTE)
-						notifyz21CVPOMWRITEBYTE(Adr, CVAdr, value); //set decoder
-				}
-				else if ((packet[8] & 0xFC) == 0xE8)
-				{
-					ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_WRITE_BIT");
-
-				}
-				else
-				{
-					ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_READ_BIYTE");
-
-					if (notifyz21CVPOMREADBYTE)
-						notifyz21CVPOMREADBYTE(Adr, CVAdr); //set decoder
-				}
-			}
-			else if (packet[5] == 0x31)
-			{ //DB0
-				ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_ACCESSORY");
-
-			}
-			break;
-		case LAN_X_GET_TURNOUT_INFO:
+			//---------------------- LAN X-Header ENDE ---------------------------
+		case (LAN_SET_BROADCASTFLAGS):
 		{
-			ESP_LOGI(Z21_PARSER_TAG, "X_GET_TURNOUT_INFO ");
-
-			if (notifyz21AccessoryInfo)
-			{
-				data[0] = 0x43;			 //X-HEADER
-				data[1] = packet[5]; //High
-				data[2] = packet[6]; //Low
-				if (notifyz21AccessoryInfo((packet[5] << 8) + packet[6]) == true)
-					data[3] = 0x02; //active
-				else
-					data[3] = 0x01;																						 //inactive
-				EthSend (client, 0x09, LAN_X_Header, data, true, Z21bcNone); //BC new 23.04. !!! (old = 0)
-			}
-			break;
-		}
-		case LAN_X_SET_TURNOUT:
-		{
-			ESP_LOGI(Z21_PARSER_TAG, "X_SET_TURNOUT");
-
-			//bool TurnOnOff = bitRead(packet[7],3);  //Spule EIN/AUS
-			if (notifyz21Accessory)
-			{
-				notifyz21Accessory((packet[5] << 8) + packet[6], bitRead(packet[7], 0), bitRead(packet[7], 3));
-			} //	Addresse					Links/Rechts			Spule EIN/AUS
-			break;
-		}
-		  case LAN_X_SET_EXT_ACCESSORY: {
-			ESP_LOGI(Z21_PARSER_TAG, "X_SET_EXT_ACCESSORY RAdr");
-			//setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
-			break;
-		  }
-		  case LAN_X_GET_EXT_ACCESSORY_INFO: {
- 			ESP_LOGI(Z21_PARSER_TAG, "X_EXT_ACCESSORY_INFO RArd.");
-			//setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
-			break;  
-		  }		
-		case LAN_X_SET_STOP:
-			ESP_LOGI(Z21_PARSER_TAG, "X_SET_STOP");
-
+			unsigned long bcflag = packet[7];
+			bcflag = packet[6] | (bcflag << 8);
+			bcflag = packet[5] | (bcflag << 8);
+			bcflag = packet[4] | (bcflag << 8);
+			addIPToSlot(client, getLocalBcFlag(bcflag));
+			// no inside of the protokoll, but good to have:
 			if (notifyz21RailPower)
-				notifyz21RailPower(csEmergencyStop);
+				notifyz21RailPower(Railpower); // Zustand Gleisspannung Antworten
+			ESP_LOGI(Z21_PARSER_TAG, "SET_BROADCASTFLAGS: ");
+			ESP_LOGI(Z21_PARSER_TAG, "%d", (int)bcflag);
+
+			// ZDebug.println(addIPToSlot(client, 0x00), BIN);
+			// 1=BC Power, Loco INFO, Trnt INFO; 2=BC �nderungen der R�ckmelder am R-Bus
+
 			break;
-		case LAN_X_GET_LOCO_INFO:
-			
-			if (packet[5] == 0xF0)
-			{ //DB0
-				//ZDebug.print("X_GET_LOCO_INFO: ");
-				//Antwort: LAN_X_LOCO_INFO  Adr_MSB - Adr_LSB
-				//if (notifyz21getLocoState)
-				//	notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
-			    //uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
-				returnLocoStateFull(client, ((packet[6] & 0x3F) << 8) + packet[7], false);
-				//Antwort via "setLocoStateFull"!
-			}
-			break;
-		case LAN_X_SET_LOCO:
-			//setLocoBusy:
-			ESP_LOGI(Z21_PARSER_TAG, "LAN_X_SET_LOCO aka setLocoBusy");
-			//uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
-
-			addBusySlot(client, ((packet[6] & 0x3F) << 8) + packet[7]);
-
-			if (packet[5] == LAN_X_SET_LOCO_FUNCTION)
-			{ //DB0
-				//LAN_X_SET_LOCO_FUNCTION  Adr_MSB        Adr_LSB            Type (00=AUS/01=EIN/10=UM)      Funktion
-				//word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & 0b00111111
-				
-				
-
-				if (notifyz21LocoFkt)
-					notifyz21LocoFkt(((packet[6] & 0x3F) << 8) + packet[7], packet[8] >> 6, packet[8] & 0b00111111);
-				//uint16_t Adr, uint8_t type, uint8_t fkt
-			}
-			else
-			{ //DB0
-				//ZDebug.print("X_SET_LOCO_DRIVE ");
-				uint8_t steps = 14;
-				if ((packet[5] & 0x03) == 3)
-					steps = 128;
-				else if ((packet[5] & 0x03) == 2)
-					steps = 28;
-				
-				
-				if (notifyz21LocoSpeed)
-					notifyz21LocoSpeed(((packet[6] & 0x3F) << 8) + packet[7], packet[8], steps);
-			}
-			returnLocoStateFull(client, ((packet[6] & 0x3F) << 8) + packet[7], true);
-			break;
-		case LAN_X_GET_FIRMWARE_VERSION:
-			ESP_LOGI(Z21_PARSER_TAG, "X_GET_FIRMWARE_VERSION");
-
-			data[0] = 0xF3;						 //identify Firmware (not change)
-			data[1] = 0x0A;						 //identify Firmware (not change)
-			data[2] = z21FWVersionMSB; //V_MSB
-			data[3] = z21FWVersionLSB; //V_LSB
-			EthSend(client, 0x09, LAN_X_Header, data, true, Z21bcNone);
-			break;
-		case 0x73:
-			//LAN_X_??? WLANmaus periodische Abfrage: 
-			//0x09 0x00 0x40 0x00 0x73 0x00 0xFF 0xFF 0x00
-			//length X-Header	XNet-Msg			  speed?
-			ESP_LOGI(Z21_PARSER_TAG, "LAN-X_WLANmaus");
-
-			//set Broadcastflags for WLANmaus:
-			if (addIPToSlot(client, 0x00) == 0)
-				addIPToSlot(client, Z21bcAll);
-			break;
-		default:
-			
-			ESP_LOGI(Z21_PARSER_TAG, "UNKNOWN_LAN-X_COMMAND");
-
-			data[0] = 0x61;
-			data[1] = 0x82;
-			EthSend (client, 0x07, LAN_X_Header, data, true, Z21bcNone);	
 		}
-		break;
-		//---------------------- LAN X-Header ENDE ---------------------------	
-	case (LAN_SET_BROADCASTFLAGS):
-	{
-		unsigned long bcflag = packet[7];
-		bcflag = packet[6] | (bcflag << 8);
-		bcflag = packet[5] | (bcflag << 8);
-		bcflag = packet[4] | (bcflag << 8);
-		addIPToSlot(client, getLocalBcFlag(bcflag));
-		//no inside of the protokoll, but good to have:
-		if (notifyz21RailPower)
-			notifyz21RailPower(Railpower); //Zustand Gleisspannung Antworten
-		ESP_LOGI(Z21_PARSER_TAG, "SET_BROADCASTFLAGS: ");
-		ESP_LOGI(Z21_PARSER_TAG, "%d", (int)bcflag);
+		case (LAN_GET_BROADCASTFLAGS):
+		{
+			uint16_t flag = getz21BcFlag(addIPToSlot(client, 0x00));
+			data[0] = flag;
+			data[1] = flag >> 8;
+			data[2] = flag >> 16;
+			data[3] = flag >> 24;
+			EthSend(client, 0x08, LAN_GET_BROADCASTFLAGS, data, false, Z21bcNone);
+			ESP_LOGI(Z21_PARSER_TAG, "GET_BROADCASTFLAGS: ");
+			// ZDebug.println(flag, BIN);
 
-		//ZDebug.println(addIPToSlot(client, 0x00), BIN);
-// 1=BC Power, Loco INFO, Trnt INFO; 2=BC �nderungen der R�ckmelder am R-Bus
-
-		break;
-	}
-	case (LAN_GET_BROADCASTFLAGS):
-	{
-		uint16_t flag = getz21BcFlag(addIPToSlot(client, 0x00));
-		data[0] = flag;
-		data[1] = flag >> 8;
-		data[2] = flag >> 16;
-		data[3] = flag >> 24;
-		EthSend(client, 0x08, LAN_GET_BROADCASTFLAGS, data, false, Z21bcNone);
-		ESP_LOGI(Z21_PARSER_TAG, "GET_BROADCASTFLAGS: ");
-		//ZDebug.println(flag, BIN);
-
-		break;
-	}
-	case (LAN_GET_LOCOMODE):
+			break;
+		}
+		case (LAN_GET_LOCOMODE):
 			data[0] = packet[4];
 			data[1] = packet[5];
 			data[2] = 0;	//0=DCC Format; 1=MM Format
@@ -697,6 +698,14 @@ ZDebug.println();
 }
 
 //--------------------------------------------------------------------------------------------
+void notifyTrnt(uint16_t Adr, bool State)
+{
+	setTrntInfo(Adr, State);
+
+}
+//--------------------------------------------------------------------------------------------
+
+//--------------------------------------------------------------------------------------------
 uint8_t notifyz21LNdispatch(uint8_t Adr2, uint8_t Adr)
 //return the Slot that was dispatched, 0xFF at error!
 {
@@ -821,12 +830,12 @@ void setLocoStateExt (int Adr)
 	if ((ldata[0] & 0x03) == DCCSTEP128)		
 		data[3] = 4;	// 128 steps
 	data[3] = data[3] | 0x08; //BUSY!
-		
-	data[4] = (char) ldata[1];	//DSSS SSSS
-	data[5] = (char) ldata[2];    //F0, F4, F3, F2, F1
-	data[6] = (char) ldata[3];    //F5 - F12; Funktion F5 ist bit0 (LSB)
-	data[7] = (char) ldata[4];  //F13-F20
-	data[8] = (char) ldata[5];  //F21-F28
+
+	data[4] = (uint8_t)ldata[1];  // DSSS SSSS
+	data[5] = (uint8_t)ldata[2];  // F0, F4, F3, F2, F1
+	data[6] = (uint8_t)ldata[3];  // F5 - F12; Funktion F5 ist bit0 (LSB)
+	data[7] = (uint8_t)ldata[4];  // F13-F20
+	data[8] = (uint8_t)ldata[5];  // F21-F28
 
 	reqLocoBusy(Adr);
 	
@@ -880,7 +889,7 @@ uint8_t addIPToSlot(uint8_t client, uint8_t BCFlag)
 	}
 	ActIP[Slot].client = client;
 	ActIP[Slot].time = z21ActTimeIP;
-	//setPower(Railpower);
+	setPower(Railpower);
 	return ActIP[Slot].BCFlag; //BC Flag 4. uint8_t R�ckmelden
 }
 
@@ -916,6 +925,21 @@ void addBusySlot(uint8_t client, uint16_t adr)
 		}
 	}
 }
+
+
+//--------------------------------------------------------------------------------------------
+// used by non Z21 client
+void reqLocoBusy(uint16_t adr)
+{
+	for (uint8_t i = 0; i < z21clientMAX; i++)
+	{
+		if (adr == ActIP[i].adr)
+		{
+			ActIP[i].adr = 0; // clear
+		}
+	}
+}
+
 
 // Store IP in list and return it's index
 
@@ -1143,19 +1167,6 @@ void LokStsSetNew(uint8_t Slot, uint16_t adr) // Neue Lok eintragen mit Adresse
 }
 
 
-/*
-//--------------------------------------------------------------------------------------------
-//Gibt aktuellen Lokstatus an Anfragenden zur�ck
-void DCCPacketScheduler::getLocoStateFull(uint16_t adr)
-{
-	byte Slot = LokStsgetSlot(adr);
-	byte Speed = LokDataUpdate[Slot].speed;
-	if (notifyLokAll)
-		notifyLokAll(adr, LokDataUpdate[Slot].adr >> 14, Speed, LokDataUpdate[Slot].f0 & 0x1F,
-		LokDataUpdate[Slot].f1, LokDataUpdate[Slot].f2, LokDataUpdate[Slot].f3);
-}
-*/
-
 //--------------------------------------------------------------------------------------------
 //aktuellen Zustand aller Funktionen und Speed der Lok
 void getLocoData(uint16_t adr, uint8_t data[])
@@ -1345,6 +1356,18 @@ bool setFunctions21to28(uint16_t address, uint8_t functions)	//F28 F27 F26 F25 F
 	//return low_priority_queue.insertPacket(&p);
 	return true;
 }
+/*
+//--------------------------------------------------------------------------------------------
+// Gibt aktuellen Lokstatus an Anfragenden zurьck
+void getLocoStateFull(uint16_t adr)
+{
+	uint8_t Slot = LokStsgetSlot(adr);
+	uint8_t Speed = LokDataUpdate[Slot].speed;
+	if (notifyLokAll)
+		notifyLokAll(adr, LokDataUpdate[Slot].adr >> 14, Speed, LokDataUpdate[Slot].f0 & 0x1F,
+					 LokDataUpdate[Slot].f1, LokDataUpdate[Slot].f2, LokDataUpdate[Slot].f3);
+}*/
+
 //--------------------------------------------------------------------------------------------
 //Lokfunktion setzten
 void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
@@ -1362,8 +1385,9 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 			else fktbit = !(bitRead(func, fkt - 1));
 		}
 		if (fkt == 0)
-			bitWrite(func, 4, fktbit);
-		else bitWrite(func, fkt - 1, fktbit);
+			bitWrite(&func, 4, fktbit);
+		else
+			bitWrite(&func, fkt - 1, fktbit);
 		//Daten senden:
 		setFunctions0to4(address, func);	//func = 0 0 0 F0 F4 F3 F2 F1
 	}
@@ -1371,7 +1395,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		uint8_t funcG2 = LokDataUpdate[Slot].f1 & 0x0F;	//letztes Zustand der Funktionen 0000 F8..F5
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG2, fkt - 5));
-		bitWrite(funcG2, fkt - 5, fktbit);
+		bitWrite(&funcG2, fkt - 5, fktbit);
 		//Daten senden:
 		setFunctions5to8(address, funcG2);	//funcG2 = 0 0 0 0 F8 F7 F6 F5
 	}
@@ -1379,7 +1403,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		uint8_t funcG3 = LokDataUpdate[Slot].f1 >> 4;	//letztes Zustand der Funktionen 0000 F12..F9
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG3, fkt - 9));
-		bitWrite(funcG3, fkt - 9, fktbit);
+		bitWrite(&funcG3, fkt - 9, fktbit);
 		//Daten senden:
 		setFunctions9to12(address, funcG3); 	//funcG3 = 0 0 0 0 F12 F11 F10 F9
 	}
@@ -1387,7 +1411,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		uint8_t funcG4 = LokDataUpdate[Slot].f2;
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG4, fkt - 13));
-		bitWrite(funcG4, fkt - 13, fktbit);
+		bitWrite(&funcG4, fkt - 13, fktbit);
 		//Daten senden:
 		setFunctions13to20(address, funcG4);	//funcG4 = F20 F19 F18 F17 F16 F15 F14 F13
 	}
@@ -1395,11 +1419,12 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		uint8_t funcG5 = LokDataUpdate[Slot].f3;
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG5, fkt - 21));
-		bitWrite(funcG5, fkt - 21, fktbit);
+		bitWrite(&funcG5, fkt - 21, fktbit);
 		//Daten senden:
 		setFunctions21to28(address, funcG5);	//funcG5 = F28 F27 F26 F25 F24 F23 F22 F21
 	}
 	//getLocoStateFull(address, true);	//Alle aktiven Gerдte Senden!
+	//setLocoStateExt(address);
 }
 //--------------------------------------------------------------------------------------------
 void notifyz21LocoFkt(uint16_t Adr, uint8_t state, uint8_t fkt)
