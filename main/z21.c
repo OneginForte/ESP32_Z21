@@ -1017,7 +1017,7 @@ bool setSpeed14(uint16_t address, uint8_t speed)
 	if ((LokDataUpdate[slot].adr >> 14) != DCC14) // 0=>14steps, write speed steps into register
 		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC14 << 14);
 
-	uint8_t speed_data_uint8_ts[] = {0x40}; // speed indecator
+	//uint8_t speed_data_uint8_ts[] = {0x40}; // speed indecator
 	/*
 	if (speed == 1) //estop!
 		//return eStop(address);//
@@ -1028,8 +1028,8 @@ bool setSpeed14(uint16_t address, uint8_t speed)
 		speed_data_uint8_ts[0] |= map(speed, 2, 127, 2, 15); //convert from [2-127] to [1-14]
 	speed_data_uint8_ts[0] |= (0x20 * bitRead(speed, 7)); //flip bit 3 to indicate direction;
 	*/
-	speed_data_uint8_ts[0] |= speed & 0x1F;		   // 5 Bit Speed
-	speed_data_uint8_ts[0] |= (speed & 0x80) >> 2; // Dir
+	//speed_data_uint8_ts[0] |= speed & 0x1F;		   // 5 Bit Speed
+	//speed_data_uint8_ts[0] |= (speed & 0x80) >> 2; // Dir
 
 	/*
 	DCCPacket p(address);
@@ -1059,7 +1059,7 @@ bool setSpeed28(uint16_t address, uint8_t speed)
 	if ((LokDataUpdate[slot].adr >> 14) != DCC28) // 2=>28steps, write into register
 		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC28 << 14);
 
-	uint8_t speed_data_uint8_ts[] = {0x40}; // Speed indecator
+	//uint8_t speed_data_uint8_ts[] = {0x40}; // Speed indecator
 	/*
 	if(speed == 1) //estop!
 	  //return eStop(address);//
@@ -1074,8 +1074,8 @@ bool setSpeed28(uint16_t address, uint8_t speed)
 	}
 	speed_data_uint8_ts[0] |= (0x20 * bitRead(speed, 7)); //flip bit 3 to indicate direction;
 	*/
-	speed_data_uint8_ts[0] |= speed & 0x1F;		   // 5 Bit Speed
-	speed_data_uint8_ts[0] |= (speed & 0x80) >> 2; // Dir
+	//speed_data_uint8_ts[0] |= speed & 0x1F;		   // 5 Bit Speed
+	//speed_data_uint8_ts[0] |= (speed & 0x80) >> 2; // Dir
 /*
 	DCCPacket p(address);
 	p.addData(speed_data_uint8_ts, 1);
@@ -1106,12 +1106,12 @@ bool setSpeed128(uint16_t address, uint8_t speed)
 	if ((LokDataUpdate[slot].adr >> 14) != DCC128) // 3=>128steps, write into register
 		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC128 << 14);
 
-	uint8_t speed_data_uint8_ts[] = {0x3F, 0x00};
+	//uint8_t speed_data_uint8_ts[] = {0x3F, 0x00};
 
 	//	if (speed == 1) //estop!
 	//		return eStop(address);//speed_data_uint8_ts[1] |= 0x01; //estop
 	// else
-	speed_data_uint8_ts[1] = speed; // no conversion necessary.
+	//speed_data_uint8_ts[1] = speed; // no conversion necessary.
 
 	// why do we get things like this?
 	//  03 3F 16 15 3F (speed packet addressed to loco 03)
@@ -1161,9 +1161,7 @@ void LokStsSetNew(uint8_t Slot, uint16_t adr) // Neue Lok eintragen mit Adresse
 	LokDataUpdate[Slot].f3 = 0x00;
 
 // generate first drive information:
-
 	setSpeed(LokDataUpdate[Slot].adr, LokDataUpdate[Slot].speed);
-
 }
 
 
@@ -1185,9 +1183,7 @@ void getLocoData(uint16_t adr, uint8_t data[])
 //--------------------------------------------------------------------------------------------
 void notifyz21LocoState(uint16_t Adr, uint8_t data[])
 {
-
 	getLocoData(Adr, data);
-
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1320,9 +1316,9 @@ bool setFunctions9to12(uint16_t address, uint8_t functions)
 	if (address == 0)	//check if Adr is ok?
 		return false;
 
-  uint8_t data[] = { 0xA0 };
+  //uint8_t data[] = { 0xA0 };
   //least significant four functions (F5--F8)
-  data[0] |= functions & 0x0F;
+  //data[0] |= functions & 0x0F;
   
   LokDataUpdate[LokStsgetSlot(address)].f1 = (LokDataUpdate[LokStsgetSlot(address)].f1 | 0xF0) & ((functions << 4) | 0x0F);	//write into register to SAVE
 
@@ -1335,9 +1331,8 @@ bool setFunctions13to20(uint16_t address, uint8_t functions)	//F20 F19 F18 F17 F
 	if (address == 0)	//check if Adr is ok?
 		return false;
 
-	
-	uint8_t data[] = { 0b11011110, 0x00 }; 
-	data[1] = functions;	//significant functions (F20--F13)
+	//uint8_t data[] = { 0b11011110, 0x00 }; 
+	//data[1] = functions;	//significant functions (F20--F13)
 
 	LokDataUpdate[LokStsgetSlot(address)].f2 = functions; //write into register to SAVE
 	//return low_priority_queue.insertPacket(&p);
@@ -1349,8 +1344,8 @@ bool setFunctions21to28(uint16_t address, uint8_t functions)	//F28 F27 F26 F25 F
 	if (address == 0)	//check if Adr is ok?
 		return false;
 
-	int8_t data[] = { 0b11011111, 0x00}; 
-	data[1] = functions; //significant functions (F28--F21)
+	//int8_t data[] = { 0b11011111, 0x00}; 
+	//data[1] = functions; //significant functions (F28--F21)
 
 	LokDataUpdate[LokStsgetSlot(address)].f3 = functions; //write into register to SAVE
 	//return low_priority_queue.insertPacket(&p);
@@ -1429,10 +1424,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 //--------------------------------------------------------------------------------------------
 void notifyz21LocoFkt(uint16_t Adr, uint8_t state, uint8_t fkt)
 {
-
   setLocoFunc(Adr, state, fkt); 
-
-
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1594,64 +1586,52 @@ void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, 
 // Functions only available to other functions in this library *******************************************************
 
 //--------------------------------------------------------------------------------------------
-void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC)
-{
-	uint8_t data[24]; //z21 send storage
+void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC) {
+	uint8_t data[24]; 			//z21 send storage
+	
+	//--------------------------------------------        
+	//XOR bestimmen:
+	data[0] = DataLen & 0xFF;
+	data[1] = DataLen >> 8;
+	data[2] = Header & 0xFF;
+	data[3] = Header >> 8;
+	data[DataLen - 1] = 0;	//XOR
+
+    for (uint8_t i = 0; i < (DataLen-5+!withXOR); i++) { //Ohne Length und Header und XOR
+        if (withXOR)
+			data[DataLen-1] = data[DataLen-1] ^ *dataString;
+		data[i+4] = *dataString;
+        dataString++;
+    }
+   //--------------------------------------------        		
+   if (client > 0) {
+		if (notifyz21EthSend)
+			notifyz21EthSend(client, data,24);
+
+   }
+   else {
 	uint8_t clientOut = client;
+	for (uint8_t i = 0; i < z21clientMAX; i++) {
+		if ( (ActIP[i].time > 0) && ( (BC & ActIP[i].BCFlag) > 0) ) {    //Boradcast & Noch aktiv
 
-	for (uint8_t i = 0; i < z21clientMAX; i++)
-	{
-		if ((BC == 0) || (BC == Z21bcAll_s) || ((ActIP[i].time > 0) && ((BC & ActIP[i].BCFlag) > 0)))
-		{ //Boradcast & Noch aktiv
+		  if (BC != 0) {
+			if (BC == Z21bcAll_s)
+				clientOut = 0;	//ALL
+			else clientOut = ActIP[i].client;
+		  }
+		  
+		  //--------------------------------------------
+		  if (notifyz21EthSend)
+			notifyz21EthSend(clientOut, data,24);
 
-			if (BC != 0)
-			{
-				if (BC == Z21bcAll_s)
-					clientOut = 0; //ALL
-				else
-					clientOut = ActIP[i].client;
-			}
-			//--------------------------------------------
-
-			data[0] = DataLen & 0xFF;
-			data[1] = DataLen >> 8;
-			data[2] = Header & 0xFF;
-			data[3] = Header >> 8;
-			data[DataLen - 1] = 0; //XOR
-
-			for (uint8_t i = 0; i < (DataLen - 5 + !withXOR); i++)
-			{ //Ohne Length und Header und XOR
-				if (withXOR)
-					data[DataLen - 1] = data[DataLen - 1] ^ *dataString;
-				//Udp->write(*dataString);
-				data[i + 4] = *dataString;
-				dataString++;
-			}
-			//--------------------------------------------
-			//Udp->endPacket();
-			if (notifyz21EthSend)
-				notifyz21EthSend(clientOut, data, DataLen);
-
-			ESP_LOGI(Z21_PARSER_TAG, "Eth sended...");
-			
-			//uint8_t
-				/*
-			ZDebug.print(clientOut);
-			ZDebug.print(" BC:");
-			ZDebug.print(BC & ActIP[i].BCFlag, BIN);
-			ZDebug.print(" : ");
-			for (uint8_t i = 0; i < data[0]; i++)
-			{
-				ZDebug.print(data[i], HEX);
-				ZDebug.print(" ");
-			}
-			ZDebug.println();
-			*/
-
-				if ((BC == 0) || ((BC == Z21bcAll_s) && (clientOut == 0))) //END when no BC
+		  if (clientOut == 0){
+		  		ESP_LOGI(Z21_PARSER_TAG, "Eth bcast sended...");
 				return;
-				
+		  }
 		}
 	}
+  }
+	ESP_LOGI(Z21_PARSER_TAG, "Eth sended...");
 }
+
 

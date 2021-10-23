@@ -71,7 +71,7 @@
 
 //**************************************************************
 //Z21 BC Flags
-#define Z21bcNone (uint32_t)0x00000000
+#define Z21bcNone 0x00000000
 #define Z21bcAll 0x00000001
 #define Z21bcAll_s 0b00000001
 #define Z21bcRBus 0x00000002

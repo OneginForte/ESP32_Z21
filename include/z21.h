@@ -81,19 +81,7 @@ uint8_t DCCdefaultSteps;
 #define DCC28 0x02
 #define DCC128 0x03
 
-typedef struct // Lokdaten	(Lok Events)
-{
-	uint16_t adr; // SS1, SS0, A13, A12| A11, A10, A9, A8| A7, A6, A5, A4| A3, A2, A1, A0
-	// A0-A13 = Adresse
-	// SS = Fahrstufen-speedsteps (0=error, 1=14, 2=28, 3=128)
-	uint8_t speed; // Dir, Speed 0..127 (0x00 - 0x7F) -> 0SSS SSSS + (0x80) -> D000 0000
-	uint8_t f0;	   // X   X   X   F0 | F4  F3  F2  F1
-	uint8_t f1;	   // F12 F11 F10 F9 | F8  F7  F6  F5
-	uint8_t f2;	   // F20 F19 F18 F17| F16 F15 F14 F13
-	uint8_t f3;	   // F28 F27 F26 F25| F24 F23 F22 F21
-} NetLok;
-NetLok LokDataUpdate[SlotMax]; // Speicher zu widerholdene Lok Daten
-//**************************************************************
+
 
 //**************************************************************
 //Firmware-Version der Z21:
@@ -149,9 +137,6 @@ struct TypeActIP
 uint8_t Railpower;		  //state of the railpower
 long z21IPpreviousMillis; // will store last time of IP decount updated
 
-
-
-
 typedef struct //Rückmeldung des Status der Programmierung
 {
 	uint8_t IP0; //client IP-Adresse
@@ -163,7 +148,19 @@ typedef struct //Rückmeldung des Status der Programmierung
 } listofIP;
 listofIP mem[z21clientMAX];
 
-
+typedef struct // Lokdaten	(Lok Events)
+{
+	uint16_t adr; // SS1, SS0, A13, A12| A11, A10, A9, A8| A7, A6, A5, A4| A3, A2, A1, A0
+	// A0-A13 = Adresse
+	// SS = Fahrstufen-speedsteps (0=error, 1=14, 2=28, 3=128)
+	uint8_t speed; // Dir, Speed 0..127 (0x00 - 0x7F) -> 0SSS SSSS + (0x80) -> D000 0000
+	uint8_t f0;	   // X   X   X   F0 | F4  F3  F2  F1
+	uint8_t f1;	   // F12 F11 F10 F9 | F8  F7  F6  F5
+	uint8_t f2;	   // F20 F19 F18 F17| F16 F15 F14 F13
+	uint8_t f3;	   // F28 F27 F26 F25| F24 F23 F22 F21
+} NetLok;
+NetLok LokDataUpdate[SlotMax]; // Speicher zu widerholdene Lok Daten
+//**************************************************************
 //volatile uint8_t rx_buffer[128];
 
 //Variables:
