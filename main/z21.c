@@ -21,31 +21,33 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 
 // Function that handles the creation and setup of instances
 
-void z21Class()
-{
-	// initialize this instance's variables
-	z21IPpreviousMillis = 0;
-	Railpower = csTrackVoltageOff;
-	clearIPSlots();
-}
+	void z21Class()
+		{
+			// initialize this instance's variables
+			z21IPpreviousMillis = 0;
+			Railpower = csTrackVoltageOff;
+			clearIPSlots();
+		}
 
-bool bitRead(uint8_t order, uint8_t num)
-{
-	return (order & (1 << num));
-}
-void bitWrite(uint8_t *order, uint8_t num, bool bit)
-{
-	if (bit)
-	{
-		*order = *order | (1 << num);
-	}
-	else
-	{
-		*order = *order & ~(1 << num);
-	}
-}
-	//*********************************************************************************************
-	// Daten ermitteln und Auswerten
+	bool bitRead(uint8_t order, uint8_t num)
+		{
+			return (order & (1 << num));
+		}
+	void bitWrite(uint8_t *order, uint8_t num, bool bit)
+		{
+		if (bit)
+		{
+			*order = *order | (1 << num);
+		}
+		else
+		{
+			*order = *order & ~(1 << num);
+		}
+		}
+
+
+//*********************************************************************************************
+// Daten ermitteln und Auswerten
 	void receive(uint8_t client, uint8_t * packet)
 	{
 		ESP_LOGI(Z21_PARSER_TAG, "Parser start.");
