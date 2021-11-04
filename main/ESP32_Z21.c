@@ -53,7 +53,7 @@ SOFTWARE.
 static const char TAG[] = "Z21";
 static const char *Z21_TASK_TAG = "Z21_UDP_RECIEVER";
 static const char *Z21_SENDER_TAG = "Z21_UDP_SENDER";
-static const int P50X_RX_BUF_SIZE = 128;
+static const int XNET_RX_BUF_SIZE = 128;
 
 #define TXD_PIN (GPIO_NUM_17)
 #define RXD_PIN (GPIO_NUM_16)
@@ -205,49 +205,49 @@ int sendData(const char* logName, const char* data)
 
 static void tx_task(void *arg)
 {
-    static const char *TX_TASK_TAG = "P50X_TX_TASK";
+    static const char *TX_TASK_TAG = "XNET_TX_TASK";
     esp_log_level_set(TX_TASK_TAG, ESP_LOG_INFO);
     while (1) 
     {
-        sendData(TX_TASK_TAG, "Hello world");
+        //sendData(TX_TASK_TAG, "Hello world");
         vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
 }
 
 static void rx_task(void *arg)
 {
-    static const char *RX_TASK_TAG = "P50X_RX_TASK";
+    static const char *RX_TASK_TAG = "XNET_RX_TASK";
     esp_log_level_set(RX_TASK_TAG, ESP_LOG_INFO);
-    uint8_t *data = (uint8_t *)malloc(P50X_RX_BUF_SIZE);
+    uint8_t *data = (uint8_t *)malloc(XNET_RX_BUF_SIZE);
     while (1) 
     {
-        const int rxBytes = uart_read_bytes(UART_NUM_1, data, P50X_RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
+        const int rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
         if (rxBytes > 0) 
         {
             //data[rxBytes] = 0;
-            ESP_LOGI(RX_TASK_TAG, "Read from P50x %d bytes:", rxBytes);
+            ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", rxBytes);
             ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, rxBytes, ESP_LOG_INFO);
         }
     }
     free(data);
 }
 
-void init_p50x(void) {
+void init_XNET(void) {
     const uart_config_t uart_config = {
-        .baud_rate = 19200,
+        .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_2,
+        .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         .source_clk = UART_SCLK_APB,
     };
     // We won't use a buffer for sending data.
-    uart_driver_install(UART_NUM_1, P50X_RX_BUF_SIZE * 2, 0, 0, NULL, 0);
+    uart_driver_install(UART_NUM_1, XNET_RX_BUF_SIZE * 2, 0, 0, NULL, 0);
     uart_param_config(UART_NUM_1, &uart_config);
     uart_set_pin(UART_NUM_1, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
-    xTaskCreate(rx_task, "uart_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
-    xTaskCreate(tx_task, "uart_tx_task", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+    xTaskCreate(rx_task, "xnet_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
+    xTaskCreate(tx_task, "xnet_tx_task", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
 }
 /**
  * @brief RTOS task that periodically prints the heap memory available.
@@ -380,7 +380,7 @@ void app_main()
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
     xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 2048, NULL, 1, NULL, 1);
  
-    //init_p50x();
+    init_XNET();
 
 while (1) 
     {
