@@ -30,7 +30,7 @@ SOFTWARE.
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_log.h"
-#include  "esp_int_wdt.h"
+#include "esp_int_wdt.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
 
@@ -46,6 +46,8 @@ SOFTWARE.
 #include <lwip/netdb.h>
 #include "z21header.h"
 #include "z21.h"
+#include "XBusInterface.h"
+#include "XpressNet.h"
 
 //#include "protocol_examples_common.h"
 
@@ -57,6 +59,8 @@ static const int XNET_RX_BUF_SIZE = 128;
 
 #define TXD_PIN (GPIO_NUM_17)
 #define RXD_PIN (GPIO_NUM_16)
+
+#define MY_ADDRESS 29
 
 const char z21_nvs_namespace[] = "esp_z21";
 
@@ -326,9 +330,26 @@ void app_main()
     storedIP = 0;
     slotFullNext=0;
     DCCdefaultSteps=128;
+
+    // initialize this instance's variables
+    Railpower = 0xFF; //Ausgangs undef.
+
+    XNetRun = false; //XNet ist inactive;
+    xLokStsclear();  //l�schen aktiver Loks in Slotserver
+    ReqLocoAdr = 0;
+    ReqLocoAgain = 0;
+    ReqFktAdr = 0;
+    SlotLast = 0;
+
+    previousMillis = 0; //Reset Time Count
+    myRequestAck = callByteParity(MY_ADDRESS | 0x00) | 0x100;
+    myCallByteInquiry = callByteParity(MY_ADDRESS | 0x40) | 0x100;
+    myDirectedOps = callByteParity(MY_ADDRESS | 0x60) | 0x100;
+
     uint8_t *txBuffer = (uint8_t *)malloc(Z21_UDP_TX_MAX_SIZE);
     uint8_t *rxBuffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
-        // txSendFlag=0;
+    
+    // txSendFlag=0;
 
     if (nvs_sync_lock(portMAX_DELAY))
         {
@@ -386,9 +407,9 @@ while (1)
     {
     if (rxFlag == 1) // && txSendFlag==0
         {
-        ESP_LOGI(TAG, "Prepare parser");
+        //ESP_LOGI(TAG, "Prepare parser");
         receive(rxclient, (uint8_t *)&rxBuffer);
-        ESP_LOGI(TAG, "Parser done!");
+        //ESP_LOGI(TAG, "Parser done!");
         // memset((uint8_t *)&rxBuffer, 0, 128);
         rxlen = 0;
         rxclient = 0;

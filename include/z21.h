@@ -48,6 +48,7 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
+#include "XpressNet.h"
 //--------------------------------------------------------------
 #define z21Port 21105      // local port to listen on
 #define PORT z21Port
@@ -163,8 +164,10 @@ NetLok LokDataUpdate[SlotMax]; // Speicher zu widerholdene Lok Daten
 //**************************************************************
 //volatile uint8_t rx_buffer[128];
 
+
 //Variables:
 uint8_t Railpower;				   //state of the railpower
+
 long z21IPpreviousMillis;	   // will store last time of IP decount updated
 struct TypeActIP ActIP[z21clientMAX]; //Speicherarray f�r IPs
 
@@ -191,7 +194,7 @@ void setTrntInfo(uint16_t Adr, bool State); //Return the state of accessory
 void setExtACCInfo(uint16_t Adr, uint8_t State); //Return EXT Accessory INFO
 
 void setCVReturn(uint16_t CV, uint8_t value); //Return CV Value for Programming
-void setCVNack();							  //Return no ACK from Decoder
+void z21setCVNack();						  //Return no ACK from Decoder
 void setCVNackSC();							  //Return Short while Programming
 
 void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, uint16_t temp); //Send to all clients that request via BC the System Information
