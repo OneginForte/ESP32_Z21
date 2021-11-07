@@ -13,14 +13,15 @@
 */
 
 // include this library's description file
+#include "XBusInterface.h"
 #include "XpressNet.h"
-
+#include "z21.h"
 
 #define interval 10500      //interval for Status LED (milliseconds)
 
 //*******************************************************************************************
 //Daten ermitteln und Auswerten
-void receive(void) 
+void xnetreceive(void) 
 {
 	/*
 	XNetMsg[XNetlength] = 0x00;
@@ -121,13 +122,13 @@ void receive(void)
 			unsigned int Adr = (XNetMsg[XNetdata1] << 2) | ((XNetMsg[XNetdata2] & 0b0110) >> 1);  // Dir afectada
 			uint8_t Pos = (XNetMsg[XNetdata2] & 0b0001) + 1;
 			if (!A_bit) { // Accessory activation request
-			  if (notifyTrnt)
+			  if (notifyTrnt){
 
 			    //highByte(Adr), lowByte(Adr)
-				data[1] = Adr >> 8; //High
-			    data[2] = Adr & 0xFF;	  //Low
-			  notifyTrnt(Adr, Pos);
-            }
+				//data[1] = Adr >> 8; //High
+			    //data[2] = Adr & 0xFF;	  //Low
+			   notifyTrnt(Adr, Pos);
+            	}
             else { // Accessory deactivation request
 				Pos = Pos | 0b1000;
 				if (notifyTrnt)
@@ -247,7 +248,8 @@ void receive(void)
 			else {
 				uint8_t Adr_MSB = XNetMsg[XNetdata2];
 				uint8_t Adr_LSB = XNetMsg[XNetdata3];
-				uint8_t Slot = xLokStsgetSlot(Adr_MSB, Adr_LSB);
+
+				uint8_t Slot = LokStsgetSlot(Adr_MSB, Adr_LSB);
 				switch (XNetMsg[XNetdata1]) {
 					case 0x10: xLokSts[Slot].speed = XNetMsg[XNetdata4];//14 Speed steps
 								break;
@@ -400,15 +402,16 @@ void setHalt()
 bool getLocoInfo(uint8_t Adr_High, uint8_t Adr_Low)
 {
 	bool ok = false;
-	
-	getLocoStateFull(Adr_High, Adr_Low, false);
+	uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
+	getLocoStateFull(WORD, false);
 
-	uint8_t Slot = xLokStsgetSlot(Adr_High, Adr_Low);
-	if (xLokSts[Slot].state < 0xFF)
-		xLokSts[Slot].state++;		//aktivit�t
-		
+	uint8_t Slot = LokStsgetSlot(WORD);
+	if (LokDataUpdate[Slot].state < 0xFF)
+		LokDataUpdate[Slot].state++; //aktivit�t
+
 	if (xLokStsBusy(Slot) == true && ReqLocoAdr == 0)	{		//Besetzt durch anderen XPressNet Handregler
-		ReqLocoAdr = word(Adr_High, Adr_Low); //Speichern der gefragen Lok Adresse
+		uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
+		ReqLocoAdr = WORD; //Speichern der gefragen Lok Adresse
 		unsigned char getLoco[] = {0xE3, 0x00, Adr_High, Adr_Low, 0x00};
 		if (ReqLocoAdr > 99)
 			getLoco[2] = Adr_High | 0xC0;
@@ -482,116 +485,7 @@ bool setLocoDrive(uint8_t Adr_High, uint8_t Adr_Low, uint8_t Steps, uint8_t Spee
 	return ok;
 }
 
-//--------------------------------------------------------------------------------------------
-//Lokfunktion setzten
-bool setLocoFunc(uint8_t Adr_High, uint8_t Adr_Low, uint8_t type, uint8_t fkt)
-{
-	bool ok = false;	//Funktion wurde nicht gesetzt!
-	bool fktbit = 0;	//neue zu �ndernde fkt bit
-	if (type == 1)	//ein
-		fktbit = 1;
-	uint8_t Slot = xLokStsgetSlot(Adr_High, Adr_Low);
-	//zu �nderndes bit bestimmen und neu setzten:
-	if (fkt <= 4) {
-		uint8_t func = xLokSts[Slot].f0 & 0b00011111; //letztes Zustand der Funktionen 000 F0 F4..F1
-		if (type == 2) { //um
-			if (fkt == 0)
-				fktbit = !(bitRead(func, 4));
-			else fktbit = !(bitRead(func, fkt-1));
-		}
-		if (fkt == 0)
-			bitWrite(func, 4, fktbit);
-		else bitWrite(func, fkt-1, fktbit);
-		//Daten �ber XNet senden:
-		unsigned char setLocoFunc[] = {0xE4, 0x20, Adr_High, Adr_Low, func, 0x00};	//Gruppe1 = 0 0 0 F0 F4 F3 F2 F1
-		if (word(Adr_High,Adr_Low) > 99)
-			setLocoFunc[2] = Adr_High | 0xC0;
-		getXOR(setLocoFunc, 6);
-		ok = XNetSendadd (setLocoFunc, 6);
-		//Slot anpassen:
-		if (fkt == 0)
-			bitWrite(xLokSts[Slot].f0, 4, fktbit);
-		else bitWrite(xLokSts[Slot].f0, fkt-1, fktbit);
-	}
-	else if ((fkt >= 5) && (fkt <= 8)) {
-		uint8_t funcG2 = xLokSts[Slot].f1 & 0x0F; //letztes Zustand der Funktionen 0000 F8..F5
-		if (type == 2) //um
-			fktbit = !(bitRead(funcG2, fkt-5));
-		bitWrite(funcG2, fkt-5, fktbit);
-		//Daten �ber XNet senden:
-		unsigned char setLocoFunc[] = {0xE4, 0x21, Adr_High, Adr_Low, funcG2, 0x00};	//Gruppe2 = 0 0 0 0 F8 F7 F6 F5
-		if (word(Adr_High,Adr_Low) > 99)
-			setLocoFunc[2] = Adr_High | 0xC0;
-		getXOR(setLocoFunc, 6);
-		ok = XNetSendadd (setLocoFunc, 6);
-		//Slot anpassen:
-		bitWrite(xLokSts[Slot].f1, fkt-5, fktbit);
-	}
-	else if ((fkt >= 9) && (fkt <= 12)) {
-		uint8_t funcG3 = xLokSts[Slot].f1 >> 4; //letztes Zustand der Funktionen 0000 F12..F9
-		if (type == 2) //um
-			fktbit = !(bitRead(funcG3, fkt-9));
-		bitWrite(funcG3, fkt-9, fktbit);
-		//Daten �ber XNet senden:
-		unsigned char setLocoFunc[] = {0xE4, 0x22, Adr_High, Adr_Low, funcG3, 0x00};	//Gruppe3 = 0 0 0 0 F12 F11 F10 F9
-		if (word(Adr_High,Adr_Low) > 99)
-			setLocoFunc[2] = Adr_High | 0xC0;
-		getXOR(setLocoFunc, 6);
-		ok = XNetSendadd (setLocoFunc, 6);
-		//Slot anpassen:
-		bitWrite(xLokSts[Slot].f1, fkt-9+4, fktbit);
-	}
-	else if ((fkt >= 13) && (fkt <= 20)) {
-		uint8_t funcG4 = xLokSts[Slot].f2;
-		if (type == 2) //um
-			fktbit = !(bitRead(funcG4, fkt-13));
-		bitWrite(funcG4, fkt-13, fktbit);
-		//Daten �ber XNet senden:
-		//unsigned char setLocoFunc[] = {0xE4, 0x23, Adr_High, Adr_Low, funcG4, 0x00};	//Gruppe4 = F20 F19 F18 F17 F16 F15 F14 F13
-		unsigned char setLocoFunc[] = {0xE4, 0xF3, Adr_High, Adr_Low, funcG4, 0x00};	//Gruppe4 = F20 F19 F18 F17 F16 F15 F14 F13
-		//0xF3 = undocumented command is used when a mulitMAUS is controlling functions f20..f13. 
-		if (word(Adr_High,Adr_Low) > 99)
-			setLocoFunc[2] = Adr_High | 0xC0;
-		getXOR(setLocoFunc, 6);
-		ok = XNetSendadd (setLocoFunc, 6);
-		//Slot anpassen:
-		bitWrite(xLokSts[Slot].f2, (fkt-13), fktbit);
-	}
-	else if ((fkt >= 21) && (fkt <= 28)) {
-		uint8_t funcG5 = xLokSts[Slot].f3;
-		if (type == 2) //um
-			fktbit = !(bitRead(funcG5, fkt-21));
-		bitWrite(funcG5, fkt-21, fktbit);
-		//Daten �ber XNet senden:
-		unsigned char setLocoFunc[] = {0xE4, 0x28, Adr_High, Adr_Low, funcG5, 0x00};	//Gruppe5 = F28 F27 F26 F25 F24 F23 F22 F21
-		if (word(Adr_High,Adr_Low) > 99)
-			setLocoFunc[2] = Adr_High | 0xC0;
-		getXOR(setLocoFunc, 6);
-		ok = XNetSendadd (setLocoFunc, 6);
-		//Slot anpassen:
-		bitWrite(xLokSts[Slot].f3, (fkt-21), fktbit);
-	}
-	getLocoStateFull(Adr_High, Adr_Low, true);	//Alle aktiven Ger�te Senden!
-	return ok;
-}
 
-//--------------------------------------------------------------------------------------------
-//Gibt aktuellen Lokstatus an Anfragenden Zur�ck
-void getLocoStateFull(uint8_t Adr_High, uint8_t Adr_Low, bool bc)
-{
-	uint8_t Slot = xLokStsgetSlot(Adr_High, Adr_Low);
-	uint8_t Busy = bitRead(xLokSts[Slot].mode, 3);
-	uint8_t Dir = bitRead(xLokSts[Slot].f0, 5);
-	uint8_t F0 = xLokSts[Slot].f0 & 0b00011111;
-	uint8_t F1 = xLokSts[Slot].f1;
-	uint8_t F2 = xLokSts[Slot].f2;
-	uint8_t F3 = xLokSts[Slot].f3;
-	if (notifyLokAll)
-		notifyLokAll(Adr_High, Adr_Low, Busy, xLokSts[Slot].mode & 0b11, xLokSts[Slot].speed, Dir, F0, F1, F2, F3, bc);
-	//Nutzung protokollieren:
-	if (xLokSts[Slot].state < 0xFF)
-		xLokSts[Slot].state++;		//aktivit�t
-}
 
 //--------------------------------------------------------------------------------------------
 //Ermitteln der Schaltstellung einer Weiche
@@ -664,7 +558,13 @@ void getresultCV ()
 // Private Methods ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Functions only available to other functions in this library *******************************************************
 
+//--------------------------------------------------------------------------------------------
+// send along a bunch of bytes to the Command Station
+void XNetsend(uint8_t *dataString, uint8_t byteCount)
+{
 
+	//RAW_output(dataString, byteCount);
+}
 
 //--------------------------------------------------------------------------------------------
 //L�schen des letzten gesendeten Befehls
@@ -982,14 +882,64 @@ void setFree(uint8_t MSB, uint8_t LSB) //Lok aus Slot nehmen
 }
 
 //--------------------------------------------------------------------------------------------
-void notifyTrnt(uint16_t Adr, bool State)
+void notifyTrnt(uint16_t cvAdr, uint8_t State)
 {
-	setTrntInfo(Adr, State);
+	setTrntInfo(cvAdr, State);
 }
 
-bool setBasicAccessoryPos(uint16_t address, bool state)
+//---------------------------------------------------------------------------------
+//Special Function for programming, switch and estop:
+
+bool setBasicAccessoryPos(uint16_t address, bool state, bool activ)
 {
-	return setBasicAccessoryPos(address, state, true); //Ausgang aktivieren
+	/*
+	Accessory decoder packet format:
+	================================
+	1111..11 0 1000-0001 0 1111-1011 0 EEEE-EEEE 1
+      Preamble | 10AA-AAAA | 1aaa-CDDX | Err.Det.B
+
+      aaaAAAAAA -> 111000001 -> Acc. decoder number 1
+
+	  UINT16 FAdr = (FAdr_MSB << 8) + FAdr_LSB;
+	  UINT16 Dcc_Addr = FAdr >> 2	//aaaAAAAAA
+
+	  Beispiel:
+	  FAdr=0 ergibt DCC-Addr=0 Port=0;
+	  FAdr=3 ergibt DCC-Addr=0 Port=3;
+	  FAdr=4 ergibt DCC-Addr=1 Port=0; usw
+
+      C on/off:    1 => on		// Ausgang aktivieren oder deaktivieren
+      DD turnout: 01 => 2		// FAdr & 0x03  // Port
+      X str/div:   1 => set to diverging  // Weiche nach links oder nach rechts 
+		=> X=0 soll dabei Weiche auf Abzweig bzw. Signal auf Halt kennzeichnen.
+
+     => COMMAND: SET TURNOUT NUMBER 2 DIVERGING
+
+	 1111..11 0 1000-0001 0 1111-0011 0 EEEE-EEEE 1
+	 => COMMAND: SET TURNOUT NUMBER 6 DIVERGING
+	*/
+	if (address > 0x7FF) //check if Adr is ok, (max. 11-bit for Basic Adr)
+		return false;
+
+	//DCCPacket p((address + TrntFormat) >> 2); //9-bit Address + Change Format Roco / Intellibox
+	//int8_t data[1];
+	//data[0] = ((address + TrntFormat) & 0x03) << 1; //0000-CDDX
+	//if (state == true)                              //SET X Weiche nach links oder nach rechts
+	//  bitWrite(data[0], 0, 1);                      //set turn
+	//if (activ == true)                              //SET C Ausgang aktivieren oder deaktivieren
+	//bitWrite(data[0], 3, 1); //set ON
+
+	//p.addData(data, 1);
+	//p.setKind(basic_accessory_packet_kind);
+	//p.setRepeat(OTHER_REPEAT);
+
+	if (notifyTrnt)
+		notifyTrnt(address, state);
+
+	bitWrite(BasicAccessory[address / 8], address % 8, state); //pro SLOT immer 8 Zust�nde speichern!
+
+	//return high_priority_queue.insertPacket(&p);
+	return true; //e_stop_queue.insertPacket(&p);
 }
 
 bool setBasicAccessoryPos(uint16_t address, bool state, bool activ)
@@ -1023,23 +973,52 @@ bool setBasicAccessoryPos(uint16_t address, bool state, bool activ)
 	if (address > 0x7FF) //check if Adr is ok, (max. 11-bit for Basic Adr)
 		return false;
 
-	DCCPacket p((address + TrntFormat) >> 2); //9-bit Address + Change Format Roco / Intellibox
-	uint8_t data[1];
-	data[0] = ((address + TrntFormat) & 0x03) << 1; //0000-CDDX
-	if (state == true)								//SET X Weiche nach links oder nach rechts
-		bitWrite(data[0], 0, 1);					//set turn
-	if (activ == true)								//SET C Ausgang aktivieren oder deaktivieren
-		bitWrite(data[0], 3, 1);					//set ON
+	//DCCPacket p((address + TrntFormat) >> 2); //9-bit Address + Change Format Roco / Intellibox
+	//uint8_t data[1];
+	//data[0] = ((address + TrntFormat) & 0x03) << 1; //0000-CDDX
+	//if (state == true)								//SET X Weiche nach links oder nach rechts
+	//	bitWrite(data[0], 0, 1);					//set turn
+	//if (activ == true)								//SET C Ausgang aktivieren oder deaktivieren
+	//	bitWrite(data[0], 3, 1);					//set ON
 
-	p.addData(data, 1);
-	p.setKind(basic_accessory_packet_kind);
-	p.setRepeat(OTHER_REPEAT);
+	//p.addData(data, 1);
+	//p.setKind(basic_accessory_packet_kind);
+	//p.setRepeat(OTHER_REPEAT);
 
 	if (notifyTrnt)
+	{ 
 		notifyTrnt(address, state);
-
+	}
 	bitWrite(BasicAccessory[address / 8], address % 8, state); //pro SLOT immer 8 Zust�nde speichern!
 
 	//return high_priority_queue.insertPacket(&p);
-	return e_stop_queue.insertPacket(&p);
+	return 1; //e_stop_queue.insertPacket(&p);
+}
+//--------------------------------------------------------------------------------------------
+//Zustand der Gleisversorgung setzten
+void XpressNetsetPower(uint8_t Power)
+{
+	switch (Power)
+	{
+	case csNormal:
+	{
+		unsigned char PowerAn[] = {0x21, 0x81, 0xA0};
+		XNetSendadd(PowerAn, 3);
+	}
+	case csEmergencyStop:
+	{
+		unsigned char EmStop[] = {0x80, 0x80};
+		XNetSendadd(EmStop, 2);
+	}
+	case csTrackVoltageOff:
+	{
+		unsigned char PowerAus[] = {0x21, 0x80, 0xA1};
+		XNetSendadd(PowerAus, 3);
+	}
+		/*		case csShortCircuit:
+			return false;
+		case csServiceMode:
+			return false;	*/
+	}
+	//return false;
 }

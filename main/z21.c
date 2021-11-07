@@ -14,6 +14,8 @@
 // include this library's description file
 #include <z21.h>
 #include <z21header.h>
+#include "XBusInterface.h"
+#include "XpressNet.h"
 #include "esp_timer.h"
 
 static const char *Z21_PARSER_TAG = "Z21_PARSER";
@@ -459,17 +461,17 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 
 		break;
 	case (0x13):
-	{ //configuration write
-//<-- 0e 00 13 00 01 00 01 03 01 00 03 00 00 00
-//0x0e = Length; 0x12 = Header
-/* Daten:
+	{ 	//configuration write
+		//<-- 0e 00 13 00 01 00 01 03 01 00 03 00 00 00
+		//0x0e = Length; 0x12 = Header
+		/* Daten:
 			(0x01) RailCom: 0=aus/off, 1=ein/on
 			(0x00)
 			(0x01) Power-Button: 0=Gleisspannung aus, 1=Nothalt
 			(0x03) Auslese-Modus: 0=Nichts, 1=Bit, 2=Byte, 3=Beides
 			*/
 		ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(write) ");
-/*
+		/*
 
 		
 		packet[4] = 0x0e;
@@ -491,13 +493,14 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 		//{
 		//	FSTORAGE.FSTORAGEMODE(CONF1STORE + i, packet[4 + i]);
 		//}
+		*/
 		//Request DCC to change
-		if (notifyz21UpdateConf)
-			notifyz21UpdateConf();
+		//if (notifyz21UpdateConf)
+		//	notifyz21UpdateConf();
 		break;
 	}
 	case (0x16): //configuration read
-		//<-- 04 00 16 00
+	{	//<-- 04 00 16 00
 		//14 00 16 00 19 06 07 01 05 14 88 13 10 27 32 00 50 46 20 4e
 	data[0] = 0x14;
 	data[1] = 0x00;
@@ -525,8 +528,9 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 	//}
 	EthSend(client, 0x14, 0x16, data, false, Z21bcNone);
 	ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(read) ");
-	*/
+	
 	break;
+	}
 	case (0x17):
 	{ //configuration write
 //<-- 14 00 17 00 19 06 07 01 05 14 88 13 10 27 32 00 50 46 20 4e
@@ -611,10 +615,6 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 
 
 //--------------------------------------------------------------------------------------------
-
-
-
-
 //Convert local stored flag back into a Z21 Flag
 uint32_t getz21BcFlag(uint8_t flag)
 {
@@ -664,7 +664,7 @@ uint8_t getLocalBcFlag(uint32_t flag)
 
 //--------------------------------------------------------------------------------------------
 //Zustand der Gleisversorgung setzten
-void setPower(uint8_t state)
+void z21setPower(uint8_t state)
 {
 	uint8_t data[] = {LAN_X_BC_TRACK_POWER, 0x00};
 	Railpower = state;
@@ -745,6 +745,7 @@ void setLocoStateExt (uint16_t Adr)
 	EthSend(0, 14, LAN_X_Header, data, true, Z21bcAll_s | Z21bcNetAll_s);  //Send Loco Status und Funktions to all active Apps 
 }
 
+
 //--------------------------------------------------------------------------------------------
 // delete the stored IP-Address
 void clearIP(uint8_t pos)
@@ -792,7 +793,7 @@ uint8_t addIPToSlot(uint8_t client, uint8_t BCFlag)
 	}
 	ActIP[Slot].client = client;
 	ActIP[Slot].time = z21ActTimeIP;
-	setPower(Railpower);
+	globalPower(Railpower) ;//z21setPower(Railpower);
 	return ActIP[Slot].BCFlag; //BC Flag 4. uint8_t R�ckmelden
 }
 
@@ -885,6 +886,30 @@ uint8_t Z21addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, unsigned in
 }
 
 //--------------------------------------------------------------------------------------------
+//aktuellen Zustand aller Funktionen und Speed der Lok
+void getLocoData(uint16_t adr, uint8_t data[])
+{
+	//uint8_t Steps, uint8_t Speed, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3
+	uint8_t Slot = LokStsgetSlot(adr);
+	data[0] = LokDataUpdate[Slot].adr >> 14; //Steps
+	data[1] = LokDataUpdate[Slot].speed;
+	data[2] = LokDataUpdate[Slot].f0 & 0x1F; //F0 - F4
+	data[3] = LokDataUpdate[Slot].f1;
+	data[4] = LokDataUpdate[Slot].f2;
+	data[5] = LokDataUpdate[Slot].f3;
+}
+//--------------------------------------------------------------------------------------------
+//Gibt aktuelle Fahrtrichtung der Angefragen Lok zur�ck
+uint8_t getLocoDir(uint16_t adr)
+{
+	return bitRead(LokDataUpdate[LokStsgetSlot(adr)].speed, 7);
+}
+//--------------------------------------------------------------------------------------------
+//Gibt aktuelle Geschwindigkeit der Angefragen Lok zur�ck
+uint8_t getLocoSpeed(uint16_t adr)
+{
+	return LokDataUpdate[LokStsgetSlot(adr)].speed & 0x7F;
+}
 //--------------------------------------------------------------------------------------------
 uint8_t LokStsgetSlot(uint16_t adr) // gibt Slot f�r Adresse zur�ck / erzeugt neuen Slot (0..126)
 {
@@ -1067,22 +1092,6 @@ void LokStsSetNew(uint8_t Slot, uint16_t adr) // Neue Lok eintragen mit Adresse
 	setSpeed(LokDataUpdate[Slot].adr, LokDataUpdate[Slot].speed);
 }
 
-
-//--------------------------------------------------------------------------------------------
-//aktuellen Zustand aller Funktionen und Speed der Lok
-void getLocoData(uint16_t adr, uint8_t data[])
-{
-	//uint8_t Steps, uint8_t Speed, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3
-	uint8_t Slot = LokStsgetSlot(adr);
-	data[0] = LokDataUpdate[Slot].adr >> 14; 	//Steps
-	data[1] = LokDataUpdate[Slot].speed;
-	data[2] = LokDataUpdate[Slot].f0 & 0x1F;	//F0 - F4
-	data[3] = LokDataUpdate[Slot].f1;
-	data[4] = LokDataUpdate[Slot].f2;
-	data[5] = LokDataUpdate[Slot].f3;
-}
-
-
 //--------------------------------------------------------------------------------------------
 void notifyz21LocoState(uint16_t Adr, uint8_t data[])
 {
@@ -1264,16 +1273,39 @@ void getLocoStateFull(uint16_t adr)
 	if (notifyLokAll)
 		notifyLokAll(adr, LokDataUpdate[Slot].adr >> 14, Speed, LokDataUpdate[Slot].f0 & 0x1F,
 					 LokDataUpdate[Slot].f1, LokDataUpdate[Slot].f2, LokDataUpdate[Slot].f3);
-}*/
+}
+
+*/
+//--------------------------------------------------------------------------------------------
+//Gibt aktuellen Lokstatus an Anfragenden Zur�ck
+void getLocoStateFull(uint16_t addr, bool bc)
+{
+	uint8_t Slot = LokStsgetSlot(addr);
+	uint8_t Busy = bitRead(LokDataUpdate[Slot].mode, 3);
+	uint8_t Dir = bitRead(LokDataUpdate[Slot].f0, 5);
+	uint8_t F0 = LokDataUpdate[Slot].f0 & 0b00011111;
+	uint8_t F1 = LokDataUpdate[Slot].f1;
+	uint8_t F2 = LokDataUpdate[Slot].f2;
+	uint8_t F3 = LokDataUpdate[Slot].f3;
+	//if (notifyLokAll)
+		//notifyLokAll(addr, Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
+	//Nutzung protokollieren:
+	if (LokDataUpdate[Slot].state < 0xFF)
+		LokDataUpdate[Slot].state++; //aktivit�t
+}
+
 
 //--------------------------------------------------------------------------------------------
 //Lokfunktion setzten
 void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 {			//type => 0 = AUS; 1 = EIN; 2 = UM; 3 = error
+	bool ok = false;	//Funktion wurde nicht gesetzt!
 	bool fktbit = 0;	//neue zu дndernde fkt bit
 	if (type == 1)	//ein
 		fktbit = 1;
 	uint8_t Slot = LokStsgetSlot(address);
+	uint8_t Adr_High = address & 0xff;
+	uint8_t Adr_Low = address >> 8;
 	//zu дnderndes bit bestimmen und neu setzten:
 	if (fkt <= 4) {
 		uint8_t func = LokDataUpdate[Slot].f0 & 0x1F;	//letztes Zustand der Funktionen 000 F0 F4..F1
@@ -1287,6 +1319,15 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		else
 			bitWrite(&func, fkt - 1, fktbit);
 		//Daten senden:
+		//Daten �ber XNet senden:
+
+		uint8_t setLocoFunc[] = {0xE4, 0x20, Adr_High, Adr_Low, func, 0x00}; //Gruppe1 = 0 0 0 F0 F4 F3 F2 F1
+		uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
+		if (WORD > 99)
+			setLocoFunc[2] = Adr_High | 0xC0;
+		getXOR(setLocoFunc, 6);
+		ok = XNetSendadd(setLocoFunc, 6);
+
 		setFunctions0to4(address, func);	//func = 0 0 0 F0 F4 F3 F2 F1
 	}
 	else if ((fkt >= 5) && (fkt <= 8)) {
@@ -1294,6 +1335,14 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG2, fkt - 5));
 		bitWrite(&funcG2, fkt - 5, fktbit);
+		//Daten �ber XNet senden:
+
+		uint8_t setLocoFunc[] = {0xE4, 0x21, Adr_High, Adr_Low, funcG2, 0x00}; //Gruppe2 = 0 0 0 0 F8 F7 F6 F5
+		uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
+		if (WORD > 99)
+			setLocoFunc[2] = Adr_High | 0xC0;
+		getXOR(setLocoFunc, 6);
+		ok = XNetSendadd(setLocoFunc, 6);
 		//Daten senden:
 		setFunctions5to8(address, funcG2);	//funcG2 = 0 0 0 0 F8 F7 F6 F5
 	}
@@ -1302,6 +1351,12 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG3, fkt - 9));
 		bitWrite(&funcG3, fkt - 9, fktbit);
+		//Daten �ber XNet senden:
+		uint8_t setLocoFunc[] = {0xE4, 0x22, Adr_High, Adr_Low, funcG3, 0x00}; //Gruppe3 = 0 0 0 0 F12 F11 F10 F9
+		uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
+		if (WORD > 99) setLocoFunc[2] = Adr_High | 0xC0;
+		getXOR(setLocoFunc, 6);
+		ok = XNetSendadd(setLocoFunc, 6);
 		//Daten senden:
 		setFunctions9to12(address, funcG3); 	//funcG3 = 0 0 0 0 F12 F11 F10 F9
 	}
@@ -1310,6 +1365,15 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG4, fkt - 13));
 		bitWrite(&funcG4, fkt - 13, fktbit);
+		//Daten �ber XNet senden:
+		//unsigned char setLocoFunc[] = {0xE4, 0x23, Adr_High, Adr_Low, funcG4, 0x00};	//Gruppe4 = F20 F19 F18 F17 F16 F15 F14 F13
+		uint8_t setLocoFunc[] = {0xE4, 0xF3, Adr_High, Adr_Low, funcG4, 0x00}; //Gruppe4 = F20 F19 F18 F17 F16 F15 F14 F13
+		//0xF3 = undocumented command is used when a mulitMAUS is controlling functions f20..f13.
+		uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
+		if (WORD > 99)
+			setLocoFunc[2] = Adr_High | 0xC0;
+		getXOR(setLocoFunc, 6);
+		ok = XNetSendadd(setLocoFunc, 6);
 		//Daten senden:
 		setFunctions13to20(address, funcG4);	//funcG4 = F20 F19 F18 F17 F16 F15 F14 F13
 	}
@@ -1318,10 +1382,17 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG5, fkt - 21));
 		bitWrite(&funcG5, fkt - 21, fktbit);
+		//Daten �ber XNet senden:
+		uint8_t setLocoFunc[] = {0xE4, 0x28, Adr_High, Adr_Low, funcG5, 0x00}; //Gruppe5 = F28 F27 F26 F25 F24 F23 F22 F21
+		uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
+		if (WORD > 99)
+			setLocoFunc[2] = Adr_High | 0xC0;
+		getXOR(setLocoFunc, 6);
+		ok = XNetSendadd(setLocoFunc, 6);
 		//Daten senden:
 		setFunctions21to28(address, funcG5);	//funcG5 = F28 F27 F26 F25 F24 F23 F22 F21
 	}
-	//getLocoStateFull(address, true);	//Alle aktiven Gerдte Senden!
+	getLocoStateFull(address, true);	//Alle aktiven Gerдte Senden!
 	//setLocoStateExt(address);
 }
 //--------------------------------------------------------------------------------------------
@@ -1509,7 +1580,7 @@ void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t
    //--------------------------------------------        		
    if (client > 0) {
 		if (notifyz21EthSend)
-			notifyz21EthSend(client, data,24);
+			notifyz21EthSend(client, data, 24);
 
    }
    else {
@@ -1525,7 +1596,7 @@ void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t
 		  
 		  //--------------------------------------------
 		  if (notifyz21EthSend)
-			notifyz21EthSend(clientOut, data,24);
+			notifyz21EthSend(clientOut, data, 24);
 
 		  if (clientOut == 0){
 		  		ESP_LOGI(Z21_PARSER_TAG, "Eth bcast sended...");
@@ -1536,5 +1607,57 @@ void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t
   }
 	ESP_LOGI(Z21_PARSER_TAG, "Eth sended...");
 }
+//--------------------------------------------------------------
+//Change Power Status
+void notifyXNetPower(uint8_t State)
+{
+	if (Railpower != State)
+	{
+		globalPower(State);
+	}
+}
+//--------------------------------------------------------------------------------------------
+//POWER set configuration:
+void globalPower(uint8_t state)
+{
+	if (Railpower != state)
+	{
 
+		setCVNackSC(); //response SHORT while Service Mode!
 
+		Railpower = state;
+
+		switch (state)
+		{
+		case csNormal:
+
+			break;
+		case csTrackVoltageOff:
+
+			//dcc.setpower(OFF);
+
+			break;
+		case csServiceMode:
+
+			//dcc.setpower(SERVICE);             //already on!
+
+			break;
+		case csShortCircuit:
+
+			//dcc.setpower(SHORT);              //shut down via GO/STOP just for the Roco Booster
+
+			break;
+		case csEmergencyStop:
+
+			// dcc.eStop();
+
+			break;
+		}
+		if (Railpower == csShortCircuit)
+		{
+			z21setPower(Railpower);
+
+			XpressNetsetPower(Railpower); //send to XpressNet
+		}
+	}
+}

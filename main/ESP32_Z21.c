@@ -49,7 +49,7 @@ SOFTWARE.
 #include "XBusInterface.h"
 #include "XpressNet.h"
 
-//#include "protocol_examples_common.h"
+
 
 /* @brief tag used for ESP serial console messages */
 static const char TAG[] = "Z21";
@@ -100,7 +100,7 @@ static void udp_sender_task(void *pvParameters)
 
                 //ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, (uint8_t *)&txBuffer, txBlen, ESP_LOG_INFO);
 
-                int err = sendto(global_sock, (uint8_t *)&txBuffer, txBlen, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+                int err = sendto(global_sock, (uint8_t *)&Z21txBuffer, txBlen, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
                 
                 if (err < 0)
                     {
@@ -198,16 +198,15 @@ static void udp_server_task(void *pvParameters)
 }
 
 
- 
 int sendData(const char* logName, const char* data)
 {
     const int len = strlen(data);
     const int txBytes = uart_write_bytes(UART_NUM_1, data, len);
-    ESP_LOGI(logName, "Wrote %d bytes", txBytes);
+    ESP_LOGI(logName, "Wrote to Xnet %d bytes", txBytes);
     return txBytes;
 }
 
-static void tx_task(void *arg)
+static void xnet_tx_task(void *arg)
 {
     static const char *TX_TASK_TAG = "XNET_TX_TASK";
     esp_log_level_set(TX_TASK_TAG, ESP_LOG_INFO);
@@ -218,16 +217,18 @@ static void tx_task(void *arg)
     }
 }
 
-static void rx_task(void *arg)
+static void xnet_rx_task(void *arg)
 {
     static const char *RX_TASK_TAG = "XNET_RX_TASK";
     esp_log_level_set(RX_TASK_TAG, ESP_LOG_INFO);
     uint8_t *data = (uint8_t *)malloc(XNET_RX_BUF_SIZE);
     while (1) 
     {
+        while (rxFlag) {}
         const int rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
         if (rxBytes > 0) 
         {
+            
             //data[rxBytes] = 0;
             ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", rxBytes);
             ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, rxBytes, ESP_LOG_INFO);
@@ -250,8 +251,8 @@ void init_XNET(void) {
     uart_param_config(UART_NUM_1, &uart_config);
     uart_set_pin(UART_NUM_1, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
-    xTaskCreate(rx_task, "xnet_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
-    xTaskCreate(tx_task, "xnet_tx_task", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+    xTaskCreate(xnet_rx_task, "xnet_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
+    xTaskCreate(xnet_tx_task, "xnet_tx_task", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
 }
 /**
  * @brief RTOS task that periodically prints the heap memory available.
@@ -330,8 +331,9 @@ void app_main()
     storedIP = 0;
     slotFullNext=0;
     DCCdefaultSteps=128;
+    TrntFormat = SwitchFormat;
 
-    // initialize this instance's variables
+        // initialize this instance's variables
     Railpower = 0xFF; //Ausgangs undef.
 
     XNetRun = false; //XNet ist inactive;
@@ -346,8 +348,13 @@ void app_main()
     myCallByteInquiry = callByteParity(MY_ADDRESS | 0x40) | 0x100;
     myDirectedOps = callByteParity(MY_ADDRESS | 0x60) | 0x100;
 
-    uint8_t *txBuffer = (uint8_t *)malloc(Z21_UDP_TX_MAX_SIZE);
-    uint8_t *rxBuffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
+    for (uint8_t s = 0; s < 32; s++)
+    {                           //clear busy slots
+        SlotLokUse[s] = 0xFFFF; //slot is inactiv
+    }
+
+    uint8_t *Z21txBuffer = (uint8_t *)malloc(Z21_UDP_TX_MAX_SIZE);
+    //uint8_t *Z21rxBuffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
     
     // txSendFlag=0;
 
@@ -408,16 +415,16 @@ while (1)
     if (rxFlag == 1) // && txSendFlag==0
         {
         //ESP_LOGI(TAG, "Prepare parser");
-        receive(rxclient, (uint8_t *)&rxBuffer);
+        //receive(rxclient, (uint8_t *)&Z21rxBuffer);
         //ESP_LOGI(TAG, "Parser done!");
         // memset((uint8_t *)&rxBuffer, 0, 128);
-        rxlen = 0;
-        rxclient = 0;
-        rxFlag = 0;
+        //rxlen = 0;
+        //rxclient = 0;
+        //rxFlag = 0;
         }
     }
-free(txBuffer);
-free(rxBuffer);
+free(Z21txBuffer);
+//free(Z21rxBuffer);
 }
 
 
@@ -430,7 +437,7 @@ void notifyz21RailPower(uint8_t State)
     //DEBUGSERIAL.print("Power: ");
     //DEBUGSERIAL.println(State, HEX);
     //#endif
-    setPower(State);
+    globalPower(State);
 }
 
 //--------------------------------------------------------------------------------------------
@@ -449,7 +456,7 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
         {
             txBlen = datalen;
             //txport = mem[0].port;
-            memcpy((uint8_t *)&txBuffer, data, datalen);
+            memcpy((uint8_t *)&Z21txBuffer, data, datalen);
             memset(data,0,datalen);
             txBflag=1;
             txSendFlag = 1;
@@ -462,7 +469,7 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
         txBlen = datalen;
         txBflag = 0;
         txport = mem[client - 1].port;
-        memcpy((uint8_t *)&txBuffer, data, datalen);
+        memcpy((uint8_t *)&Z21txBuffer, data, datalen);
         txSendFlag = 1;
     }
 }

@@ -71,9 +71,19 @@ uint8_t BasicAccessory[AccessoryMax / 8]; //Speicher fï¿½r Weichenzustï¿½nde
 
 /* Slotliste Loks */
 #define XSendMax 16			//Maximalanzahl der Datenpakete im Sendebuffer
-#define SlotMax 15			//Slots fï¿½r Lokdaten
+//#define SlotMax 15			//Slots fï¿½r Lokdaten
 #define SlotInterval 200	//Zeitintervall zur Aktualisierung der Slots (ms)
 #define XSendMaxData 8		//Anzahl Elemente im Datapaket Array XSend
+
+//**************************************************************
+//byte XNetUserOps = 0x00;
+//byte XNetReturnLoco = 0x00;
+
+
+/* Set default SwitchFormat for accessory use */
+#ifndef SwitchFormat
+#define SwitchFormat ROCO
+#endif
 
 typedef struct	//Antwort/Abfragespeicher
 {
@@ -81,34 +91,19 @@ typedef struct	//Antwort/Abfragespeicher
 	uint8_t data[XSendMaxData]; //zu sendende Daten
 } XSend;
 
-bool bitRead(uint8_t order, uint8_t num)
-{
-  return (order & (1 << num));
-}
-
-void bitWrite(uint8_t *order, uint8_t num, bool bit)
-{
-  if (bit)
-  {
-    *order = *order | (1 << num);
-  }
-  else
-  {
-    *order = *order & ~(1 << num);
-  }
-}
 
 // library interface description
+void xnetreceive(void);
 
-//bool setPower(uint8_t Power);												  //Zustand Gleisspannung Melden
+bool XpressNetsetPower(uint8_t Power);            //Zustand Gleisspannung Melden
 uint8_t getPower();															  //Zusand Gleisspannung geben
 void setHalt();																  //Zustand Halt Melden
 bool getLocoInfo(uint8_t Adr_High, uint8_t Adr_Low);							  //Abfragen der Lokdaten (mit F0 bis F12)
 bool getLocoFunc(uint8_t Adr_High, uint8_t Adr_Low);								  //Abfragen der Lok Funktionszustï¿½nde F13 bis F28
 bool setLocoHalt(uint8_t Adr_High, uint8_t Adr_Low);								  //Lok anhalten
 bool setLocoDrive(uint8_t Adr_High, uint8_t Adr_Low, uint8_t Steps, uint8_t Speed); //Lokdaten setzten
-bool setLocoFunc(uint8_t Adr_High, uint8_t Adr_Low, uint8_t type, uint8_t fkt);	  //Lokfunktion setzten
-void getLocoStateFull(uint8_t Adr_High, uint8_t Adr_Low, bool Anfrage);         //Gibt Zustand der Lok zurï¿½ck.
+//bool setLocoFunc(uint8_t Adr_High, uint8_t Adr_Low, uint8_t type, uint8_t fkt);	  //Lokfunktion setzten
+void getLocoStateFull(uint16_t addr, bool Anfrage);         //Gibt Zustand der Lok zurï¿½ck.
 bool getTrntInfo(uint8_t FAdr_High, uint8_t FAdr_Low);							  //Ermitteln der Schaltstellung einer Weiche
 bool setTrntPos(uint8_t FAdr_High, uint8_t FAdr_Low, uint8_t Pos);					  //Schalten einer Weiche
 //Programming:
@@ -129,7 +124,10 @@ uint8_t XNetMsgTemp[8];				  //Serial receive (Length, Message, Command, Data1 t
 bool ReadData;						  //Empfangene Serial Daten: (Speichern = true/Komplett = false)
 void XNetget(void);					  //Empfangene Daten eintragen
 XSend XNetSend[XSendMax];			  //Sendbuffer
-XNetLok xLokSts[SlotMax];			  //Speicher fï¿½r aktive Lokzustï¿½nde
+//XNetLok xLokSts[SlotMax];			  //Speicher fï¿½r aktive Lokzustï¿½nde
+
+uint16_t SlotLokUse[32]; //store loco to DirectedOps
+
 
 //Functions:
 void getXOR(uint8_t *data, uint8_t length);			   // calculate the XOR
@@ -141,6 +139,9 @@ void XNetclear(void);						   //Serial Nachricht zurï¿½cksetzten
 void sendSchaltinfo(bool schaltinfo, uint8_t data1, uint8_t data2); //Aufbereiten der Schaltinformation
 
 void XNetclearSendBuf();										//Sendbuffer leeren
+
+void XNetsend(uint8_t *dataString, uint8_t byteCount); //Sende Datenarray out NOW!
+
 bool XNetSendadd(uint8_t *dataString, uint8_t uint8_tCount); //Zum Sendebuffer Hinzufï¿½gen
 
 //Adressrequest:
@@ -159,7 +160,7 @@ bool xLokStsFunc1(uint8_t MSB, uint8_t LSB, uint8_t Func1);						 //Eintragen ï¿
 bool xLokStsFunc23(uint8_t MSB, uint8_t LSB, uint8_t Func2, uint8_t Func3);			 //Eintragen ï¿½nderung / neuer Slot XFunc23
 bool xLokStsBusy(uint8_t Slot);											 //Busy Bit Abfragen
 void XLokStsSetBusy(uint8_t MSB, uint8_t LSB);								 //Lok Busy setzten
-uint8_t xLokStsgetSlot(uint8_t MSB, uint8_t LSB);								 //gibt Slot fï¿½r Adresse zurï¿½ck / erzeugt neuen Slot (0..126)
+//uint8_t xLokStsgetSlot(uint8_t MSB, uint8_t LSB);								 //gibt Slot fï¿½r Adresse zurï¿½ck / erzeugt neuen Slot (0..126)
 int xLokStsgetAdr(uint8_t Slot);											 //gibt Lokadresse des Slot zurï¿½ck, wenn 0x0000 dann keine Lok vorhanden
 bool xLokStsIsEmpty(uint8_t Slot);											 //prï¿½ft ob Datenpacket/Slot leer ist?
 void xLokStsSetNew(uint8_t Slot, uint8_t MSB, uint8_t LSB);						 //Neue Lok eintragen mit Adresse
