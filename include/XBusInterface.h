@@ -15,7 +15,7 @@ Funktionsumfang:
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-//#include "XpressNet.h"
+#include "XpressNet.h"
 //#include "z21.h"
 
 //Trnt message paket format (inc)
@@ -29,22 +29,16 @@ uint8_t TrntFormat; // The Addressing of BasicAccessory Messages
 #define Loco28 0x02  //FFF = 010 = 28 speed step
 #define Loco128 0x04 //FFF = 100 = 128 speed step
 
-bool bitRead(uint8_t order, uint8_t num)
-{
-  return (order & (1 << num));
-}
+#define lowByte(w)                     ((w) & 0xFF)
+#define highByte(w)                    (((w) >> 8) & 0xFF)
+#define bitRead(value, bit)            (((value) >> (bit)) & 0x01)
+#define bitSet(value, bit)             ((value) |= (1 << (bit)))// x | (1<<n)
+#define bitClear(value, bit)           ((value) &= ~(1 << (bit)))
+#define bitWrite(value, bit, bitvalue) (bitvalue ? bitSet(value, bit):bitClear(value, bit))
+#define bit(b)                         (1UL << (b))
 
-void bitWrite(uint8_t *order, uint8_t num, bool bit)
-{
-  if (bit)
-  {
-    *order = *order | (1 << num);
-  }
-  else
-  {
-    *order = *order & ~(1 << num);
-  }
-}
+uint16_t Word(uint8_t h, uint8_t l) { return (h << 8) | l;}
+
 //--------------------------------------------------------------------------------------------
 // calculate the XOR
 void getXOR(unsigned char *data, uint8_t length)
@@ -276,13 +270,13 @@ bool getBasicAccessoryInfo(uint16_t address)
 void notifyXNetTrntInfo(uint8_t UserOps, uint8_t Address, uint8_t data) {
   int adr = ((Address * 4) + ((data & 0x01) * 2));
   uint8_t pos = data << 4;
-  bitWrite(&pos, 7, 1);  //command completed!
+  bitWrite(pos, 7, 1);  //command completed!
   if (getBasicAccessoryInfo(adr) == false)
-    bitWrite(&pos, 0, 1);
-  else bitWrite(&pos, 1, 1);  
+    bitWrite(pos, 0, 1);
+  else bitWrite(pos, 1, 1);  
   if (getBasicAccessoryInfo(adr+1) == false)
-    bitWrite(&pos, 2, 1);  
-  else bitWrite(&pos, 3, 1);    
+    bitWrite(pos, 2, 1);  
+  else bitWrite(pos, 3, 1);    
   SetTrntStatus(UserOps, Address, pos);
 
 }

@@ -95,15 +95,14 @@ typedef struct	//Antwort/Abfragespeicher
 // library interface description
 void xnetreceive(void);
 
-bool XpressNetsetPower(uint8_t Power);            //Zustand Gleisspannung Melden
-uint8_t getPower();															  //Zusand Gleisspannung geben
+void XpressNetsetPower(uint8_t Power);            //Zustand Gleisspannung Melden
 void setHalt();																  //Zustand Halt Melden
-bool getLocoInfo(uint8_t Adr_High, uint8_t Adr_Low);							  //Abfragen der Lokdaten (mit F0 bis F12)
-bool getLocoFunc(uint8_t Adr_High, uint8_t Adr_Low);								  //Abfragen der Lok Funktionszust�nde F13 bis F28
-bool setLocoHalt(uint8_t Adr_High, uint8_t Adr_Low);								  //Lok anhalten
-bool setLocoDrive(uint8_t Adr_High, uint8_t Adr_Low, uint8_t Steps, uint8_t Speed); //Lokdaten setzten
+bool getLocoInfo(uint16_t Addr);							  //Abfragen der Lokdaten (mit F0 bis F12)
+bool getLocoFunc(uint16_t Addr);								  //Abfragen der Lok Funktionszust�nde F13 bis F28
+bool setLocoHalt(uint16_t Addr);								  //Lok anhalten
+bool setLocoDrive(uint16_t Addr, uint8_t Steps, uint8_t Speed); //Lokdaten setzten
 //bool setLocoFunc(uint8_t Adr_High, uint8_t Adr_Low, uint8_t type, uint8_t fkt);	  //Lokfunktion setzten
-void getLocoStateFull(uint16_t addr, bool Anfrage);         //Gibt Zustand der Lok zur�ck.
+//void getLocoStateFull(uint16_t addr, bool Anfrage);         //Gibt Zustand der Lok zur�ck.
 bool getTrntInfo(uint8_t FAdr_High, uint8_t FAdr_Low);							  //Ermitteln der Schaltstellung einer Weiche
 bool setTrntPos(uint8_t FAdr_High, uint8_t FAdr_Low, uint8_t Pos);					  //Schalten einer Weiche
 //Programming:
@@ -153,18 +152,21 @@ int ReqFktAdr; //Adresse f�r die F2 und F3 angefragt wurde
 long SlotTime;															 //store last time the Slot ask
 int SlotLast;															 //letzter bearbeiteter Slot
 void UpdateBusySlot(void);												 //Fragt Zentrale nach aktuellen Zust�nden
-void xLokStsclear(void);												 //l�scht alle Slots
-bool xLokStsadd(uint8_t MSB, uint8_t LSB, uint8_t Mode, uint8_t Speed, uint8_t FktSts); //Eintragen �nderung / neuer Slot XLok
-bool xLokStsFunc0(uint8_t MSB, uint8_t LSB, uint8_t Func);						 //Eintragen �nderung / neuer Slot XFunc0
-bool xLokStsFunc1(uint8_t MSB, uint8_t LSB, uint8_t Func1);						 //Eintragen �nderung / neuer Slot XFunc1
-bool xLokStsFunc23(uint8_t MSB, uint8_t LSB, uint8_t Func2, uint8_t Func3);			 //Eintragen �nderung / neuer Slot XFunc23
-bool xLokStsBusy(uint8_t Slot);											 //Busy Bit Abfragen
-void XLokStsSetBusy(uint8_t MSB, uint8_t LSB);								 //Lok Busy setzten
+void LokStsclear(void);												 //l�scht alle Slots
+bool LokStsadd(uint16_t Addr, uint8_t Mode, uint8_t Speed, uint8_t FktSts); //Eintragen �nderung / neuer Slot XLok
+bool LokStsFunc0(uint16_t Addr, uint8_t Func);						 //Eintragen �nderung / neuer Slot XFunc0
+bool LokStsFunc1(uint16_t Addr, uint8_t Func1);						 //Eintragen �nderung / neuer Slot XFunc1
+bool LokStsFunc23(uint16_t Addr, uint8_t Func2, uint8_t Func3);			 //Eintragen �nderung / neuer Slot XFunc23
+bool LokStsBusy(uint8_t Slot);											 //Busy Bit Abfragen
+void LokStsSetBusy(uint16_t Addr);								 //Lok Busy setzten
 //uint8_t xLokStsgetSlot(uint8_t MSB, uint8_t LSB);								 //gibt Slot f�r Adresse zur�ck / erzeugt neuen Slot (0..126)
-int xLokStsgetAdr(uint8_t Slot);											 //gibt Lokadresse des Slot zur�ck, wenn 0x0000 dann keine Lok vorhanden
-bool xLokStsIsEmpty(uint8_t Slot);											 //pr�ft ob Datenpacket/Slot leer ist?
-void xLokStsSetNew(uint8_t Slot, uint8_t MSB, uint8_t LSB);						 //Neue Lok eintragen mit Adresse
+int LokStsgetAdr(uint8_t Slot);											 //gibt Lokadresse des Slot zur�ck, wenn 0x0000 dann keine Lok vorhanden
+bool LokStsIsEmpty(uint8_t Slot);											 //pr�ft ob Datenpacket/Slot leer ist?
 uint8_t getNextSlot(uint8_t Slot);											 //gibt n�chsten genutzten Slot
+
+bool setBasicAccessoryPos(uint16_t address, bool state, bool activ);
+
+void notifyLokFunc(uint8_t Adr_High, uint8_t Adr_Low, uint8_t F2, uint8_t F3);
 
 //Spannung und GO/STOP Events:
 uint8_t Railpower; //Gleisspannung

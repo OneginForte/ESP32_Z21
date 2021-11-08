@@ -212,8 +212,8 @@ void xnetreceive(void)
 		break;
 		case 0xE4:	//Antwort der abgefragen Lok
 			if ((XNetMsg[XNetlength] >= 7) && (ReqLocoAdr != 0) && ((XNetMsg[XNetdata1] >> 4) != 0)) {
-				uint8_t Adr_MSB = highByte(ReqLocoAdr);
-				uint8_t Adr_LSB = lowByte(ReqLocoAdr);
+				uint16_t Addr=ReqLocoAdr;
+				
 				ReqLocoAdr = 0;
 				uint8_t Steps = XNetMsg[XNetdata1];		//0000 BFFF - B=Busy; F=Fahrstufen	
 				bitWrite(Steps, 3, 0);	//Busy bit l�schen
@@ -236,41 +236,42 @@ void xnetreceive(void)
 				uint8_t funcsts = F0;				//FktSts = Chg-F, X, Dir, F0, F4, F3, F2, F1
 				bitWrite(funcsts, 5, Direction);	//Direction hinzuf�gen
 				
-				bool chg = xLokStsadd (Adr_MSB, Adr_LSB, BSteps, Speed, funcsts);	//Eintrag in SlotServer
-				chg = chg | xLokStsFunc1 (Adr_MSB, Adr_LSB, F1);
+				bool chg = LokStsadd (Addr, BSteps, Speed, funcsts);	//Eintrag in SlotServer
+				chg = chg | LokStsFunc1 (Addr, F1);
 				if (chg == true) 			//�nderungen am Zustand?
-					getLocoStateFull(Adr_MSB, Adr_LSB, true);
+					getLocoStateFull(Addr, true);
 				
 				if (Speed == 0) { //Lok auf Besetzt schalten
-					setLocoHalt (Adr_MSB, Adr_LSB);//Sende Lok HALT um Busy zu erzeugen!
+					setLocoHalt (Addr);//Sende Lok HALT um Busy zu erzeugen!
 				}
 			}
 			else {
 				uint8_t Adr_MSB = XNetMsg[XNetdata2];
 				uint8_t Adr_LSB = XNetMsg[XNetdata3];
+				
+				uint8_t Slot = LokStsgetSlot(Word(Adr_MSB, Adr_LSB));
 
-				uint8_t Slot = LokStsgetSlot(Adr_MSB, Adr_LSB);
 				switch (XNetMsg[XNetdata1]) {
-					case 0x10: xLokSts[Slot].speed = XNetMsg[XNetdata4];//14 Speed steps
+					case 0x10: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//14 Speed steps
 								break;
-					case 0x11: xLokSts[Slot].speed = XNetMsg[XNetdata4];//27 Speed steps
+					case 0x11: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//27 Speed steps
 								break;
-					case 0x12: xLokSts[Slot].speed = XNetMsg[XNetdata4];//28 Speed steps	
+					case 0x12: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//28 Speed steps	
 								break;
-					case 0x13: xLokSts[Slot].speed = XNetMsg[XNetdata4];//128 Speed steps
+					case 0x13: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//128 Speed steps
 								break;	
-					case 0x20: xLokSts[Slot].f0 = XNetMsg[XNetdata4];//Fkt Group1			
+					case 0x20: LokDataUpdate[Slot].f0 = XNetMsg[XNetdata4];//Fkt Group1			
 								break;
-					case 0x21: xLokSts[Slot].f1 = XNetMsg[XNetdata4];//Fkt Group2			
+					case 0x21: LokDataUpdate[Slot].f1 = XNetMsg[XNetdata4];//Fkt Group2			
 								break;
-					case 0x22: xLokSts[Slot].f2 = XNetMsg[XNetdata4];//Fkt Group3			
+					case 0x22: LokDataUpdate[Slot].f2 = XNetMsg[XNetdata4];//Fkt Group3			
 								break;	
-					case 0x23: xLokSts[Slot].f3 = XNetMsg[XNetdata4];//Fkt Group4			
+					case 0x23: LokDataUpdate[Slot].f3 = XNetMsg[XNetdata4];//Fkt Group4			
 								break;				
 					case 0x24: //Fkt Status			
 								break;				
 				}
-				getLocoStateFull(Adr_MSB, Adr_LSB, true);
+				getLocoStateFull(Word(Adr_MSB, Adr_LSB), true);
 			}
 		break;
 		case 0xE3:	//Antwort abgefrage Funktionen F13-F28
@@ -280,10 +281,10 @@ void xnetreceive(void)
 				ReqFktAdr = 0;
 				uint8_t F2 = XNetMsg[XNetdata2]; //F2 = F20 F19 F18 F17 F16 F15 F14 F13
 				uint8_t F3 = XNetMsg[XNetdata3]; //F3 = F28 F27 F26 F25 F24 F23 F22 F21
-				if (xLokStsFunc23 (Adr_MSB, Adr_LSB, F2, F3) == true) {	//�nderungen am Zustand?
-					if (notifyLokFunc)
-						notifyLokFunc(Adr_MSB, Adr_LSB, F2, F3 );
-					getLocoStateFull(Adr_MSB, Adr_LSB, true);
+				if (LokStsFunc23 (Word(Adr_MSB, Adr_LSB), F2, F3) == true) {	//�nderungen am Zustand?
+				
+					notifyLokFunc(Adr_MSB, Adr_LSB , F2, F3);
+					getLocoStateFull(Word(Adr_MSB, Adr_LSB), true);
 				}
 			}
 			if (XNetMsg[XNetdata1] == 0x40 && XNetMsg[XNetlength] >= 6) { 	// Locomotive is being operated by another device
@@ -383,12 +384,6 @@ bool setPower(uint8_t Power)
 	return false;
 }
 
-//--------------------------------------------------------------------------------------------
-//Abfrage letzte Meldung �ber Gleispannungszustand
-uint8_t getPower()
-{
-	return Railpower;
-}
 
 //--------------------------------------------------------------------------------------------
 //Halt Befehl weiterleiten
@@ -399,22 +394,23 @@ void setHalt()
 
 //--------------------------------------------------------------------------------------------
 //Abfragen der Lokdaten (mit F0 bis F12)
-bool getLocoInfo(uint8_t Adr_High, uint8_t Adr_Low)
+bool getLocoInfo(uint16_t Addr)
 {
 	bool ok = false;
-	uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
-	getLocoStateFull(WORD, false);
+	
+	getLocoStateFull(Addr, false);
 
-	uint8_t Slot = LokStsgetSlot(WORD);
+	uint8_t Slot = LokStsgetSlot(Addr);
 	if (LokDataUpdate[Slot].state < 0xFF)
 		LokDataUpdate[Slot].state++; //aktivit�t
 
-	if (xLokStsBusy(Slot) == true && ReqLocoAdr == 0)	{		//Besetzt durch anderen XPressNet Handregler
-		uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
-		ReqLocoAdr = WORD; //Speichern der gefragen Lok Adresse
-		unsigned char getLoco[] = {0xE3, 0x00, Adr_High, Adr_Low, 0x00};
+	if (LokStsBusy(Slot) == true && ReqLocoAdr == 0)	{		//Besetzt durch anderen XPressNet Handregler
+		
+		ReqLocoAdr = Addr; //Speichern der gefragen Lok Adresse
+		
+		unsigned char getLoco[] = {0xE3, 0x00, highByte(Addr), lowByte(Addr), 0x00};
 		if (ReqLocoAdr > 99)
-			getLoco[2] = Adr_High | 0xC0;
+			getLoco[2] = highByte(Addr) | 0xC0;
 		getXOR(getLoco, 5);
 		ok = XNetSendadd (getLoco, 5);
 	}
@@ -424,44 +420,59 @@ bool getLocoInfo(uint8_t Adr_High, uint8_t Adr_Low)
 
 //--------------------------------------------------------------------------------------------
 //Abfragen der Lok Funktionszust�nde F13 bis F28
-bool getLocoFunc(uint8_t Adr_High, uint8_t Adr_Low)
+bool getLocoFunc(uint16_t Addr)
 {
 	if (ReqFktAdr == 0) {
-		ReqFktAdr = word(Adr_High, Adr_Low); //Speichern der gefragen Lok Adresse
-		unsigned char getLoco[] = {0xE3, 0x09, Adr_High, Adr_Low, 0x00};
-		if (word(Adr_High,Adr_Low) > 99)
-			getLoco[2] = Adr_High | 0xC0;
+		
+		//ReqFktAdr = word(Adr_High, Adr_Low); //Speichern der gefragen Lok Adresse
+		
+		unsigned char getLoco[] = {0xE3, 0x09, highByte(Addr), lowByte(Addr), 0x00};
+		if (Addr > 99)
+			getLoco[2] = highByte(Addr) | 0xC0;
 		getXOR(getLoco, 5);
 		return XNetSendadd (getLoco, 5);
 	}
-	unsigned char getLoco[] = {0xE3, 0x09, highByte(ReqFktAdr), lowByte(ReqFktAdr), 0x00};
-	if (ReqFktAdr > 99)
-			getLoco[2] = highByte(ReqFktAdr) | 0xC0;
+	unsigned char getLoco[] = {0xE3, 0x09, highByte(Addr), lowByte(Addr), 0x00};
+	if (Addr > 99)
+			getLoco[2] = highByte(Addr) | 0xC0;
 	getXOR(getLoco, 5);
 	return XNetSendadd (getLoco, 5);
 }
 
+void notifyLokFunc( uint16_t Address, uint8_t Function )
+{
+  setFunctions0to4(Address,Function & 0x0F); //override F0 if active !!!
+  setFunctions5to8(Address,(Function & 0xF0) >> 4);
+
+/*
+  Serial.print("Func Request - Adr: ");
+  Serial.print(Address, DEC);
+  Serial.print(", F8-F1: ");
+  Serial.println(Function, BIN);
+  */
+}
+
 //--------------------------------------------------------------------------------------------
 //Lok Stoppen
-bool setLocoHalt(uint8_t Adr_High, uint8_t Adr_Low)
+bool setLocoHalt(uint16_t Addr)
 {
 	bool ok = false;
-	unsigned char setLocoStop[] = {0x92, Adr_High, Adr_Low, 0x00};
-	if (word(Adr_High,Adr_Low) > 99)
-			setLocoStop[2] = Adr_High | 0xC0;
+	unsigned char setLocoStop[] = {0x92, highByte(Addr), lowByte(Addr), 0x00};
+	if (Addr > 99)
+			setLocoStop[2] = highByte(Addr) | 0xC0;
 	getXOR(setLocoStop, 4);
 	ok = XNetSendadd (setLocoStop, 4);
 
-	uint8_t Slot = xLokStsgetSlot(Adr_High, Adr_Low);
+	uint8_t Slot = LokStsgetSlot(Addr);
 	xLokSts[Slot].speed = 0;	//STOP
 
-	getLocoStateFull(Adr_High, Adr_Low, true);
+	getLocoStateFull(Addr, true);
 	return ok;
 }
 
 //--------------------------------------------------------------------------------------------
 //Lokdaten setzten
-bool setLocoDrive(uint8_t Adr_High, uint8_t Adr_Low, uint8_t Steps, uint8_t Speed)
+bool setLocoDrive(uint16_t Addr, uint8_t Steps, uint8_t Speed)
 {
 	bool ok = false;
 	unsigned char setLoco[] = {0xE4, 0x10, Adr_High, Adr_Low, Speed, 0x00};
@@ -696,161 +707,125 @@ void UpdateBusySlot(void)	//Fragt Zentrale nach aktuellen Zust�nden
 }
 
 //--------------------------------------------------------------------------------------------
-void xLokStsclear (void)	//l�scht alle Slots
+void LokStsclear (void)	//l�scht alle Slots
 {
 	for (int i = 0; i < SlotMax; i++) {
-		xLokSts[i].low = 0xFF;
-		xLokSts[i].high = 0xFF;
-		xLokSts[i].mode = 0xFF;
-		xLokSts[i].speed = 0xFF;
-		xLokSts[i].f0 = 0xFF;
-		xLokSts[i].f1 = 0xFF;
-		xLokSts[i].f2 = 0xFF;
-		xLokSts[i].f3 = 0xFF;
-		xLokSts[i].state = 0x00;
+		LokDataUpdate[i].adr = 0xFFFF;
+		LokDataUpdate[i].mode = 0xFF;
+		LokDataUpdate[i].speed = 0xFF;
+		LokDataUpdate[i].f0 = 0xFF;
+		LokDataUpdate[i].f1 = 0xFF;
+		LokDataUpdate[i].f2 = 0xFF;
+		LokDataUpdate[i].f3 = 0xFF;
+		LokDataUpdate[i].state = 0x00;
 	}
 }
 
 //--------------------------------------------------------------------------------------------
-bool xLokStsadd(uint8_t MSB, uint8_t LSB, uint8_t Mode, uint8_t Speed, uint8_t FktSts) //Eintragen �nderung / neuer Slot XLok
+bool LokStsadd(uint16_t Addr, uint8_t Mode, uint8_t Speed, uint8_t FktSts) //Eintragen �nderung / neuer Slot XLok
 {
 	bool change = false;
-	uint8_t Slot = xLokStsgetSlot(MSB, LSB);
-	if (xLokSts[Slot].mode != Mode) {	//Busy & Fahrstufe (keine 14 Fahrstufen!)
-		xLokSts[Slot].mode = Mode;
+	uint8_t Slot = LokStsgetSlot(Addr);
+	if (LokDataUpdate[Slot].mode != Mode) {	//Busy & Fahrstufe (keine 14 Fahrstufen!)
+		LokDataUpdate[Slot].mode = Mode;
 		change = true;
 	}
-	if (xLokSts[Slot].speed != Speed) {
-		xLokSts[Slot].speed = Speed;
+	if (LokDataUpdate[Slot].speed != Speed) {
+		LokDataUpdate[Slot].speed = Speed;
 		change = true;
 	}
 	//FktSts = X, X, Dir, F0, F4, F3, F2, F1
-	if (xLokSts[Slot].f0 != FktSts) {
-		xLokSts[Slot].f0 = FktSts;
+	if (LokDataUpdate[Slot].f0 != FktSts) {
+		LokDataUpdate[Slot].f0 = FktSts;
 		change = true;
 	}
-	if (change == true && xLokSts[Slot].state < 0xFF)
-		xLokSts[Slot].state++;
+	if (change == true && LokDataUpdate[Slot].state < 0xFF)
+		LokDataUpdate[Slot].state++;
 	
 	return change;
 }
 
 //--------------------------------------------------------------------------------------------
-bool xLokStsFunc0(uint8_t MSB, uint8_t LSB, uint8_t Func) //Eintragen �nderung / neuer Slot XFunc
+bool LokStsFunc0(uint16_t Addr, uint8_t Func) //Eintragen �nderung / neuer Slot XFunc
 {
 	bool change = false;
-	uint8_t Slot = xLokStsgetSlot(MSB, LSB);
-	if ((xLokSts[Slot].f0 & 0b00011111) != Func) {
-		xLokSts[Slot].f0 = Func | (xLokSts[Slot].f0 & 0b00100000);	//Dir anh�ngen!
+	uint8_t Slot = LokStsgetSlot(Addr);
+	if ((LokDataUpdate[Slot].f0 & 0b00011111) != Func) {
+		LokDataUpdate[Slot].f0 = Func | (LokDataUpdate[Slot].f0 & 0b00100000);	//Dir anh�ngen!
 		change = true;
 	}
-	if (change == true && xLokSts[Slot].state < 0xFF)
-		xLokSts[Slot].state++;
+	if (change == true && LokDataUpdate[Slot].state < 0xFF)
+		LokDataUpdate[Slot].state++;
 	return change;
 }
 
 //--------------------------------------------------------------------------------------------
-bool xLokStsFunc1(uint8_t MSB, uint8_t LSB, uint8_t Func1) //Eintragen �nderung / neuer Slot XFunc1
+bool LokStsFunc1(uint16_t Addr, uint8_t Func1) //Eintragen �nderung / neuer Slot XFunc1
 {
 	bool change = false;
-	uint8_t Slot = xLokStsgetSlot(MSB, LSB);
-	if (xLokSts[Slot].f1 != Func1) {
-		xLokSts[Slot].f1 = Func1;
+	uint8_t Slot = LokStsgetSlot(Addr);
+	if (LokDataUpdate[Slot].f1 != Func1) {
+		LokDataUpdate[Slot].f1 = Func1;
 		change = true;
 	}
-	if (change == true && xLokSts[Slot].state < 0xFF)
-		xLokSts[Slot].state++;
+	if (change == true && LokDataUpdate[Slot].state < 0xFF)
+		LokDataUpdate[Slot].state++;
 	return change;
 }
 
 //--------------------------------------------------------------------------------------------
-bool xLokStsFunc23(uint8_t MSB, uint8_t LSB, uint8_t Func2, uint8_t Func3) //Eintragen �nderung / neuer Slot
+bool LokStsFunc23(uint16_t Addr, uint8_t Func2, uint8_t Func3) //Eintragen �nderung / neuer Slot
 {
 	bool change = false;
-	uint8_t Slot = xLokStsgetSlot(MSB, LSB);
-	if (xLokSts[Slot].f2 != Func2) {
-		xLokSts[Slot].f2 = Func2;
+	uint8_t Slot = LokStsgetSlot(Addr);
+	if (LokDataUpdate[Slot].f2 != Func2) {
+		LokDataUpdate[Slot].f2 = Func2;
 		change = true;
 	}
-	if (xLokSts[Slot].f3 != Func3) {
-		xLokSts[Slot].f3 = Func3;
+	if (LokDataUpdate[Slot].f3 != Func3) {
+		LokDataUpdate[Slot].f3 = Func3;
 		change = true;
 	}
-	if (change == true && xLokSts[Slot].state < 0xFF)
-		xLokSts[Slot].state++;
+	if (change == true && LokDataUpdate[Slot].state < 0xFF)
+		LokDataUpdate[Slot].state++;
 	return change;
 }
 
-bool xLokStsBusy(uint8_t Slot)
+bool LokStsBusy(uint8_t Slot)
 {
 	bool Busy = false;
-	if (bitRead(xLokSts[Slot].mode, 3) == 1)
+	if (bitRead(LokDataUpdate[Slot].mode, 3) == 1)
 		Busy = true;
 	return Busy;
 }
 
-void XLokStsSetBusy(uint8_t MSB, uint8_t LSB)
+void LokStsSetBusy(uint16_t Addr)
 {
-	uint8_t Slot = xLokStsgetSlot(MSB, LSB);
-	bitWrite(xLokSts[Slot].mode, 3, 1);
-	if (xLokSts[Slot].state < 0xFF)
-		xLokSts[Slot].state++;
+	uint8_t Slot = LokStsgetSlot(Addr);
+	bitWrite(LokDataUpdate[Slot].mode, 3, 1);
+	if (LokDataUpdate[Slot].state < 0xFF)
+		LokDataUpdate[Slot].state++;
 }
 
-//--------------------------------------------------------------------------------------------
-uint8_t xLokStsgetSlot(uint8_t MSB, uint8_t LSB) //gibt Slot f�r Adresse zur�ck / erzeugt neuen Slot (0..126)
-{
-	uint8_t Slot = 0x00; //kein Slot gefunden!
-	for (int i = 0; i < SlotMax; i++) {
-		if ((xLokSts[i].low == LSB && xLokSts[i].high == MSB) || xLokStsIsEmpty(i)) {
-			Slot = i;			//Slot merken
-			if (xLokStsIsEmpty(Slot)) 	//neuer freier Slot - Lok eintragen
-				xLokStsSetNew(Slot, MSB, LSB);	//Eintragen
-			return Slot;
-		}
-	}
-	//kein Slot mehr vorhanden!
-	uint8_t zugriff = 0xFF;
-	for (int i = 0; i < SlotMax; i++) {
-		if (xLokSts[i].state < zugriff) {
-			Slot = i;
-			zugriff = xLokSts[i].state;
-		}
-	}
-	xLokStsSetNew(Slot, MSB, LSB);	//Eintragen
-	return Slot;
-}
+
 
 //--------------------------------------------------------------------------------------------
-int xLokStsgetAdr(uint8_t Slot) //gibt Lokadresse des Slot zur�ck, wenn 0x0000 dann keine Lok vorhanden
+int LokStsgetAdr(uint8_t Slot) //gibt Lokadresse des Slot zur�ck, wenn 0x0000 dann keine Lok vorhanden
 {
-	if (!xLokStsIsEmpty(Slot))
-		return word(xLokSts[Slot].high, xLokSts[Slot].low);	//Addresse zur�ckgeben
+	if (!LokStsIsEmpty(Slot))
+		return LokDataUpdate[Slot].adr);	//Addresse zur�ckgeben
 	return 0x0000;
 }
 
 //--------------------------------------------------------------------------------------------
-bool xLokStsIsEmpty(uint8_t Slot) //pr�ft ob Datenpacket/Slot leer ist?
+bool LokStsIsEmpty(uint8_t Slot) //pr�ft ob Datenpacket/Slot leer ist?
 {
-	if (xLokSts[Slot].low == 0xFF && xLokSts[Slot].high == 0xFF && xLokSts[Slot].speed == 0xFF && xLokSts[Slot].f0 == 0xFF && 
-		xLokSts[Slot].f1 == 0xFF && xLokSts[Slot].f2 == 0xFF && xLokSts[Slot].f3 == 0xFF && xLokSts[Slot].state == 0x00)
+	if (LokDataUpdate[Slot].adr == 0xFF && LokDataUpdate[Slot].speed == 0xFF && LokDataUpdate[Slot].f0 == 0xFF && 
+		LokDataUpdate[Slot].f1 == 0xFF && LokDataUpdate[Slot].f2 == 0xFF && LokDataUpdate[Slot].f3 == 0xFF && LokDataUpdate[Slot].state == 0x00)
 		return true;
 	return false;
 }
 
-//--------------------------------------------------------------------------------------------
-void xLokStsSetNew(uint8_t Slot, uint8_t MSB, uint8_t LSB) //Neue Lok eintragen mit Adresse
-{
-	xLokSts[Slot].low = LSB;
-	xLokSts[Slot].high = MSB;
-	xLokSts[Slot].mode = 0b1011;	//Busy und 128 Fahrstufen
-	xLokSts[Slot].speed = 0x00;
-	xLokSts[Slot].f0 = 0x00;
-	xLokSts[Slot].f1 = 0x00;
-	xLokSts[Slot].f2 = 0x00;
-	xLokSts[Slot].f3 = 0x00;
-	xLokSts[Slot].state = 0x00;
-}
 
 //--------------------------------------------------------------------------------------------
 uint8_t getNextSlot(uint8_t Slot) //gibt n�chsten genutzten Slot
@@ -860,26 +835,12 @@ uint8_t getNextSlot(uint8_t Slot) //gibt n�chsten genutzten Slot
 		nextS++;	//n�chste Lok
 		if (nextS >= SlotMax)
 			nextS = 0;	//Beginne von vorne
-		if (xLokStsIsEmpty(nextS) == false)
+		if (LokStsIsEmpty(nextS) == false)
 			return nextS;
 	}
 	return nextS;
 }
 
-//--------------------------------------------------------------------------------------------
-void setFree(uint8_t MSB, uint8_t LSB) //Lok aus Slot nehmen
-{
-	uint8_t Slot = xLokStsgetSlot(MSB, LSB);
-	xLokSts[Slot].low = 0xFF;
-	xLokSts[Slot].high = 0xFF;
-	xLokSts[Slot].mode = 0xFF;
-	xLokSts[Slot].speed = 0xFF;
-	xLokSts[Slot].f0 = 0xFF;
-	xLokSts[Slot].f1 = 0xFF;
-	xLokSts[Slot].f2 = 0xFF;
-	xLokSts[Slot].f3 = 0xFF;
-	xLokSts[Slot].state = 0x00;
-}
 
 //--------------------------------------------------------------------------------------------
 void notifyTrnt(uint16_t cvAdr, uint8_t State)
@@ -933,7 +894,7 @@ bool setBasicAccessoryPos(uint16_t address, bool state, bool activ)
 	//p.setKind(basic_accessory_packet_kind);
 	//p.setRepeat(OTHER_REPEAT);
 
-	if (notifyTrnt)
+	//if (notifyTrnt)
 		notifyTrnt(address, state);
 
 	bitWrite(BasicAccessory[address / 8], address % 8, state); //pro SLOT immer 8 Zust�nde speichern!
@@ -942,58 +903,6 @@ bool setBasicAccessoryPos(uint16_t address, bool state, bool activ)
 	return true; //e_stop_queue.insertPacket(&p);
 }
 
-bool setBasicAccessoryPos(uint16_t address, bool state, bool activ)
-{
-	/*
-	Accessory decoder packet format:
-	================================
-	1111..11 0 1000-0001 0 1111-1011 0 EEEE-EEEE 1
-      Preamble | 10AA-AAAA | 1aaa-CDDX | Err.Det.B
-
-      aaaAAAAAA -> 111000001 -> Acc. decoder number 1
-
-	  UINT16 FAdr = (FAdr_MSB << 8) + FAdr_LSB;
-	  UINT16 Dcc_Addr = FAdr >> 2	//aaaAAAAAA
-
-	  Beispiel:
-	  FAdr=0 ergibt DCC-Addr=0 Port=0;
-	  FAdr=3 ergibt DCC-Addr=0 Port=3;
-	  FAdr=4 ergibt DCC-Addr=1 Port=0; usw
-
-      C on/off:    1 => on		// Ausgang aktivieren oder deaktivieren
-      DD turnout: 01 => 2		// FAdr & 0x03  // Port
-      X str/div:   1 => set to diverging  // Weiche nach links oder nach rechts 
-		=> X=0 soll dabei Weiche auf Abzweig bzw. Signal auf Halt kennzeichnen.
-
-     => COMMAND: SET TURNOUT NUMBER 2 DIVERGING
-
-	 1111..11 0 1000-0001 0 1111-0011 0 EEEE-EEEE 1
-	 => COMMAND: SET TURNOUT NUMBER 6 DIVERGING
-	*/
-	if (address > 0x7FF) //check if Adr is ok, (max. 11-bit for Basic Adr)
-		return false;
-
-	//DCCPacket p((address + TrntFormat) >> 2); //9-bit Address + Change Format Roco / Intellibox
-	//uint8_t data[1];
-	//data[0] = ((address + TrntFormat) & 0x03) << 1; //0000-CDDX
-	//if (state == true)								//SET X Weiche nach links oder nach rechts
-	//	bitWrite(data[0], 0, 1);					//set turn
-	//if (activ == true)								//SET C Ausgang aktivieren oder deaktivieren
-	//	bitWrite(data[0], 3, 1);					//set ON
-
-	//p.addData(data, 1);
-	//p.setKind(basic_accessory_packet_kind);
-	//p.setRepeat(OTHER_REPEAT);
-
-	if (notifyTrnt)
-	{ 
-		notifyTrnt(address, state);
-	}
-	bitWrite(BasicAccessory[address / 8], address % 8, state); //pro SLOT immer 8 Zust�nde speichern!
-
-	//return high_priority_queue.insertPacket(&p);
-	return 1; //e_stop_queue.insertPacket(&p);
-}
 //--------------------------------------------------------------------------------------------
 //Zustand der Gleisversorgung setzten
 void XpressNetsetPower(uint8_t Power)

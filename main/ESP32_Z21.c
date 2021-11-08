@@ -337,7 +337,7 @@ void app_main()
     Railpower = 0xFF; //Ausgangs undef.
 
     XNetRun = false; //XNet ist inactive;
-    xLokStsclear();  //l�schen aktiver Loks in Slotserver
+    LokStsclear();  //l�schen aktiver Loks in Slotserver
     ReqLocoAdr = 0;
     ReqLocoAgain = 0;
     ReqFktAdr = 0;

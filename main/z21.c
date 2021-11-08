@@ -927,6 +927,13 @@ uint8_t LokStsgetSlot(uint16_t adr) // gibt Slot f�r Adresse zur�ck / erzeug
 	}
 	// kein Slot mehr vorhanden!
 	// start am Anfang mit dem �berschreiben vorhandender Slots
+	uint8_t zugriff = 0xFF;
+	for (int i = 0; i < SlotMax; i++) {
+		if (LokDataUpdate[i].state < zugriff) {
+			Slot = i;
+			zugriff = LokDataUpdate[i].state;
+		}
+	}
 	Slot = slotFullNext;
 	LokStsSetNew(Slot, adr); // clear Slot!
 	slotFullNext++;
@@ -934,6 +941,7 @@ uint8_t LokStsgetSlot(uint16_t adr) // gibt Slot f�r Adresse zur�ck / erzeug
 		slotFullNext = 0;
 	return Slot;
 }
+
 
 bool setSpeed14(uint16_t address, uint8_t speed)
 {
@@ -1082,11 +1090,13 @@ bool setSpeed(uint16_t address, uint8_t speed)
 void LokStsSetNew(uint8_t Slot, uint16_t adr) // Neue Lok eintragen mit Adresse
 {
 	LokDataUpdate[Slot].adr = adr | (DCCdefaultSteps << 14); // 0x4000; //0xC000;	// c = '3' => 128 Fahrstufen
+	LokDataUpdate[Slot].mode = 0b1011;	//Busy und 128 Fahrstufen
 	LokDataUpdate[Slot].speed = 0x80;						 // default direction is forward
 	LokDataUpdate[Slot].f0 = 0x00;
 	LokDataUpdate[Slot].f1 = 0x00;
 	LokDataUpdate[Slot].f2 = 0x00;
 	LokDataUpdate[Slot].f3 = 0x00;
+	LokDataUpdate[Slot].state = 0x00;
 
 // generate first drive information:
 	setSpeed(LokDataUpdate[Slot].adr, LokDataUpdate[Slot].speed);
@@ -1278,9 +1288,9 @@ void getLocoStateFull(uint16_t adr)
 */
 //--------------------------------------------------------------------------------------------
 //Gibt aktuellen Lokstatus an Anfragenden Zur�ck
-void getLocoStateFull(uint16_t addr, bool bc)
+void getLocoStateFull(uint16_t Addr, bool bc)
 {
-	uint8_t Slot = LokStsgetSlot(addr);
+	uint8_t Slot = LokStsgetSlot(Addr);
 	uint8_t Busy = bitRead(LokDataUpdate[Slot].mode, 3);
 	uint8_t Dir = bitRead(LokDataUpdate[Slot].f0, 5);
 	uint8_t F0 = LokDataUpdate[Slot].f0 & 0b00011111;
@@ -1288,7 +1298,7 @@ void getLocoStateFull(uint16_t addr, bool bc)
 	uint8_t F2 = LokDataUpdate[Slot].f2;
 	uint8_t F3 = LokDataUpdate[Slot].f3;
 	//if (notifyLokAll)
-		//notifyLokAll(addr, Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
+	//	notifyLokAll(addr, Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
 	//Nutzung protokollieren:
 	if (LokDataUpdate[Slot].state < 0xFF)
 		LokDataUpdate[Slot].state++; //aktivit�t
@@ -1304,8 +1314,8 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 	if (type == 1)	//ein
 		fktbit = 1;
 	uint8_t Slot = LokStsgetSlot(address);
-	uint8_t Adr_High = address & 0xff;
-	uint8_t Adr_Low = address >> 8;
+	uint8_t Adr_High = highByte(address);
+	uint8_t Adr_Low = lowByte(address);
 	//zu дnderndes bit bestimmen und neu setzten:
 	if (fkt <= 4) {
 		uint8_t func = LokDataUpdate[Slot].f0 & 0x1F;	//letztes Zustand der Funktionen 000 F0 F4..F1
@@ -1315,14 +1325,14 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 			else fktbit = !(bitRead(func, fkt - 1));
 		}
 		if (fkt == 0)
-			bitWrite(&func, 4, fktbit);
+			bitWrite(func, 4, fktbit);
 		else
-			bitWrite(&func, fkt - 1, fktbit);
+			bitWrite(func, fkt - 1, fktbit);
 		//Daten senden:
 		//Daten �ber XNet senden:
 
 		uint8_t setLocoFunc[] = {0xE4, 0x20, Adr_High, Adr_Low, func, 0x00}; //Gruppe1 = 0 0 0 F0 F4 F3 F2 F1
-		uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
+		uint16_t WORD = Word(Adr_High, Adr_Low);
 		if (WORD > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
@@ -1334,11 +1344,11 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		uint8_t funcG2 = LokDataUpdate[Slot].f1 & 0x0F;	//letztes Zustand der Funktionen 0000 F8..F5
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG2, fkt - 5));
-		bitWrite(&funcG2, fkt - 5, fktbit);
+		bitWrite(funcG2, fkt - 5, fktbit);
 		//Daten �ber XNet senden:
 
 		uint8_t setLocoFunc[] = {0xE4, 0x21, Adr_High, Adr_Low, funcG2, 0x00}; //Gruppe2 = 0 0 0 0 F8 F7 F6 F5
-		uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
+		uint16_t WORD = Word(Adr_High, Adr_Low);
 		if (WORD > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
@@ -1350,10 +1360,10 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		uint8_t funcG3 = LokDataUpdate[Slot].f1 >> 4;	//letztes Zustand der Funktionen 0000 F12..F9
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG3, fkt - 9));
-		bitWrite(&funcG3, fkt - 9, fktbit);
+		bitWrite(funcG3, fkt - 9, fktbit);
 		//Daten �ber XNet senden:
 		uint8_t setLocoFunc[] = {0xE4, 0x22, Adr_High, Adr_Low, funcG3, 0x00}; //Gruppe3 = 0 0 0 0 F12 F11 F10 F9
-		uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
+		uint16_t WORD = Word(Adr_High, Adr_Low);
 		if (WORD > 99) setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
 		ok = XNetSendadd(setLocoFunc, 6);
@@ -1364,12 +1374,12 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		uint8_t funcG4 = LokDataUpdate[Slot].f2;
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG4, fkt - 13));
-		bitWrite(&funcG4, fkt - 13, fktbit);
+		bitWrite(funcG4, fkt - 13, fktbit);
 		//Daten �ber XNet senden:
 		//unsigned char setLocoFunc[] = {0xE4, 0x23, Adr_High, Adr_Low, funcG4, 0x00};	//Gruppe4 = F20 F19 F18 F17 F16 F15 F14 F13
 		uint8_t setLocoFunc[] = {0xE4, 0xF3, Adr_High, Adr_Low, funcG4, 0x00}; //Gruppe4 = F20 F19 F18 F17 F16 F15 F14 F13
 		//0xF3 = undocumented command is used when a mulitMAUS is controlling functions f20..f13.
-		uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
+		uint16_t WORD = Word(Adr_High, Adr_Low);
 		if (WORD > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
@@ -1381,10 +1391,10 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		uint8_t funcG5 = LokDataUpdate[Slot].f3;
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG5, fkt - 21));
-		bitWrite(&funcG5, fkt - 21, fktbit);
+		bitWrite(funcG5, fkt - 21, fktbit);
 		//Daten �ber XNet senden:
 		uint8_t setLocoFunc[] = {0xE4, 0x28, Adr_High, Adr_Low, funcG5, 0x00}; //Gruppe5 = F28 F27 F26 F25 F24 F23 F22 F21
-		uint16_t WORD = (((uint16_t)Adr_High & 0x3F) << 8) | ((uint16_t)Adr_Low);
+		uint16_t WORD = Word(Adr_High, Adr_Low);
 		if (WORD > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
@@ -1616,6 +1626,33 @@ void notifyXNetPower(uint8_t State)
 		globalPower(State);
 	}
 }
+
+//--------------------------------------------------------------------------------------------
+void notifyLokAll(uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, uint8_t Speed, uint8_t Direction, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool Req ) {
+  uint8_t DB2 = Steps;
+  if (DB2 == 3)  //nicht vorhanden!
+    DB2 = 4;
+  if (Busy) 
+    bitWrite(DB2, 3, 1);
+  uint8_t DB3 = Speed;
+  if (Direction == 1)  
+    bitWrite(DB3, 7, 1);
+  uint8_t data[9]; 
+  data[0] = 0xEF;  //X-HEADER
+  data[1] = Adr_High & 0x3F;
+  data[2] = Adr_Low;
+  data[3] = DB2;
+  data[4] = DB3;
+  data[5] = F0;    //F0, F4, F3, F2, F1
+  data[6] = F1;    //F5 - F12; Funktion F5 ist bit0 (LSB)
+  data[7] = F2;  //F13-F20
+  data[8] = F3;  //F21-F28
+  //if (Req == false)  //kein BC
+  //void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC)
+  //  EthSend (14, 0x40, data, true, 0x00);  //Send Power und Funktions ask App
+  //else EthSend (14, 0x40, data, true, 0x01);  //Send Power und Funktions to all active Apps 
+}
+
 //--------------------------------------------------------------------------------------------
 //POWER set configuration:
 void globalPower(uint8_t state)

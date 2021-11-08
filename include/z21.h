@@ -222,7 +222,7 @@ void setOtherSlotBusy(uint8_t slot);
 void addBusySlot(uint8_t client, uint16_t adr); 
 
 void reqLocoBusy(uint16_t adr);
-
+void getLocoStateFull(uint16_t Addr, bool bc);
 void getLocoData(uint16_t adr, uint8_t data[]);
 uint8_t getLocoDir(uint16_t adr);
 
