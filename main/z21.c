@@ -1332,8 +1332,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		//Daten �ber XNet senden:
 
 		uint8_t setLocoFunc[] = {0xE4, 0x20, Adr_High, Adr_Low, func, 0x00}; //Gruppe1 = 0 0 0 F0 F4 F3 F2 F1
-		uint16_t WORD = Word(Adr_High, Adr_Low);
-		if (WORD > 99)
+		if (address> 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
 		ok = XNetSendadd(setLocoFunc, 6);
@@ -1348,8 +1347,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		//Daten �ber XNet senden:
 
 		uint8_t setLocoFunc[] = {0xE4, 0x21, Adr_High, Adr_Low, funcG2, 0x00}; //Gruppe2 = 0 0 0 0 F8 F7 F6 F5
-		uint16_t WORD = Word(Adr_High, Adr_Low);
-		if (WORD > 99)
+		if (address > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
 		ok = XNetSendadd(setLocoFunc, 6);
@@ -1363,8 +1361,8 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		bitWrite(funcG3, fkt - 9, fktbit);
 		//Daten �ber XNet senden:
 		uint8_t setLocoFunc[] = {0xE4, 0x22, Adr_High, Adr_Low, funcG3, 0x00}; //Gruppe3 = 0 0 0 0 F12 F11 F10 F9
-		uint16_t WORD = Word(Adr_High, Adr_Low);
-		if (WORD > 99) setLocoFunc[2] = Adr_High | 0xC0;
+		
+		if (address > 99) setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
 		ok = XNetSendadd(setLocoFunc, 6);
 		//Daten senden:
@@ -1379,8 +1377,8 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		//unsigned char setLocoFunc[] = {0xE4, 0x23, Adr_High, Adr_Low, funcG4, 0x00};	//Gruppe4 = F20 F19 F18 F17 F16 F15 F14 F13
 		uint8_t setLocoFunc[] = {0xE4, 0xF3, Adr_High, Adr_Low, funcG4, 0x00}; //Gruppe4 = F20 F19 F18 F17 F16 F15 F14 F13
 		//0xF3 = undocumented command is used when a mulitMAUS is controlling functions f20..f13.
-		uint16_t WORD = Word(Adr_High, Adr_Low);
-		if (WORD > 99)
+		
+		if (address > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
 		ok = XNetSendadd(setLocoFunc, 6);
@@ -1394,8 +1392,8 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		bitWrite(funcG5, fkt - 21, fktbit);
 		//Daten �ber XNet senden:
 		uint8_t setLocoFunc[] = {0xE4, 0x28, Adr_High, Adr_Low, funcG5, 0x00}; //Gruppe5 = F28 F27 F26 F25 F24 F23 F22 F21
-		uint16_t WORD = Word(Adr_High, Adr_Low);
-		if (WORD > 99)
+		
+		if (address > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
 		ok = XNetSendadd(setLocoFunc, 6);
