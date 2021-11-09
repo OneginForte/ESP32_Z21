@@ -19,6 +19,21 @@
 
 #define interval 10500      //interval for Status LED (milliseconds)
 
+uint16_t Word(uint8_t h, uint8_t l) { return (h << 8) | l; }
+
+//--------------------------------------------------------------------------------------------
+// calculate the XOR
+void getXOR(unsigned char *data, uint8_t length)
+{
+	uint8_t XOR = 0x00;
+	for (int i = 0; i < (length - 1); i++)
+	{
+		XOR = XOR ^ *data;
+		data++;
+	}
+	*data = XOR;
+}
+
 //*******************************************************************************************
 //Daten ermitteln und Auswerten
 void xnetreceive(void) 
@@ -122,7 +137,7 @@ void xnetreceive(void)
 			unsigned int Adr = (XNetMsg[XNetdata1] << 2) | ((XNetMsg[XNetdata2] & 0b0110) >> 1);  // Dir afectada
 			uint8_t Pos = (XNetMsg[XNetdata2] & 0b0001) + 1;
 			if (!A_bit) { // Accessory activation request
-			  if (notifyTrnt){
+			  //if (notifyTrnt){
 
 			    //highByte(Adr), lowByte(Adr)
 				//data[1] = Adr >> 8; //High
@@ -131,7 +146,7 @@ void xnetreceive(void)
             	}
             else { // Accessory deactivation request
 				Pos = Pos | 0b1000;
-				if (notifyTrnt)
+				//if (notifyTrnt)
 					notifyTrnt(Adr, Pos);
             }
           }
@@ -282,13 +297,13 @@ void xnetreceive(void)
 				uint8_t F2 = XNetMsg[XNetdata2]; //F2 = F20 F19 F18 F17 F16 F15 F14 F13
 				uint8_t F3 = XNetMsg[XNetdata3]; //F3 = F28 F27 F26 F25 F24 F23 F22 F21
 				if (LokStsFunc23 (Word(Adr_MSB, Adr_LSB), F2, F3) == true) {	//�nderungen am Zustand?
-				
-					notifyLokFunc(Adr_MSB, Adr_LSB , F2, F3);
+
+					notifyLokFunc(Word(Adr_MSB, Adr_LSB), F2, F3);
 					getLocoStateFull(Word(Adr_MSB, Adr_LSB), true);
 				}
 			}
 			if (XNetMsg[XNetdata1] == 0x40 && XNetMsg[XNetlength] >= 6) { 	// Locomotive is being operated by another device
-				XLokStsSetBusy (XNetMsg[XNetdata2], XNetMsg[XNetdata3]);
+				LokStsSetBusy(Word( XNetMsg[XNetdata2], XNetMsg[XNetdata3]));
 			}
 		break;
 		case 0xE1:
@@ -347,9 +362,9 @@ void sendSchaltinfo(bool schaltinfo, uint8_t data1, uint8_t data2)
 	
 	if (schaltinfo) {
 		if (notifyTrnt)
-			notifyTrnt(highByte(Adr), lowByte(Adr), Pos1);
+			notifyTrnt(Adr, Pos1);
 		if (notifyTrnt)
-			notifyTrnt(highByte(Adr+1), lowByte(Adr+1), Pos2);
+			notifyTrnt(Adr+1, Pos2);
 	}
 	else {
 		if (notifyFeedback)
@@ -391,6 +406,7 @@ void setHalt()
 {
 	setPower(csEmergencyStop);
 }
+
 
 //--------------------------------------------------------------------------------------------
 //Abfragen der Lokdaten (mit F0 bis F12)
@@ -439,12 +455,15 @@ bool getLocoFunc(uint16_t Addr)
 	return XNetSendadd (getLoco, 5);
 }
 
-void notifyLokFunc( uint16_t Address, uint8_t Function )
+void notifyLokFunc(uint16_t Address, uint8_t F2, uint8_t F3)
 {
-  setFunctions0to4(Address,Function & 0x0F); //override F0 if active !!!
-  setFunctions5to8(Address,(Function & 0xF0) >> 4);
+  //setFunctions0to4(Address, Function & 0x0F); //override F0 if active !!!
+  //setFunctions5to8(Address, (Function & 0xF0) >> 4);
+  //setFunctions9to12(Address, Function2);
+  setFunctions13to20(Address, F2);
+  setFunctions21to28(Address, F3);
 
-/*
+  /*
   Serial.print("Func Request - Adr: ");
   Serial.print(Address, DEC);
   Serial.print(", F8-F1: ");
@@ -464,7 +483,7 @@ bool setLocoHalt(uint16_t Addr)
 	ok = XNetSendadd (setLocoStop, 4);
 
 	uint8_t Slot = LokStsgetSlot(Addr);
-	xLokSts[Slot].speed = 0;	//STOP
+	LokDataUpdate[Slot].speed = 0; //STOP
 
 	getLocoStateFull(Addr, true);
 	return ok;
@@ -475,24 +494,24 @@ bool setLocoHalt(uint16_t Addr)
 bool setLocoDrive(uint16_t Addr, uint8_t Steps, uint8_t Speed)
 {
 	bool ok = false;
-	unsigned char setLoco[] = {0xE4, 0x10, Adr_High, Adr_Low, Speed, 0x00};
-	if (word(Adr_High,Adr_Low) > 99)
-			setLoco[2] = Adr_High | 0xC0;
+	unsigned char setLoco[] = {0xE4, 0x10, highByte(Addr), lowByte(Addr), Speed, 0x00};
+	if (Addr > 99)
+		setLoco[2] = highByte(Addr) | 0xC0;
 	setLoco[1] |= Steps;
 	
 	getXOR(setLoco, 6);
 	ok = XNetSendadd (setLoco, 6);
 
-	uint8_t Slot = xLokStsgetSlot(Adr_High, Adr_Low);
-	xLokSts[Slot].mode = (xLokSts[Slot].mode & 0b11111100) | Steps;	//Fahrstufen
-	xLokSts[Slot].speed = Speed & 0b01111111;
-	bitWrite(xLokSts[Slot].f0, 5, bitRead(Speed, 7));	//Dir
+	uint8_t Slot = LokStsgetSlot(Addr);
+	LokDataUpdate[Slot].mode = (LokDataUpdate[Slot].mode & 0b11111100) | Steps; //Fahrstufen
+	LokDataUpdate[Slot].speed = Speed & 0b01111111;
+	bitWrite(LokDataUpdate[Slot].f0, 5, bitRead(Speed, 7)); //Dir
 
-//	getLocoStateFull(Adr_High, Adr_Low, true);	
+	//	getLocoStateFull(Adr_High, Adr_Low, true);	
 
 	//Nutzung protokollieren:
-	if (xLokSts[Slot].state < 0xFF)
-		xLokSts[Slot].state++;		//aktivit�t
+	if (LokDataUpdate[Slot].state < 0xFF)
+		LokDataUpdate[Slot].state++; //aktivit�t
 	return ok;
 }
 
@@ -502,7 +521,7 @@ bool setLocoDrive(uint16_t Addr, uint8_t Steps, uint8_t Speed)
 //Ermitteln der Schaltstellung einer Weiche
 bool getTrntInfo(uint8_t FAdr_High, uint8_t FAdr_Low)
 {
-	int Adr = word(FAdr_High, FAdr_Low);
+	int Adr = Word(FAdr_High, FAdr_Low);
 	uint8_t nibble = 0; // 0 = Weiche 0 und 1; 1 = Weiche 2 und 3
 	if ((Adr & 0x03) >= 2)
 		nibble = 1;
@@ -517,7 +536,7 @@ bool getTrntInfo(uint8_t FAdr_High, uint8_t FAdr_Low)
 bool setTrntPos(uint8_t FAdr_High, uint8_t FAdr_Low, uint8_t Pos)
 //Pos = 0000A00P	A=Weichenausgang (Aktive/Inaktive); P=Weiche nach links oder nach rechts 
 {
-	int Adr = word(FAdr_High, FAdr_Low);
+	int Adr = Word(FAdr_High, FAdr_Low);
 	uint8_t AdrL = ((Pos & 0x0F) | 0b110) & (((Adr & 0x03) << 1) | 0b1001); //1000ABBP -> A00P = Pos | BB = Adr & 0x03 (LSB Weichenadr.)
 
 	Adr = Adr >> 2;
@@ -529,8 +548,8 @@ bool setTrntPos(uint8_t FAdr_High, uint8_t FAdr_Low, uint8_t Pos)
 	getXOR(setTrnt, 4);
 
 	//getTrntInfo(FAdr_High, FAdr_Low);  //Schaltstellung abfragen
-	if (notifyTrnt)
-		notifyTrnt(FAdr_High, FAdr_Low, (Pos & 0b1) + 1);
+	//if (notifyTrnt)
+		notifyTrnt(Adr, (Pos & 0b1) + 1);
 
 	return XNetSendadd (setTrnt, 4);
 }
@@ -813,7 +832,7 @@ void LokStsSetBusy(uint16_t Addr)
 int LokStsgetAdr(uint8_t Slot) //gibt Lokadresse des Slot zur�ck, wenn 0x0000 dann keine Lok vorhanden
 {
 	if (!LokStsIsEmpty(Slot))
-		return LokDataUpdate[Slot].adr);	//Addresse zur�ckgeben
+		return (LokDataUpdate[Slot].adr);	//Addresse zur�ckgeben
 	return 0x0000;
 }
 
@@ -846,6 +865,7 @@ uint8_t getNextSlot(uint8_t Slot) //gibt n�chsten genutzten Slot
 void notifyTrnt(uint16_t cvAdr, uint8_t State)
 {
 	setTrntInfo(cvAdr, State);
+	//setTrntInfo(Adr, State);
 }
 
 //---------------------------------------------------------------------------------
@@ -901,6 +921,200 @@ bool setBasicAccessoryPos(uint16_t address, bool state, bool activ)
 
 	//return high_priority_queue.insertPacket(&p);
 	return true; //e_stop_queue.insertPacket(&p);
+}
+
+//--------------------------------------------------------------
+void notifyXNetTrnt(uint16_t Address, uint8_t data)
+{
+
+	setBasicAccessoryPos(Address, data & 0x01, (bitRead(data, 3))); //Adr, left/right, activ
+}
+//--------------------------------------------------------------
+//DCC return no ACK:
+void notifyCVNack()
+{
+
+	z21setCVNack(); //send back to device and stop programming!
+
+	//XNetsetCVNack();
+}
+
+bool opsProgDirectCV(uint16_t CV, uint8_t CV_data)
+{
+	//for CV#1 is the Adress 0
+	//Long-preamble   0  0111CCAA  0  AAAAAAAA  0  DDDDDDDD  0  EEEEEEEE  1
+	//CC=10 Bit Manipulation
+	//CC=01 Verify byte
+	//CC=11 Write byte
+
+	//check if CV# is between 0 - 1023
+	if (CV > 1023)
+	{
+		//if (notifyCVNack)
+		//  notifyCVNack();
+		return false;
+	}
+
+	//DCCPacket p(((CV >> 8) & B11) | B01111100);
+	//uint8_t data[] = {0x00, 0x00};
+	//data[0] = CV & 0xFF;
+	//data[1] = CV_data;
+	//p.addData(data, 2);
+	//p.setKind(ops_mode_programming_kind); //always use short Adress Mode!
+	//p.setRepeat(ProgRepeat);
+
+	//if (railpower != SERVICE)      //time to wait for the relais!
+	//  opsDecoderReset(RSTsRepeat); //send first a Reset Packet
+	//setpower(SERVICE, true);
+	//current_cv_bit = 0xFF; //write the byte!
+	//current_ack_read = false;
+	//ack_monitor_time = micros();
+	//current_cv = CV;
+	//current_cv_value = CV_data;
+
+	//-------opsDecoderReset(RSTsRepeat);	//send first a Reset Packet
+	//ops_programmming_queue.insertPacket(&p);
+	//-----opsDecoderReset(RSTcRepeat);	//send a Reset while waiting to finish
+	return 1; //opsVerifyDirectCV(current_cv, current_cv_value); //verify bit read
+}
+
+//--------------------------------------------------------------
+void notifyXNetDirectCV(uint16_t CV, uint8_t data)
+{
+
+	opsProgDirectCV(CV, data); //return value from DCC via 'notifyCVVerify'
+}
+
+bool opsReadDirectCV(uint16_t CV) //, uint8_t bitToRead, bool bitSet)
+{
+	//for CV#1 is the Adress 0
+	//long-preamble   0  011110AA  0  AAAAAAAA  0  111KDBBB  0  EEEEEEEE  1
+	//Bit Manipulation
+	//BBB represents the bit position
+	//D contains the value of the bit to be verified or written
+	//K=1 signifies a "Write Bit" operation and K=0 signifies a "Bit Verify"
+
+	//check if CV# is between 0 - 1023
+	//if (CV > 1023)
+	//{
+	//  if (notifyCVNack)
+	//    notifyCVNack();
+	//  return false;
+	//}
+
+	//if (current_cv_bit > 7 || bitToRead == 0)
+	//{
+	//  current_cv_bit = 0;
+	//  bitToRead = 0;
+	//}
+
+	//if (railpower != SERVICE)      //time to wait for the relais!
+	//  opsDecoderReset(RSTsRepeat); //send first a Reset Packet
+	//setpower(SERVICE, true);
+	//current_ack_read = false;
+	//ack_monitor_time = micros();
+	//current_cv = CV;
+
+	//DCCPacket p(((CV >> 8) & B11) | B01111000);
+	//uint8_t data[] = {0x00, 0x00};
+	//data[0] = CV & 0xFF;
+	//data[1] = B11100000 | (bitToRead & 0x07) | (bitSet << 3); //verify Bit is "bitSet"? ("1" or "0")
+	//p.addData(data, 2);
+	//p.setKind(ops_mode_programming_kind); //always use short Adress Mode!
+	//p.setRepeat(ProgRepeat);
+
+	//if (bitToRead == 0)
+	//{
+	//  opsDecoderReset(RSTsRepeat); //send first a Reset Packet
+	// }
+
+	return 1; //ops_programmming_queue.insertPacket(&p);
+			  //--------opsDecoderReset(RSTcRepeat);	//send a Reset while waiting to finish
+			  //return opsDecoderReset(RSTcRepeat);	//send a Reset while waiting to finish
+}
+
+//--------------------------------------------------------------
+void notifyXNetDirectReadCV(uint16_t cvAdr)
+{
+
+	opsReadDirectCV(cvAdr); //read cv
+}
+
+bool opsProgramCV(uint16_t address, uint16_t CV, uint8_t CV_data)
+{
+	//format of packet:
+	// {preamble} 0 [ AAAAAAAA ] 0 111011VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (write)
+	// {preamble} 0 [ AAAAAAAA ] 0 111001VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (verify/read)
+	// {preamble} 0 [ AAAAAAAA ] 0 111010VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (bit manipulation)
+	// only concerned with "write" form here!!!
+
+	if (address == 0) //check if Adr is ok?
+		return false;
+
+	//DCCPacket p(address);
+	//uint8_t data[] = {0x00, 0x00, 0x00};
+
+	// split the CV address up among data uint8_ts 0 and 1
+	//data[0] = ((CV >> 8) & 0x11) | 0x11101100;
+	//data[1] = CV & 0xFF;
+	//data[2] = CV_data;
+
+	//p.addData(data, 3);
+	//p.setKind(pom_mode_programming_kind);
+	//.setRepeat(ProgRepeat);
+
+	//return low_priority_queue.insertPacket(&p);	//Standard
+
+	//setpower(SERVICE, true);
+
+	//opsDecoderReset();	//send first a Reset Packet
+	return 1; // ops_programmming_queue.insertPacket(&p);
+			  //return e_stop_queue.insertPacket(&p);
+}
+//--------------------------------------------------------------
+void notifyXNetPOMwriteByte(uint16_t Adr, uint16_t CV, uint8_t data)
+{
+
+	opsProgramCV(Adr, CV, data); //set decoder byte
+}
+
+bool opsPOMwriteBit(uint16_t address, uint16_t CV, uint8_t Bit_data)
+{
+	//format of packet:
+	// {preamble} 0 [ AAAAAAAA ] 0 111011VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (write)
+	// {preamble} 0 [ AAAAAAAA ] 0 111001VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (verify/read)
+	// {preamble} 0 [ AAAAAAAA ] 0 111010VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (bit manipulation)
+	// only concerned with "write" form here!!!
+
+	if (address == 0) //check if Adr is ok?
+		return false;
+
+	//DCCPacket p(address);
+	//uint8_t data[] = {0x00, 0x00, 0x00};
+
+	// split the CV address up among data uint8_ts 0 and 1
+	//data[0] = ((CV >> 8) & 0b11) | 0b11101000;
+	//data[1] = CV & 0xFF;
+	//data[2] = Bit_data & 0x0F;
+
+	//p.addData(data, 3);
+	//p.setKind(pom_mode_programming_kind);
+	//p.setRepeat(ProgRepeat);
+
+	//return low_priority_queue.insertPacket(&p);	//Standard
+
+	//setpower(SERVICE, true);
+
+	//opsDecoderReset();	//send first a Reset Packet
+	return 1; // ops_programmming_queue.insertPacket(&p);
+			  //return e_stop_queue.insertPacket(&p);
+}
+
+//--------------------------------------------------------------
+void notifyXNetPOMwriteBit(uint16_t Adr, uint16_t CV, uint8_t data)
+{
+
+	opsPOMwriteBit(Adr, CV, data); //set decoder bit
 }
 
 //--------------------------------------------------------------------------------------------

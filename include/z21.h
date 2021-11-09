@@ -1,5 +1,5 @@
-#ifndef z21_H_
-#define z21_H_
+#ifndef z21_h
+#define z21_h
 
 /*
   z21.h - library for Z21mobile protocoll
@@ -105,13 +105,7 @@ HwType: #define D_HWT_Z21_OLD 0x00000200 // �schwarze Z21� (Hardware-Variant
 //Store Z21 configuration inside EEPROM:
 #define CONF1STORE 50 	//(10x Byte)
 #define CONF2STORE 60	//(15x Byte)
-//--------------------------------------------------------------
-// certain global XPressnet status indicators
-#define csNormal 0x00 // Normal Operation Resumed ist eingeschaltet
-#define csEmergencyStop 0x01// Der Nothalt ist eingeschaltet
-#define csTrackVoltageOff 0x02 // Die Gleisspannung ist abgeschaltet
-#define csShortCircuit 0x04 // Kurzschluss
-#define csServiceMode 0x08 // Der Programmiermodus ist aktiv - Service Mode
+
 
 // IP settings
 #define z21clientMAX 20        //Speichergr��e f�r IP-Adressen
@@ -197,8 +191,8 @@ void setTrntInfo(uint16_t Adr, bool State); //Return the state of accessory
 void setExtACCInfo(uint16_t Adr, uint8_t State); //Return EXT Accessory INFO
 
 void setCVReturn(uint16_t CV, uint8_t value); //Return CV Value for Programming
-void z21setCVNack();						  //Return no ACK from Decoder
-void setCVNackSC();							  //Return Short while Programming
+void z21setCVNack( void );						  //Return no ACK from Decoder
+void setCVNackSC( void );							  //Return Short while Programming
 
 void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, uint16_t temp); //Send to all clients that request via BC the System Information
 
@@ -212,7 +206,7 @@ void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t 
 uint8_t getLocalBcFlag(uint32_t flag); //Convert Z21 LAN BC flag to local stored flag
 uint8_t Z21addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, unsigned int port); 
 void clearIP(uint8_t pos); //delete the stored client
-void clearIPSlots();					 //delete all stored clients
+void clearIPSlots( void );					 //delete all stored clients
 void clearIPSlot(uint8_t client);		 //delete a client
 uint8_t addIPToSlot(uint8_t client, uint8_t BCFlag);
 
@@ -234,9 +228,11 @@ uint8_t getFunktion21to28(uint16_t address); //gibt Funktionszustand F28 - F21 z
 
 void setLocoStateExt(uint16_t Adr);
 uint8_t getLocoSpeed(uint16_t adr);
+bool setSpeed(uint16_t address, uint8_t speed); 
 bool setSpeed14(uint16_t address, uint8_t speed);
 bool setSpeed28(uint16_t address, uint8_t speed);
 bool setSpeed128(uint16_t address, uint8_t speed);
+void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt); 
 bool setFunctions0to4(uint16_t address, uint8_t functions);
 bool setFunctions5to8(uint16_t address, uint8_t functions);
 bool setFunctions9to12(uint16_t address, uint8_t functions);

@@ -166,13 +166,16 @@ uint8_t getNextSlot(uint8_t Slot);											 //gibt n�chsten genutzten Slot
 
 bool setBasicAccessoryPos(uint16_t address, bool state, bool activ);
 
-void notifyLokFunc(uint8_t Adr_High, uint8_t Adr_Low, uint8_t F2, uint8_t F3);
+//void notifyLokFunc(uint16_t Address, uint8_t F2, uint8_t F3);
 
 //Spannung und GO/STOP Events:
 uint8_t Railpower; //Gleisspannung
 
 //Programming:
-
+extern bool opsReadDirectCV(uint16_t CV); //Read Direct Mode Byte
+extern bool opsProgramCV(uint16_t address, uint16_t CV, uint8_t CV_data);
+extern bool opsPOMwriteBit(uint16_t address, uint16_t CV, uint8_t Bit_data);
+extern bool opsPOMreadCV(uint16_t address, uint16_t CV);
 //Lok Status:
 
 //Funktionen
@@ -182,14 +185,27 @@ int ledState;		 // ledState used to set the LED
 long previousMillis; // will store last time LED was updated
 
 //extern void notifyXNetDebug(String s) __attribute__((weak));
+uint16_t Word(uint8_t h, uint8_t l);
+void getXOR(unsigned char *data, uint8_t length);
+void notifyXNetTrnt(uint16_t Address, uint8_t data);
+void notifyCVNack();
+extern void notifyXNetLocoDrive14(uint16_t Address, uint8_t Speed) __attribute__((weak));
+extern void notifyXNetLocoDrive27(uint16_t Address, uint8_t Speed) __attribute__((weak));
+extern void notifyXNetLocoDrive28(uint16_t Address, uint8_t Speed) __attribute__((weak));
+extern void notifyXNetLocoDrive128(uint16_t Address, uint8_t Speed) __attribute__((weak));
+extern void notifyXNetLocoFunc1(uint16_t Address, uint8_t Func1) __attribute__((weak)); //Gruppe1 0 0 0 F0 F4 F3 F2 F1
+extern void notifyXNetLocoFunc2(uint16_t Address, uint8_t Func2) __attribute__((weak)); //Gruppe2 0000 F8 F7 F6 F5
+extern void notifyXNetLocoFunc3(uint16_t Address, uint8_t Func3) __attribute__((weak)); //Gruppe3 0000 F12 F11 F10 F9
+extern void notifyXNetLocoFunc4(uint16_t Address, uint8_t Func4) __attribute__((weak)); //Gruppe4 F20-F13
+extern void notifyXNetLocoFunc5(uint16_t Address, uint8_t Func5) __attribute__((weak)); //Gruppe5 F28-F21
 extern void notifyXNetStatus(uint8_t LedState) __attribute__((weak));
 extern void notifyXNetVer(uint8_t V, uint8_t ID) __attribute__((weak));
 extern void notifyXNetPower(uint8_t State) __attribute__((weak));
-extern void notifyLokFunc(uint8_t Adr_High, uint8_t Adr_Low, uint8_t F2, uint8_t F3) __attribute__((weak));
+extern void notifyLokFunc(uint16_t Address, uint8_t F2, uint8_t F3) __attribute__((weak));
 extern void notifyLokAll(uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, uint8_t Speed, uint8_t Direction, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool Req) __attribute__((weak));
 extern void notifyCVInfo(uint8_t State) __attribute__((weak));
 extern void notifyCVResult(uint8_t cvAdr, uint8_t cvData) __attribute__((weak));
-extern void notifyTrnt(uint16_t cvAdr, uint8_t Pos) __attribute__((weak));
+void notifyTrnt(uint16_t cvAdr, uint8_t Pos) __attribute__((weak));
 extern void notifyFeedback(uint8_t Adr_High, uint8_t Adr_Low, uint8_t Pos) __attribute__((weak));
 
 //	extern void notifyXNetData(unsigned int data, bool line) __attribute__((weak));

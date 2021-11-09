@@ -93,12 +93,12 @@ static void udp_sender_task(void *pvParameters)
                     dest_addr.sin_addr.s_addr = txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
                     dest_addr.sin_port=txport;
                     ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
-                    //ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s, %d:", addr_str, htons (dest_addr.sin_port));
+                    ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s, %d:", addr_str, htons (dest_addr.sin_port));
                     }
                 
                 txBflag=0;
 
-                //ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, (uint8_t *)&txBuffer, txBlen, ESP_LOG_INFO);
+                ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, (uint8_t *)&Z21txBuffer, txBlen, ESP_LOG_INFO);
 
                 int err = sendto(global_sock, (uint8_t *)&Z21txBuffer, txBlen, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
                 
@@ -130,7 +130,7 @@ static void udp_server_task(void *pvParameters)
     int ip_protocol = 0;
     struct sockaddr_in dest_addr;
     ESP_LOGI(Z21_TASK_TAG, "Init server task started.");
-    uint8_t *rx_buffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
+    uint8_t *Z21_rx_buffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
     while (1)
         {
         struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
@@ -167,7 +167,7 @@ static void udp_server_task(void *pvParameters)
                 struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
                 socklen_t socklen = sizeof(source_addr);
                 dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
-                int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer), 0, (struct sockaddr *)&source_addr, &socklen);
+                int len = recvfrom(sock, Z21_rx_buffer, Z21_UDP_RX_MAX_SIZE, 0, (struct sockaddr *)&source_addr, &socklen);
                 // Error occurred during receiving
                     if (len < 0)
                     {
@@ -180,7 +180,9 @@ static void udp_server_task(void *pvParameters)
                         ip4addr_ntoa_r((const ip4_addr_t*)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                         int from_port = (((struct sockaddr_in *)&source_addr)->sin_port);
                         uint8_t client = Z21addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), from_port);
-                        receive(client, rx_buffer);
+                        ESP_LOGI(Z21_TASK_TAG, "Recieve from UDP");
+                        ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&Z21_rx_buffer, len, ESP_LOG_INFO);
+                        receive(client, Z21_rx_buffer);
                     }
                 }
             
@@ -193,7 +195,7 @@ static void udp_server_task(void *pvParameters)
             }
         }
     }
-    free(rx_buffer);
+    free(Z21_rx_buffer);
     vTaskDelete(NULL);
 }
 
@@ -315,6 +317,25 @@ void cb_connection_off(void *pvParameter)
     vTaskDelete(xHandle2);
     vTaskDelete(xHandle1);
     ESP_LOGI(TAG, "I do not have connection. Stop UDP!");
+}
+
+//--------------------------------------------------------------------------------------------
+// calculate the parity bit in the call byte for this guy
+uint8_t callByteParity(uint8_t me)
+{
+    uint8_t parity = (1 == 0);
+    uint8_t vv;
+    me &= 0x7f;
+    vv = me;
+
+    while (vv)
+    {
+        parity = !parity;
+        vv &= (vv - 1);
+    }
+    if (parity)
+        me |= 0x80;
+    return me;
 }
 
 void app_main()
@@ -513,3 +534,69 @@ void notifyz21getSystemInfo(uint8_t client)
     notifyz21EthSend(client, data, 20);
 }
 //--------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------
+void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps)
+{
+    setSpeed(Adr, speed);
+    reqLocoBusy(Adr); //Lok wird nicht von LokMaus gesteuert!
+
+    switch (steps)
+    {
+    case 14:
+        setSpeed14(Adr, speed);
+        break;
+    case 28:
+        setSpeed28(Adr, speed);
+        break;
+    default:
+        setSpeed128(Adr, speed);
+    }
+
+}
+
+//--------------------------------------------------------------------------------------------
+void notifyz21Accessory(uint16_t Adr, bool state, bool active)
+{
+    setBasicAccessoryPos(Adr, state, active);
+    setTrntPos(Adr, state, active);
+
+}
+
+bool getBasicAccessoryInfo(uint16_t address)
+{
+    switch (TrntFormat)
+    {
+    case IB:
+        address = address + IB;
+        break;
+    }
+
+    return bitRead(BasicAccessory[address / 8], address % 8); //Zustand aus Slot lesen
+}
+
+//--------------------------------------------------------------------------------------------
+uint8_t notifyz21AccessoryInfo(uint16_t Adr)
+//return state of the Address (left/right = true/false)
+{
+        return getBasicAccessoryInfo(Adr);
+}
+
+//--------------------------------------------------------------------------------------------
+void notifyz21LocoFkt(uint16_t Adr, uint8_t state, uint8_t fkt)
+{
+    setLocoFunc(Adr, state, fkt);
+
+    if (fkt <= 4)
+        setFunctions0to4(Adr, getFunktion0to4(Adr));
+    else if (fkt >= 5 && fkt <= 8)
+        setFunctions5to8(Adr, getFunktion5to8(Adr));
+    else if (fkt >= 9 && fkt <= 12)
+        setFunctions9to12(Adr, getFunktion9to12(Adr));
+    else if (fkt >= 13 && fkt <= 20)
+        setFunctions13to20(Adr, getFunktion13to20(Adr));
+    else if (fkt >= 21 && fkt <= 28)
+        setFunctions21to28(Adr, getFunktion21to28(Adr));
+    reqLocoBusy(Adr); //Lok wird nicht von LokMaus gesteuert!
+
+
+}

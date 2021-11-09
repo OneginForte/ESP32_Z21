@@ -191,7 +191,7 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 					data[0] = 0x43;		 // X-HEADER
 					data[1] = packet[5]; // High
 					data[2] = packet[6]; // Low
-					if (notifyz21AccessoryInfo((packet[5] << 8) + packet[6]) == true)
+					if (notifyz21AccessoryInfo((packet[5] << 8) + packet[6]) == true) //setCANDetector(uint16_t NID, uint16_t Adr, uint8_t port, uint8_t typ, uint16_t v1, uint16_t v2);
 						data[3] = 0x02; // active
 					else
 						data[3] = 0x01;											// inactive
