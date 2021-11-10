@@ -59,9 +59,9 @@
 #define CONFIG_EXAMPLE_IPV4
 
 // Init local variables
-uint8_t packetBuffer[Z21_UDP_TX_MAX_SIZE];
-volatile uint8_t Z21txBuffer[Z21_UDP_TX_MAX_SIZE];
-//volatile uint8_t Z21rxBuffer[Z21_UDP_RX_MAX_SIZE];
+//uint8_t packetBuffer[Z21_UDP_TX_MAX_SIZE];
+uint8_t Z21txBuffer[Z21_UDP_TX_MAX_SIZE];
+uint8_t Z21rxBuffer[Z21_UDP_RX_MAX_SIZE];
 volatile uint8_t txBlen;
 volatile uint8_t rxlen;
 volatile uint8_t txBflag;

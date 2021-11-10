@@ -130,7 +130,7 @@ static void udp_server_task(void *pvParameters)
     int ip_protocol = 0;
     struct sockaddr_in dest_addr;
     ESP_LOGI(Z21_TASK_TAG, "Init server task started.");
-    uint8_t *Z21_rx_buffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
+    //uint8_t *Z21_rx_buffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
     while (1)
         {
         struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
@@ -167,7 +167,7 @@ static void udp_server_task(void *pvParameters)
                 struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
                 socklen_t socklen = sizeof(source_addr);
                 dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
-                int len = recvfrom(sock, Z21_rx_buffer, Z21_UDP_RX_MAX_SIZE, 0, (struct sockaddr *)&source_addr, &socklen);
+                int len = recvfrom(sock, Z21rxBuffer, Z21_UDP_RX_MAX_SIZE, 0, (struct sockaddr *)&source_addr, &socklen);
                 // Error occurred during receiving
                     if (len < 0)
                     {
@@ -181,8 +181,8 @@ static void udp_server_task(void *pvParameters)
                         int from_port = (((struct sockaddr_in *)&source_addr)->sin_port);
                         uint8_t client = Z21addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), from_port);
                         ESP_LOGI(Z21_TASK_TAG, "Recieve from UDP");
-                        ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&Z21_rx_buffer, len, ESP_LOG_INFO);
-                        receive(client, Z21_rx_buffer);
+                        ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&Z21rxBuffer, len, ESP_LOG_INFO);
+                        receive(client, Z21rxBuffer);
                     }
                 }
             
@@ -195,7 +195,7 @@ static void udp_server_task(void *pvParameters)
             }
         }
     }
-    free(Z21_rx_buffer);
+    free(Z21rxBuffer);
     vTaskDelete(NULL);
 }
 
@@ -375,7 +375,7 @@ void app_main()
     }
 
     uint8_t *Z21txBuffer = (uint8_t *)malloc(Z21_UDP_TX_MAX_SIZE);
-    //uint8_t *Z21rxBuffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
+    uint8_t *Z21rxBuffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
     
     // txSendFlag=0;
 

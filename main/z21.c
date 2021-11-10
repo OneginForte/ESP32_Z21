@@ -1298,7 +1298,7 @@ void getLocoStateFull(uint16_t Addr, bool bc)
 	uint8_t F2 = LokDataUpdate[Slot].f2;
 	uint8_t F3 = LokDataUpdate[Slot].f3;
 	//if (notifyLokAll)
-	//	notifyLokAll(addr, Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
+		notifyLokAll(highByte(Addr), lowByte(Addr), Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
 	//Nutzung protokollieren:
 	if (LokDataUpdate[Slot].state < 0xFF)
 		LokDataUpdate[Slot].state++; //aktivit�t
@@ -1645,10 +1645,10 @@ void notifyLokAll(uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, u
   data[6] = F1;    //F5 - F12; Funktion F5 ist bit0 (LSB)
   data[7] = F2;  //F13-F20
   data[8] = F3;  //F21-F28
-  //if (Req == false)  //kein BC
+  if (Req == false)  //kein BC
   //void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC)
-  //  EthSend (14, 0x40, data, true, 0x00);  //Send Power und Funktions ask App
-  //else EthSend (14, 0x40, data, true, 0x01);  //Send Power und Funktions to all active Apps 
+  EthSend (0, 14, 0x40, data, true, 0x00);  //Send Power und Funktions ask App
+  else EthSend (0, 14, 0x40, data, true, 0x01);  //Send Power und Funktions to all active Apps 
 }
 
 //--------------------------------------------------------------------------------------------
