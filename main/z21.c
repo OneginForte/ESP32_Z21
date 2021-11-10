@@ -17,6 +17,7 @@
 #include "XBusInterface.h"
 #include "XpressNet.h"
 #include "esp_timer.h"
+#include "esp_log.h"
 
 static const char *Z21_PARSER_TAG = "Z21_PARSER";
 //need to include eeprom
@@ -1110,10 +1111,11 @@ void notifyz21LocoState(uint16_t Adr, uint8_t data[])
 
 //--------------------------------------------------------------------------------------------
 //Gibt aktuellen Lokstatus an Anfragenden Zuruck
-void returnLocoStateFull (uint8_t client, uint16_t Adr, bool bc) 
+void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc) 
 //bc = true => to inform also other client over the change.
 //bc = false => just ask about the loco state
 {
+	ESP_LOGI(Z21_PARSER_TAG, "returnLocoStateFull.");
 	uint8_t ldata[6];
 	if (notifyz21LocoState)
 		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
@@ -1136,7 +1138,8 @@ void returnLocoStateFull (uint8_t client, uint16_t Adr, bool bc)
 	data[6] = (char) ldata[3];  //F5 - F12; Funktion F5 ist bit0 (LSB)
 	data[7] = (char) ldata[4];  //F13-F20
 	data[8] = (char) ldata[5];  //F21-F28
-	
+
+	ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, (uint8_t *)&data, 9, ESP_LOG_INFO);
 	//Info to all:
 	for (uint8_t i = 0; i < z21clientMAX; i++) {
 		if (ActIP[i].client != client) {
@@ -1566,9 +1569,9 @@ void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, 
 
 // Private Methods ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Functions only available to other functions in this library *******************************************************
-
+//void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC);
 //--------------------------------------------------------------------------------------------
-void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC) {
+void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataString, bool withXOR, uint8_t BC) {
 	uint8_t data[24]; 			//z21 send storage
 	
 	//--------------------------------------------        
@@ -1588,8 +1591,7 @@ void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t
    //--------------------------------------------        		
    if (client > 0) {
 		if (notifyz21EthSend)
-			notifyz21EthSend(client, data, 24);
-
+			notifyz21EthSend(client, data, DataLen);
    }
    else {
 	uint8_t clientOut = client;
@@ -1604,7 +1606,7 @@ void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t
 		  
 		  //--------------------------------------------
 		  if (notifyz21EthSend)
-			notifyz21EthSend(clientOut, data, 24);
+			  notifyz21EthSend(clientOut, data, DataLen);
 
 		  if (clientOut == 0){
 		  		ESP_LOGI(Z21_PARSER_TAG, "Eth bcast sended...");

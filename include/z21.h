@@ -202,7 +202,7 @@ void LokStsSetNew(uint8_t Slot, uint16_t adr);
 // Functions:
 void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc); // Antwort auf Statusabfrage
 
-void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC);
+void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataString, bool withXOR, uint8_t BC);
 uint8_t getLocalBcFlag(uint32_t flag); //Convert Z21 LAN BC flag to local stored flag
 uint8_t Z21addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, unsigned int port); 
 void clearIP(uint8_t pos); //delete the stored client
