@@ -36,10 +36,10 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 
 
 //*********************************************************************************************
-// Daten ermitteln und Auswerten
+// Determine and evaluate data 
 	void receive(uint8_t client, uint8_t * packet)
 	{
-		ESP_LOGI(Z21_PARSER_TAG, "Parser start.");
+		//ESP_LOGI(Z21_PARSER_TAG, "Parser start.");
 		// ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
 		addIPToSlot(client, 0);
 		// send a reply, to the IP address and port that sent us the packet we received
@@ -236,7 +236,7 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 					// ZDebug.print("X_GET_LOCO_INFO: ");
 					// Antwort: LAN_X_LOCO_INFO  Adr_MSB - Adr_LSB
 					// if (notifyz21getLocoState)
-					//	notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
+					//notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
 					// uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
 					returnLocoStateFull(client, ((packet[6] & 0x3F) << 8) + packet[7], false);
 					// Antwort via "setLocoStateFull"!
@@ -312,8 +312,9 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 			if (notifyz21RailPower)
 				notifyz21RailPower(Railpower); // Zustand Gleisspannung Antworten
 			ESP_LOGI(Z21_PARSER_TAG, "SET_BROADCASTFLAGS: ");
-			ESP_LOGI(Z21_PARSER_TAG, "%d", (int)bcflag);
-
+			int* ptr = (int *)&bcflag;
+			ESP_LOGI(Z21_PARSER_TAG, "%p", ptr);
+			//ESP_LOG_BUFFER_CHAR(Z21_PARSER_TAG, &bcflag, 4);
 			// 1=BC Power, Loco INFO, Trnt INFO; 2=BC �nderungen der R�ckmelder am R-Bus
 
 			break;
@@ -848,7 +849,7 @@ void reqLocoBusy(uint16_t adr)
 
 // Store IP in list and return it's index
 
-uint8_t Z21addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, unsigned int port)
+uint8_t Z21addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, uint16_t port)
 {
 	//suche ob IP schon vorhanden?
 	for (uint8_t i = 0; i < storedIP; i++)
@@ -1115,7 +1116,7 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 //bc = true => to inform also other client over the change.
 //bc = false => just ask about the loco state
 {
-	ESP_LOGI(Z21_PARSER_TAG, "returnLocoStateFull.");
+	ESP_LOGI(Z21_PARSER_TAG, "returnLocoStateFull:");
 	uint8_t ldata[6];
 	if (notifyz21LocoState)
 		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
@@ -1615,7 +1616,7 @@ void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataStr
 		}
 	}
   }
-	ESP_LOGI(Z21_PARSER_TAG, "Eth sended...");
+	//ESP_LOGI(Z21_PARSER_TAG, "Eth sended...");
 }
 //--------------------------------------------------------------
 //Change Power Status
@@ -1671,17 +1672,17 @@ void globalPower(uint8_t state)
 			break;
 		case csTrackVoltageOff:
 
-			//dcc.setpower(OFF);
+			z21setPower(Railpower);
 
 			break;
 		case csServiceMode:
 
-			//dcc.setpower(SERVICE);             //already on!
+			z21setPower(Railpower); //already on!
 
 			break;
 		case csShortCircuit:
 
-			//dcc.setpower(SHORT);              //shut down via GO/STOP just for the Roco Booster
+			z21setPower(Railpower); //shut down via GO/STOP just for the Roco Booster
 
 			break;
 		case csEmergencyStop:
@@ -1694,7 +1695,7 @@ void globalPower(uint8_t state)
 		{
 			z21setPower(Railpower);
 
-			XpressNetsetPower(Railpower); //send to XpressNet
+			//XpressNetsetPower(Railpower); //send to XpressNet
 		}
 	}
 }

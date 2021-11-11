@@ -131,7 +131,7 @@ struct TypeActIP
 };
 
 uint8_t Railpower;		  //state of the railpower
-long z21IPpreviousMillis; // will store last time of IP decount updated
+unsigned long z21IPpreviousMillis; // will store last time of IP decount updated
 
 typedef struct //Rückmeldung des Status der Programmierung
 {
@@ -140,7 +140,7 @@ typedef struct //Rückmeldung des Status der Programmierung
 	uint8_t IP2;
 	uint8_t IP3;
 	uint8_t time;	   //aktive Zeit
-	unsigned int port; //source Port
+	uint16_t port; //source Port
 } listofIP;
 listofIP mem[z21clientMAX];
 
@@ -165,7 +165,7 @@ NetLok LokDataUpdate[SlotMax]; // Speicher zu widerholdene Lok Daten
 //Variables:
 uint8_t Railpower;				   //state of the railpower
 
-long z21IPpreviousMillis;	   // will store last time of IP decount updated
+unsigned long z21IPpreviousMillis;	   // will store last time of IP decount updated
 struct TypeActIP ActIP[z21clientMAX]; //Speicherarray f�r IPs
 
 void receive(uint8_t client, uint8_t *packet); //Pr�fe auf neue Ethernet Daten
@@ -204,7 +204,7 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc); // Antwort auf 
 
 void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataString, bool withXOR, uint8_t BC);
 uint8_t getLocalBcFlag(uint32_t flag); //Convert Z21 LAN BC flag to local stored flag
-uint8_t Z21addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, unsigned int port); 
+uint8_t Z21addIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, uint16_t port); 
 void clearIP(uint8_t pos); //delete the stored client
 void clearIPSlots( void );					 //delete all stored clients
 void clearIPSlot(uint8_t client);		 //delete a client

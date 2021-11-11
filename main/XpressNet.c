@@ -21,6 +21,8 @@
 
 uint16_t Word(uint8_t h, uint8_t l) { return (h << 8) | l; }
 
+static const char *XNETP_TASK_TAG = "XNET_PARSER_TASK";
+
 //--------------------------------------------------------------------------------------------
 // calculate the XOR
 void getXOR(unsigned char *data, uint8_t length)
@@ -59,11 +61,15 @@ void xnetreceive(void)
 		}
 		if (XNetMsg[XNetmsg] == 0x60)
 		{ //GENERAL_BROADCAST
+
+			ESP_LOGI(XNETP_TASK_TAG, "XNET GENERAL_BROADCAST:");
+			ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, XNetMsg, 8, ESP_LOG_INFO);
 			if (XNetMsg[XNetlength] == 4 && XNetMsg[XNetcom] == 0x61)
 			{
 				if ((XNetMsg[XNetdata1] == 0x01) && (XNetMsg[XNetdata2] == 0x60))
 				{
 					// Normal Operation Resumed
+					ESP_LOGI(XNETP_TASK_TAG, "XNET csNormal");
 					Railpower = csNormal;
 					if (notifyXNetPower)
 						notifyXNetPower(Railpower);
@@ -71,6 +77,7 @@ void xnetreceive(void)
 				else if ((XNetMsg[XNetdata1] == 0x00) && (XNetMsg[XNetdata2] == 0x61))
 				{
 					// Track power off
+					ESP_LOGI(XNETP_TASK_TAG, "XNET csTrackVoltageOff");
 					Railpower = csTrackVoltageOff;
 					if (notifyXNetPower)
 						notifyXNetPower(Railpower);
@@ -78,6 +85,7 @@ void xnetreceive(void)
 				else if ((XNetMsg[XNetdata1] == 0x08))
 				{
 					// Track Short
+					ESP_LOGI(XNETP_TASK_TAG, "XNET csShortCircuit");
 					Railpower = csShortCircuit;
 					if (notifyXNetPower)
 					{
@@ -88,6 +96,7 @@ void xnetreceive(void)
 				else if ((XNetMsg[XNetdata1] == 0x02) && (XNetMsg[XNetdata2] == 0x63))
 				{
 					// Service Mode Entry
+					ESP_LOGI(XNETP_TASK_TAG, "XNET csServiceMode");
 					Railpower = csServiceMode;
 					if (notifyXNetPower)
 						notifyXNetPower(Railpower);
@@ -98,6 +107,7 @@ void xnetreceive(void)
 				if ((XNetMsg[XNetdata1] == 0x00) && (XNetMsg[XNetdata2] == 0x81))
 				{
 					//Emergency Stop
+					ESP_LOGI(XNETP_TASK_TAG, "XNET csEmergencyStop");
 					Railpower = csEmergencyStop;
 					if (notifyXNetPower)
 						notifyXNetPower(Railpower);
@@ -106,6 +116,7 @@ void xnetreceive(void)
 			else if ((XNetMsg[XNetcom] & 0xF0) == 0x40)
 			{
 				//R�ckmeldung
+				ESP_LOGI(XNETP_TASK_TAG, "XNET Ruckmeldung");
 				uint8_t len = (XNetMsg[XNetcom] & 0x0F) / 2;	//each Adr and Data
 				for (uint8_t i = 1; i <= len; i++)
 				{
@@ -643,7 +654,7 @@ bool XNetSendadd(uint8_t *dataString, uint8_t byteCount)
 
 //--------------------------------------------------------------------------------------------
 //Byte via Serial senden
-void XNetsendout(void)
+void XNetsendout()
 {	
 	if (XNetSend[0].length != 0) { // && XNetSend[0].length < XSendMaxData) {
 		if (XNetSend[0].data[0] != 0)

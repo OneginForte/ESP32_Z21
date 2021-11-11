@@ -140,7 +140,7 @@ void sendSchaltinfo(bool schaltinfo, uint8_t data1, uint8_t data2); //Aufbereite
 void XNetclearSendBuf();										//Sendbuffer leeren
 
 void XNetsend(uint8_t *dataString, uint8_t byteCount); //Sende Datenarray out NOW!
-
+void XNetsendout(void);
 bool XNetSendadd(uint8_t *dataString, uint8_t uint8_tCount); //Zum Sendebuffer Hinzuf�gen
 
 //Adressrequest:
