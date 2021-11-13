@@ -19,7 +19,7 @@
 
 #define interval 10500      //interval for Status LED (milliseconds)
 
-uint16_t Word(uint8_t h, uint8_t l) { return (h << 8) | l; }
+static inline uint16_t Word(uint8_t h, uint8_t l) { return (h << 8) | l; }
 
 static const char *XNETP_TASK_TAG = "XNET_PARSER_TASK";
 
