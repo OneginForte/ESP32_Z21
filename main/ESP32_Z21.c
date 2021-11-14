@@ -204,8 +204,14 @@ static void udp_server_task(void *pvParameters)
     vTaskDelete(NULL);
 }
 
+int XnetSendData(const char *data, uint8_t len)
+{
+    const int txBytes = uart_write_bytes(UART_NUM_1, &data, len);
+    
+    return txBytes;
+}
 
-int sendData(const char* logName, const char* data)
+int XnetSendString(const char* logName, const char* data)
 {
     const int len = strlen(data);
     const int txBytes = uart_write_bytes(UART_NUM_1, data, len);
@@ -220,7 +226,7 @@ static void xnet_tx_task(void *arg)
     while (1) 
     {
         //sendData(TX_TASK_TAG, "Hello world");
-        //XNetsendout();
+        XNetsendout();
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
@@ -319,8 +325,7 @@ void cb_connection_ok(void *pvParameter)
     xTaskCreate(udp_server_task, "udp_server", 4096, (void *)AF_INET, 5, &xHandle1);
     xTaskCreate(udp_sender_task, "udp_client", 4096, NULL, 5, &xHandle2);
 
-    xTaskCreate(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES, NULL);
-    xTaskCreate(xnet_tx_task, "xnet_tx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
+
 }
 void cb_connection_off(void *pvParameter)
 {
@@ -419,6 +424,10 @@ void app_main()
         nvs_close(handle);
 		nvs_sync_unlock();
     }
+
+    xTaskCreate(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES, NULL);
+    xTaskCreate(xnet_tx_task, "xnet_tx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
+
 
     /* start the wifi manager */
     wifi_manager_start();

@@ -19,7 +19,7 @@
 
 #define interval 10500      //interval for Status LED (milliseconds)
 
-static inline uint16_t Word(uint8_t h, uint8_t l) { return (h << 8) | l; }
+inline uint16_t Word(uint8_t h, uint8_t l) { return (h << 8) | l; }
 
 static const char *XNETP_TASK_TAG = "XNET_PARSER_TASK";
 
@@ -603,6 +603,7 @@ void getresultCV ()
 // send along a bunch of bytes to the Command Station
 void XNetsend(uint8_t *dataString, uint8_t byteCount)
 {
+	const int txBytes = uart_write_bytes(UART_NUM_1, &dataString, byteCount);
 
 	//RAW_output(dataString, byteCount);
 }

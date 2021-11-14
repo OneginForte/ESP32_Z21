@@ -166,6 +166,7 @@ NetLok LokDataUpdate[SlotMax]; // Speicher zu widerholdene Lok Daten
 uint8_t Railpower;				   //state of the railpower
 
 unsigned long z21IPpreviousMillis;	   // will store last time of IP decount updated
+
 struct TypeActIP ActIP[z21clientMAX]; //Speicherarray f�r IPs
 
 void receive(uint8_t client, uint8_t *packet); //Pr�fe auf neue Ethernet Daten
