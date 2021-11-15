@@ -153,7 +153,7 @@ static void udp_server_task(void *pvParameters)
             } 
         else 
             {
-            //ESP_LOGI(Z21_TASK_TAG, "Socket created: %d", sock);
+            ESP_LOGI(Z21_TASK_TAG, "Socket created: %d", sock);
 
             int err = bind(sock, (struct sockaddr *)&dest_addr, socklen);
             if (err < 0)
@@ -163,17 +163,18 @@ static void udp_server_task(void *pvParameters)
                 }
             listen(sock, 1);
 
-            //ESP_LOGI(Z21_TASK_TAG, "Socket bound, port %d", PORT);
+            ESP_LOGI(Z21_TASK_TAG, "Socket bound, port %d", PORT);
             ESP_LOGI(Z21_TASK_TAG, "Waiting for data");
+            struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
+            socklen_t socklenr = sizeof(source_addr);
+            dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
             while (1)
             {
                 if (!txSendFlag)
                 {
-                struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
-                socklen_t socklenr = sizeof(source_addr);
-                dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
-                int len = recvfrom(sock, Z21rxBuffer, Z21_UDP_RX_MAX_SIZE, 0, (struct sockaddr *)&source_addr, &socklenr);
-                // Error occurred during receiving
+                    bzero(Z21rxBuffer, Z21_UDP_RX_MAX_SIZE);
+                    int len = recvfrom(sock, Z21rxBuffer, Z21_UDP_RX_MAX_SIZE, 0, (struct sockaddr *)&source_addr, &socklenr);
+                    // Error occurred during receiving
                     if (len < 0)
                     {
                         ESP_LOGE(Z21_TASK_TAG, "Recvfrom failed: errno %d", errno);
@@ -214,7 +215,7 @@ int XnetSendData(const char *data, uint8_t len)
 int XnetSendString(const char* logName, const char* data)
 {
     const int len = strlen(data);
-    const int txBytes = uart_write_bytes(UART_NUM_1, data, len);
+    const int txBytes = uart_write_bytes_with_break(UART_NUM_1, data, len, 100);
     ESP_LOGI(logName, "Wrote to Xnet %d bytes", txBytes);
     return txBytes;
 }
@@ -244,6 +245,32 @@ static void xnet_rx_task(void *arg)
         }
         const int rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
         if (rxBytes > 0) {
+
+            if (data[1] == 0xFF && data[2] == 0xFA)
+            {
+                switch (data[3])
+                {
+                case 0xA0: //XNet bridge is offline!
+                    XNetRun = false;
+                    break;
+                case 0xA1: //Xnet bridge is online!
+                    XNetRun = true;
+                    break;
+                case 0xA2: //Stop Xnet, rest from Z21
+
+                    break;
+                case 0xA3: //XnetSlot addr request from Z21
+
+                    break;
+                case 0xA4: //Set new XnetSlot addr
+
+                    break;
+                default:
+
+                    break;
+                }
+            }
+
             memcpy(XNetMsg,data,rxBytes);
             
             //data[rxBytes] = 0;
@@ -281,7 +308,7 @@ void monitoring_task(void *pvParameter)
         //ESP_LOGI(TAG, "free heap: %d", esp_get_free_heap_size());
         esp_get_free_heap_size();
         // vTaskDelay(pdMS_TO_TICKS(10000));
-        /*
+        
         unsigned long currentMillis = esp_timer_get_time() / 1000;
 
         if (currentMillis - z21IPpreviousMillis > z21IPinterval)
@@ -302,7 +329,7 @@ void monitoring_task(void *pvParameter)
                 }
             }
         }
-        */
+        
     }
 }
 
@@ -424,6 +451,10 @@ void app_main()
         nvs_close(handle);
 		nvs_sync_unlock();
     }
+
+
+
+
 
     xTaskCreate(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES, NULL);
     xTaskCreate(xnet_tx_task, "xnet_tx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);

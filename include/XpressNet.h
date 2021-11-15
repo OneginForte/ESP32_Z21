@@ -185,7 +185,9 @@ int ledState;		 // ledState used to set the LED
 long previousMillis; // will store last time LED was updated
 
 //extern void notifyXNetDebug(String s) __attribute__((weak));
-inline uint16_t Word(uint8_t h, uint8_t l);
+//inline uint16_t Word(uint8_t h, uint8_t l);
+inline uint16_t Word(uint8_t h, uint8_t l) { return (h << 8) | l; }
+
 void getXOR(unsigned char *data, uint8_t length);
 void notifyXNetTrnt(uint16_t Address, uint8_t data);
 void notifyCVNack();
