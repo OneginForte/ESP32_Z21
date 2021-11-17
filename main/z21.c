@@ -1163,6 +1163,8 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 //--------------------------------------------------------------------------------------------
 void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps)
 {
+
+	//XpressNet.setSpeed(Adr, steps, speed);
 	switch (steps)
 	{
 	case 14:
@@ -1173,7 +1175,9 @@ void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps)
 		break;
 	default:
 		setSpeed128(Adr, speed);
+	
 	}
+	getLocoStateFull(Adr, false);
 }
 //--------------------------------------------------------------------------------------------
 uint8_t getFunktion0to4(uint16_t address)	//gibt Funktionszustand - F0 F4 F3 F2 F1 zurьck
