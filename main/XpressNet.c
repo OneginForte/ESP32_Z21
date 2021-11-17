@@ -61,7 +61,7 @@ void xnetreceive(void)
 		{ //GENERAL_BROADCAST
 
 			ESP_LOGI(XNETP_TASK_TAG, "XNET GENERAL_BROADCAST:");
-			ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, XNetMsg, 8, ESP_LOG_INFO);
+			ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, XNetMsg, XNetMsg[XNetlength]+1, ESP_LOG_INFO);
 			if (XNetMsg[XNetlength] == 4 && XNetMsg[XNetcom] == 0x61)
 			{
 				if ((XNetMsg[XNetdata1] == 0x01) && (XNetMsg[XNetdata2] == 0x60))

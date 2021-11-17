@@ -186,8 +186,8 @@ static void udp_server_task(void *pvParameters)
                         ip4addr_ntoa_r((const ip4_addr_t*)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                         uint16_t from_port = (((struct sockaddr_in *)&source_addr)->sin_port);
                         uint8_t client = Z21addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), from_port);
-                        ESP_LOGI(Z21_TASK_TAG, "Recieve from UDP");
-                        ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&Z21rxBuffer, len, ESP_LOG_INFO);
+                        //ESP_LOGI(Z21_TASK_TAG, "Recieve from UDP");
+                        //ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&Z21rxBuffer, len, ESP_LOG_INFO);
                         receive(client, Z21rxBuffer);
                     }
                 }
@@ -245,18 +245,20 @@ static void xnet_rx_task(void *arg)
         }
         const int rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
         if (rxBytes > 0) {
-
+            ESP_LOGI(RX_TASK_TAG, "New Xnet data!");
             if (data[1] == 0xFF && data[2] == 0xFA)
             {
                 switch (data[3])
                 {
                 case 0xA0: //XNet bridge is offline!
+                    ESP_LOGI(RX_TASK_TAG, "XnetRun false");
                     XNetRun = false;
                     break;
                 case 0xA1: //Xnet bridge is online!
+                    ESP_LOGI(RX_TASK_TAG, "XnetRun true");
                     XNetRun = true;
                     break;
-                case 0xA2: //Stop Xnet, rest from Z21
+                case 0xA2: //Answer from Stop Xnet request
 
                     break;
                 case 0xA3: //XnetSlot addr request from Z21
@@ -452,10 +454,7 @@ void app_main()
 		nvs_sync_unlock();
     }
 
-
-
-
-
+    init_XNET();
     xTaskCreate(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES, NULL);
     xTaskCreate(xnet_tx_task, "xnet_tx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
 
@@ -479,8 +478,7 @@ void app_main()
 
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
     xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 2048, NULL, 1, NULL, 1);
- 
-    init_XNET();
+
 
 while (1) 
     {

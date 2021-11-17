@@ -1116,7 +1116,7 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 //bc = true => to inform also other client over the change.
 //bc = false => just ask about the loco state
 {
-	ESP_LOGI(Z21_PARSER_TAG, "returnLocoStateFull:");
+	//ESP_LOGI(Z21_PARSER_TAG, "returnLocoStateFull:");
 	uint8_t ldata[6];
 	if (notifyz21LocoState)
 		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
@@ -1140,7 +1140,7 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 	data[7] = (char) ldata[4];  //F13-F20
 	data[8] = (char) ldata[5];  //F21-F28
 
-	ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, (uint8_t *)&data, 9, ESP_LOG_INFO);
+	//ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, (uint8_t *)&data, 9, ESP_LOG_INFO);
 	//Info to all:
 	for (uint8_t i = 0; i < z21clientMAX; i++) {
 		if (ActIP[i].client != client) {
@@ -1302,7 +1302,7 @@ void getLocoStateFull(uint16_t Addr, bool bc)
 	uint8_t F2 = LokDataUpdate[Slot].f2;
 	uint8_t F3 = LokDataUpdate[Slot].f3;
 	//if (notifyLokAll)
-		notifyLokAll(highByte(Addr), lowByte(Addr), Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
+		notifyLokAll(Slot, highByte(Addr), lowByte(Addr), Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
 	//Nutzung protokollieren:
 	if (LokDataUpdate[Slot].state < 0xFF)
 		LokDataUpdate[Slot].state++; //aktivit�t
@@ -1629,7 +1629,7 @@ void notifyXNetPower(uint8_t State)
 }
 
 //--------------------------------------------------------------------------------------------
-void notifyLokAll(uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, uint8_t Speed, uint8_t Direction, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool Req ) {
+void notifyLokAll(uint8_t slot, uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, uint8_t Speed, uint8_t Direction, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool Req ) {
   uint8_t DB2 = Steps;
   if (DB2 == 3)  //nicht vorhanden!
     DB2 = 4;
@@ -1650,7 +1650,7 @@ void notifyLokAll(uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, u
   data[8] = F3;  //F21-F28
   if (Req == false)  //kein BC
   //void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC)
-  EthSend (0, 14, 0x40, data, true, 0x00);  //Send Power und Funktions ask App
+  EthSend (slot, 14, 0x40, data, true, 0x00);  //Send Power und Funktions ask App
   else EthSend (0, 14, 0x40, data, true, 0x01);  //Send Power und Funktions to all active Apps 
 }
 
@@ -1668,6 +1668,8 @@ void globalPower(uint8_t state)
 		switch (state)
 		{
 		case csNormal:
+
+			XpressNetsetPower(Railpower); //send to XpressNet
 
 			break;
 		case csTrackVoltageOff:
@@ -1688,6 +1690,7 @@ void globalPower(uint8_t state)
 		case csEmergencyStop:
 
 			// dcc.eStop();
+			XpressNetsetPower(Railpower); //send to XpressNet
 
 			break;
 		}
@@ -1695,7 +1698,7 @@ void globalPower(uint8_t state)
 		{
 			z21setPower(Railpower);
 
-			//XpressNetsetPower(Railpower); //send to XpressNet
+			XpressNetsetPower(Railpower); //send to XpressNet
 		}
 	}
 }

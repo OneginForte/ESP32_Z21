@@ -204,7 +204,7 @@ extern void notifyXNetStatus(uint8_t LedState) __attribute__((weak));
 extern void notifyXNetVer(uint8_t V, uint8_t ID) __attribute__((weak));
 extern void notifyXNetPower(uint8_t State) __attribute__((weak));
 extern void notifyLokFunc(uint16_t Address, uint8_t F2, uint8_t F3) __attribute__((weak));
-extern void notifyLokAll(uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, uint8_t Speed, uint8_t Direction, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool Req) __attribute__((weak));
+extern void notifyLokAll(uint8_t slot, uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, uint8_t Speed, uint8_t Direction, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool Req) __attribute__((weak));
 extern void notifyCVInfo(uint8_t State) __attribute__((weak));
 extern void notifyCVResult(uint8_t cvAdr, uint8_t cvData) __attribute__((weak));
 void notifyTrnt(uint16_t cvAdr, uint8_t Pos) __attribute__((weak));
