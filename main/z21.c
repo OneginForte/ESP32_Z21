@@ -1106,7 +1106,7 @@ void setSpeed(uint16_t Adr, uint8_t Steps, uint8_t Speed)
 		LocoInfo[3] = Adr >> 8; //short addresses (0 to 99: AH = 0x0000 and AL = 0x0000 to 0x0063)
 	LocoInfo[4] = Adr & 0xFF;
 	getXOR(LocoInfo, 7);
-	XNetsend(LocoInfo, 7);
+	XNettransmit(LocoInfo, 7);
 }
 
 bool dccsetSpeed(uint16_t address, uint8_t speed)
@@ -1363,7 +1363,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		if (address> 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
-		ok = XNetSendadd(setLocoFunc, 6);
+		ok = XNettransmit(setLocoFunc, 6);
 
 		setFunctions0to4(address, func);	//func = 0 0 0 F0 F4 F3 F2 F1
 	}
@@ -1378,7 +1378,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		if (address > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
-		ok = XNetSendadd(setLocoFunc, 6);
+		ok = XNettransmit(setLocoFunc, 6);
 		//Daten senden:
 		setFunctions5to8(address, funcG2);	//funcG2 = 0 0 0 0 F8 F7 F6 F5
 	}
@@ -1392,7 +1392,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		
 		if (address > 99) setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
-		ok = XNetSendadd(setLocoFunc, 6);
+		ok = XNettransmit(setLocoFunc, 6);
 		//Daten senden:
 		setFunctions9to12(address, funcG3); 	//funcG3 = 0 0 0 0 F12 F11 F10 F9
 	}
@@ -1409,7 +1409,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		if (address > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
-		ok = XNetSendadd(setLocoFunc, 6);
+		ok = XNettransmit(setLocoFunc, 6);
 		//Daten senden:
 		setFunctions13to20(address, funcG4);	//funcG4 = F20 F19 F18 F17 F16 F15 F14 F13
 	}
@@ -1424,7 +1424,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		if (address > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
-		ok = XNetSendadd(setLocoFunc, 6);
+		ok = XNettransmit(setLocoFunc, 6);
 		//Daten senden:
 		setFunctions21to28(address, funcG5);	//funcG5 = F28 F27 F26 F25 F24 F23 F22 F21
 	}

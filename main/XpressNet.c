@@ -167,7 +167,7 @@ void xnetreceive(void)
 			else if (XNetMsg[XNetdata1] == 0x22 && XNetMsg[XNetlength] >= 5) {
 				if (XNetRun == false) {	//Softwareversion anfragen
 						unsigned char commandVersionSequence[] = {0x21, 0x21, 0x00};
-						XNetSendadd (commandVersionSequence, 3);
+						XNettransmit (commandVersionSequence, 3);
 						XNetRun = true;
 				}
 				Railpower = csNormal;
@@ -390,15 +390,15 @@ bool setPower(uint8_t Power)
 	switch (Power) {	
 	case csNormal: {
 			unsigned char PowerAn[] = { 0x21, 0x81, 0xA0 };
-			return XNetSendadd(PowerAn, 3);
+			//return XNettransmit(PowerAn, 3);
 		}
 		case csEmergencyStop: {
 			unsigned char EmStop[] = { 0x80, 0x80 };
-			return XNetSendadd(EmStop, 2);
+			//return XNettransmit(EmStop, 2);
 		}
 		case csTrackVoltageOff: {
 			unsigned char PowerAus[] = { 0x21, 0x80, 0xA1 };
-			return XNetSendadd(PowerAus, 3);
+			//return XNettransmit(PowerAus, 3);
 		}
 /*		case csShortCircuit:
 			return false;
@@ -437,7 +437,7 @@ bool getLocoInfo(uint16_t Addr)
 		if (ReqLocoAdr > 99)
 			getLoco[2] = highByte(Addr) | 0xC0;
 		getXOR(getLoco, 5);
-		ok = XNetSendadd (getLoco, 5);
+		ok = XNettransmit (getLoco, 5);
 	}
 	
 	return ok;
@@ -455,13 +455,13 @@ bool getLocoFunc(uint16_t Addr)
 		if (Addr > 99)
 			getLoco[2] = highByte(Addr) | 0xC0;
 		getXOR(getLoco, 5);
-		return XNetSendadd (getLoco, 5);
+		return XNettransmit(getLoco, 5);
 	}
 	unsigned char getLoco[] = {0xE3, 0x09, highByte(Addr), lowByte(Addr), 0x00};
 	if (Addr > 99)
 			getLoco[2] = highByte(Addr) | 0xC0;
 	getXOR(getLoco, 5);
-	return XNetSendadd (getLoco, 5);
+	return XNettransmit(getLoco, 5);
 }
 
 void notifyLokFunc(uint16_t Address, uint8_t F2, uint8_t F3)
@@ -489,7 +489,7 @@ bool setLocoHalt(uint16_t Addr)
 	if (Addr > 99)
 			setLocoStop[2] = highByte(Addr) | 0xC0;
 	getXOR(setLocoStop, 4);
-	ok = XNetSendadd (setLocoStop, 4);
+	ok = XNettransmit (setLocoStop, 4);
 
 	uint8_t Slot = LokStsgetSlot(Addr);
 	LokDataUpdate[Slot].speed = 0; //STOP
@@ -509,7 +509,7 @@ bool setLocoDrive(uint16_t Addr, uint8_t Steps, uint8_t Speed)
 	setLoco[1] |= Steps;
 	
 	getXOR(setLoco, 6);
-	ok = XNetSendadd (setLoco, 6);
+	ok = XNettransmit (setLoco, 6);
 
 	uint8_t Slot = LokStsgetSlot(Addr);
 	LokDataUpdate[Slot].mode = (LokDataUpdate[Slot].mode & 0b11111100) | Steps; //Fahrstufen
@@ -538,7 +538,7 @@ bool getTrntInfo(uint8_t FAdr_High, uint8_t FAdr_Low)
 	getTrntPos[1] = Adr >> 2;
 	getTrntPos[2] += nibble;
 	getXOR(getTrntPos, 4);
-	return XNetSendadd (getTrntPos, 4);
+	return XNettransmit (getTrntPos, 4);
 }
 //--------------------------------------------------------------------------------------------
 //Schalten einer Weiche
@@ -560,7 +560,7 @@ bool setTrntPos(uint8_t FAdr_High, uint8_t FAdr_Low, uint8_t Pos)
 	//if (notifyTrnt)
 		notifyTrnt(Adr, (Pos & 0b1) + 1);
 
-	return XNetSendadd (setTrnt, 4);
+	return XNettransmit (setTrnt, 4);
 }
 
 //--------------------------------------------------------------------------------------------
@@ -569,7 +569,7 @@ void readCVMode(uint8_t CV)
 {
 	unsigned char cvRead[] = {0x22, 0x15, CV, 0x00};
 	getXOR(cvRead, 4);
-	XNetSendadd (cvRead, 4);
+	XNettransmit (cvRead, 4);
 	getresultCV(); //Programmierergebnis anfordern
 }
 
@@ -579,7 +579,7 @@ void writeCVMode(uint8_t CV, uint8_t Data)
 {
 	unsigned char cvWrite[] = {0x23, 0x16, CV, Data, 0x00};
 	getXOR(cvWrite, 5);
-	XNetSendadd (cvWrite, 5);
+	XNettransmit (cvWrite, 5);
 	//getresultCV(); //Programmierergebnis anfordern
 
 	if (notifyCVResult)
@@ -590,8 +590,8 @@ void writeCVMode(uint8_t CV, uint8_t Data)
 //Programmierergebnis anfordern
 void getresultCV ()
 {
-	unsigned char getresult[] = {0x21, 0x10, 0x31};
-	XNetSendadd (getresult, 3);
+	uint8_t getresult[] = {0x21, 0x10, 0x31};
+	XNettransmit(getresult, 3);
 }
 
 // Private Methods ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -599,10 +599,12 @@ void getresultCV ()
 
 //--------------------------------------------------------------------------------------------
 // send along a bunch of bytes to the Command Station
-void XNetsend(uint8_t *dataString, uint8_t byteCount)
+bool XNettransmit(uint8_t *dataString, uint8_t byteCount)
 {
-	uart_write_bytes_with_break(UART_NUM_1, &dataString, byteCount, 100);
-
+	uart_write_bytes(UART_NUM_1, dataString, byteCount);
+	ESP_LOGI(XNETP_TASK_TAG, "XNET XNettransmit:");
+	ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, dataString, byteCount, ESP_LOG_INFO);
+	return true;
 	//RAW_output(dataString, byteCount);
 }
 
@@ -651,27 +653,7 @@ bool XNetSendadd(uint8_t *dataString, uint8_t byteCount)
 	return false;	//Kein Platz im Sendbuffer frei!
 }
 
-//--------------------------------------------------------------------------------------------
-//Byte via Serial senden
-void XNetsendout()
-{	
-	if (XNetSend[0].length != 0) { // && XNetSend[0].length < XSendMaxData) {
-		if (XNetSend[0].data[0] != 0)
-			XNetsend(XNetSend[0].data,XNetSend[0].length);
-		for (int i = 0; i < (XSendMax-1); i++) {
-			XNetSend[i].length = XNetSend[i+1].length;
-			for (int j = 0; j < XSendMaxData; j++) {
-				XNetSend[i].data[j] = XNetSend[i+1].data[j];		//Daten kopieren
-			}
-		}
-		//letzten Leeren
-		XNetSend[XSendMax-1].length = 0x00;
-		for (int j = 0; j < XSendMaxData; j++) {
-			XNetSend[XSendMax-1].data[j] = 0x00;		//Daten l�schen
-		}
-	}
-	else XNetSend[0].length = 0;
-}
+
 
 /*
 ***************************************** SLOTSERVER ****************************************
@@ -720,7 +702,7 @@ void UpdateBusySlot(void)	//Fragt Zentrale nach aktuellen Zust�nden
 			if (ReqLocoAdr > 99)
 				getLoco[2] = highByte(ReqLocoAdr) | 0xC0;
 			getXOR(getLoco, 5);
-			XNetSendadd (getLoco, 5);
+			XNettransmit (getLoco, 5);
 			ReqLocoAgain = 0;
 		}
 	}
@@ -1136,17 +1118,17 @@ void XpressNetsetPower(uint8_t Power)
 	case csNormal:
 	{
 		unsigned char PowerAn[] = {0x21, 0x81, 0xA0};
-		XNetSendadd(PowerAn, 3);
+		XNettransmit(PowerAn, 3);
 	}
 	case csEmergencyStop:
 	{
 		unsigned char EmStop[] = {0x80, 0x80};
-		XNetSendadd(EmStop, 2);
+		XNettransmit(EmStop, 2);
 	}
 	case csTrackVoltageOff:
 	{
 		unsigned char PowerAus[] = {0x21, 0x80, 0xA1};
-		XNetSendadd(PowerAus, 3);
+		XNettransmit(PowerAus, 3);
 	}
 		/*		case csShortCircuit:
 			return false;

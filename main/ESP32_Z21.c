@@ -69,7 +69,8 @@ TaskHandle_t xHandle2;
 
 static void udp_sender_task(void *pvParameters)
 {
-    char addr_str[128];
+    //char addr_str[128];
+    uint8_t *addr_str = (uint8_t *)malloc(16);
     //ESP_LOGI(Z21_SENDER_TAG, "Sender task started");
     memset(&addr_str, 0x00, sizeof(addr_str));
     struct sockaddr_in dest_addr;
@@ -92,7 +93,7 @@ static void udp_sender_task(void *pvParameters)
                     {
                     dest_addr.sin_addr.s_addr = txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
                     dest_addr.sin_port=txport;
-                    ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+                    //ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                     //ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s, %d:", addr_str, htons (dest_addr.sin_port));
                     }
                 
@@ -109,10 +110,11 @@ static void udp_sender_task(void *pvParameters)
                     break;
                     }
                 //ESP_LOGI(Z21_SENDER_TAG, "%d bytes send.", txBlen);
-                txSendFlag = 0;
-                break;
+                    memset(&Z21txBuffer,0,Z21_UDP_TX_MAX_SIZE);
+                    txSendFlag = 0;
+                    break;
             }
-            vTaskDelay(1 / portTICK_PERIOD_MS);
+            //vTaskDelay(1 / portTICK_PERIOD_MS);
         }
 
     }
@@ -228,7 +230,9 @@ static void xnet_tx_task(void *arg)
     {
         //sendData(TX_TASK_TAG, "Hello world");
         //XNetsendout();
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        //vTaskDelay(1 / portTICK_PERIOD_MS);
+        //vTaskDelay(pdMS_TO_TICKS(10));
+        /*
         if (XNetSend[0].length != 0)
         { // && XNetSend[0].length < XSendMaxData) {
             if (XNetSend[0].data[0] != 0)
@@ -250,6 +254,7 @@ static void xnet_tx_task(void *arg)
         }
         else
             XNetSend[0].length = 0;
+            */
     }
 }
 
@@ -260,12 +265,12 @@ static void xnet_rx_task(void *arg)
     uint8_t *data = (uint8_t *)malloc(XNET_RX_BUF_SIZE);
     while (1) 
     {
-        while (DataReady)
-        {
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            
-        }
-        const int rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
+        //while (DataReady)
+        //{
+            //vTaskDelay(pdMS_TO_TICKS(1));
+            //vTaskDelay(1 / portTICK_PERIOD_MS);            
+        //}
+        const int rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 10 / portTICK_RATE_MS);
         if (rxBytes > 0) {
             ESP_LOGI(RX_TASK_TAG, "New Xnet data!");
             if (data[1] == 0xFF && data[2] == 0xFA)
@@ -295,6 +300,11 @@ static void xnet_rx_task(void *arg)
                 }
             }
 
+            while (DataReady)
+            {
+            //vTaskDelay(pdMS_TO_TICKS(1));
+            vTaskDelay(1 / portTICK_PERIOD_MS);            
+            }
             memcpy(XNetMsg,data,rxBytes);
             
             //data[rxBytes] = 0;
@@ -478,11 +488,16 @@ void app_main()
 
     init_XNET();
     xTaskCreate(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES, NULL);
-    xTaskCreate(xnet_tx_task, "xnet_tx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
-
+    //xTaskCreate(xnet_tx_task, "xnet_tx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
+    
+    vTaskDelay(pdMS_TO_TICKS(100));
+	
+    unsigned char getLoco[] = {0xE3, 0x00, 0, 3, 0x00};
+	getXOR(getLoco, 5);
+	XNettransmit (getLoco, 5);
 
     /* start the wifi manager */
-    wifi_manager_start();
+    //wifi_manager_start();
     /*
     nvs_handle handle;
 
@@ -495,8 +510,8 @@ void app_main()
     }
     */
     /* register a callback as an example to how you can integrate your code with the wifi manager */
-    wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
-    wifi_manager_set_callback(WM_ORDER_DISCONNECT_STA, &cb_connection_off);
+    //wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
+    //wifi_manager_set_callback(WM_ORDER_DISCONNECT_STA, &cb_connection_off);
 
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
     xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 1024, NULL, 1, NULL, 1);
@@ -504,16 +519,11 @@ void app_main()
 
 while (1) 
     {
-    if (rxFlag == 1) // && txSendFlag==0
-        {
-        //ESP_LOGI(TAG, "Prepare parser");
-        //receive(rxclient, (uint8_t *)&Z21rxBuffer);
-        //ESP_LOGI(TAG, "Parser done!");
-        // memset((uint8_t *)&rxBuffer, 0, 128);
-        //rxlen = 0;
-        //rxclient = 0;
-        //rxFlag = 0;
-        }
+    //vTaskDelay(1000 / portTICK_PERIOD_MS);
+    //vTaskDelay(100 / portTICK_PERIOD_MS);
+    //unsigned char getLoco[] = {0xE3, 0x00, 0, 3, 0x00};
+	//getXOR(getLoco, 5);
+	//XNettransmit(getLoco, 5);
     }
 free(Z21txBuffer);
 //free(Z21rxBuffer);
@@ -535,8 +545,8 @@ void notifyz21RailPower(uint8_t State)
 //--------------------------------------------------------------------------------------------
 void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 {
-    //ESP_LOGI(Z21_SENDER_TAG, "Hello in notifyz21EthSend. Client is %d, sending data:", client);
-    //ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
+    ESP_LOGI(Z21_SENDER_TAG, "notifyz21EthSend. Client is %d, sending data:", client);
+    ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
     ip4_addr_t Addr;
     while (txSendFlag)
     {
@@ -549,7 +559,7 @@ void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
             txBlen = datalen;
             //txport = mem[0].port;
             memcpy((uint8_t *)&Z21txBuffer, data, datalen);
-            memset(data,0,datalen);
+            //memset(data,0,datalen);
             txBflag=1;
             txSendFlag = 1;
         }
