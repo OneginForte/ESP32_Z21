@@ -135,13 +135,14 @@ unsigned long z21IPpreviousMillis; // will store last time of IP decount updated
 
 typedef struct //Rückmeldung des Status der Programmierung
 {
-	uint8_t IP0; //client IP-Adresse
+	uint8_t IP0;       //client IP-Adresse
 	uint8_t IP1;
 	uint8_t IP2;
 	uint8_t IP3;
 	uint8_t time;	   //aktive Zeit
-	uint16_t port; //source Port
+	uint16_t port;     //source Port
 } listofIP;
+
 listofIP mem[z21clientMAX];
 
 typedef struct // Lokdaten	(Lok Events)
@@ -157,7 +158,9 @@ typedef struct // Lokdaten	(Lok Events)
 	uint8_t f3;	   // F28 F27 F26 F25| F24 F23 F22 F21
 	uint8_t state; //Zahl der Zugriffe
 } NetLok;
+
 NetLok LokDataUpdate[SlotMax]; // Speicher zu widerholdene Lok Daten
+
 //**************************************************************
 //volatile uint8_t rx_buffer[128];
 
@@ -229,7 +232,8 @@ uint8_t getFunktion21to28(uint16_t address); //gibt Funktionszustand F28 - F21 z
 
 void setLocoStateExt(uint16_t Adr);
 uint8_t getLocoSpeed(uint16_t adr);
-bool setSpeed(uint16_t address, uint8_t speed); 
+void setSpeed(uint16_t Adr, uint8_t Steps, uint8_t Speed); 
+bool dccsetSpeed(uint16_t address, uint8_t speed);
 bool setSpeed14(uint16_t address, uint8_t speed);
 bool setSpeed28(uint16_t address, uint8_t speed);
 bool setSpeed128(uint16_t address, uint8_t speed);

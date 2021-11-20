@@ -1073,7 +1073,43 @@ bool setSpeed128(uint16_t address, uint8_t speed)
 	return true;
 }
 
-bool setSpeed(uint16_t address, uint8_t speed)
+//--------------------------------------------------------------------------------------------
+void setSpeed(uint16_t Adr, uint8_t Steps, uint8_t Speed)
+{
+	//Locomotive speed and direction operation
+	// 0xE4 | Ident | AH | AL | RV | XOr
+	// Ident: 0x10 = F14; 0x11 = F27; 0x12 = F28; 0x13 = F128
+	// RV = RVVV VVVV Dirction and Speed
+	uint8_t v = Speed;
+	if (Steps == Loco28 || Steps == Loco27)
+	{
+		v = (Speed & 0x0F) << 1;  //Speed Bit
+		v |= (Speed >> 4) & 0x01; //Addition Speed Bit
+		v |= 0x80 & Speed;		  //Dir
+	}
+	uint8_t LocoInfo[] = {0x00, 0xE4, 0x13, 0x00, 0x00, v, 0x00}; //default to 128 Steps!
+	switch (Steps)
+	{
+	case 14:
+		LocoInfo[2] = 0x10;
+		break;
+	case 27:
+		LocoInfo[2] = 0x11;
+		break;
+	case 28:
+		LocoInfo[2] = 0x12;
+		break;
+	}
+	if (Adr > 99) //Xpressnet long addresses (100 to 9999: AH/AL = 0xC064 to 0xE707)
+		LocoInfo[3] = (Adr >> 8) | 0xC0;
+	else
+		LocoInfo[3] = Adr >> 8; //short addresses (0 to 99: AH = 0x0000 and AL = 0x0000 to 0x0063)
+	LocoInfo[4] = Adr & 0xFF;
+	getXOR(LocoInfo, 7);
+	XNetsend(LocoInfo, 7);
+}
+
+bool dccsetSpeed(uint16_t address, uint8_t speed)
 {
 	// set Loco to speed with default settings!
 	switch (DCCdefaultSteps)
@@ -1101,7 +1137,7 @@ void LokStsSetNew(uint8_t Slot, uint16_t adr) // Neue Lok eintragen mit Adresse
 	LokDataUpdate[Slot].state = 0x00;
 
 // generate first drive information:
-	setSpeed(LokDataUpdate[Slot].adr, LokDataUpdate[Slot].speed);
+	dccsetSpeed(LokDataUpdate[Slot].adr, LokDataUpdate[Slot].speed);
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1116,7 +1152,7 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 //bc = true => to inform also other client over the change.
 //bc = false => just ask about the loco state
 {
-	//ESP_LOGI(Z21_PARSER_TAG, "returnLocoStateFull:");
+	ESP_LOGI(Z21_PARSER_TAG, "returnLocoStateFull:");
 	uint8_t ldata[6];
 	if (notifyz21LocoState)
 		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
@@ -1147,6 +1183,7 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 			if ((ActIP[i].BCFlag & (Z21bcAll_s | Z21bcNetAll_s)) > 0) {
 				if (bc == true)
 					EthSend (ActIP[i].client, 14, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to BC Apps
+				ESP_LOGI(Z21_PARSER_TAG, "to ALL!");
 			}
 		}
 		else { //Info to client that ask:
@@ -1154,31 +1191,14 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 				data[3] = data[3] & 0b111;	//clear busy flag!
 			}
 			EthSend (client, 14, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to request App
+			ESP_LOGI(Z21_PARSER_TAG, "to Client!");
 			data[3] = data[3] | 0x08; //BUSY!
 		}
 	}
 	
 }
 
-//--------------------------------------------------------------------------------------------
-void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps)
-{
 
-	//XpressNet.setSpeed(Adr, steps, speed);
-	switch (steps)
-	{
-	case 14:
-		setSpeed14(Adr, speed);
-		break;
-	case 28:
-		setSpeed28(Adr, speed);
-		break;
-	default:
-		setSpeed128(Adr, speed);
-	
-	}
-	getLocoStateFull(Adr, false);
-}
 //--------------------------------------------------------------------------------------------
 uint8_t getFunktion0to4(uint16_t address)	//gibt Funktionszustand - F0 F4 F3 F2 F1 zurьck
 {
@@ -1634,28 +1654,30 @@ void notifyXNetPower(uint8_t State)
 
 //--------------------------------------------------------------------------------------------
 void notifyLokAll(uint8_t slot, uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, uint8_t Speed, uint8_t Direction, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool Req ) {
-  uint8_t DB2 = Steps;
-  if (DB2 == 3)  //nicht vorhanden!
-    DB2 = 4;
-  if (Busy) 
-    bitWrite(DB2, 3, 1);
-  uint8_t DB3 = Speed;
-  if (Direction == 1)  
-    bitWrite(DB3, 7, 1);
-  uint8_t data[9]; 
-  data[0] = 0xEF;  //X-HEADER
-  data[1] = Adr_High & 0x3F;
-  data[2] = Adr_Low;
-  data[3] = DB2;
-  data[4] = DB3;
-  data[5] = F0;    //F0, F4, F3, F2, F1
-  data[6] = F1;    //F5 - F12; Funktion F5 ist bit0 (LSB)
-  data[7] = F2;  //F13-F20
-  data[8] = F3;  //F21-F28
-  if (Req == false)  //kein BC
-  //void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC)
-  EthSend (slot, 14, 0x40, data, true, 0x00);  //Send Power und Funktions ask App
-  else EthSend (0, 14, 0x40, data, true, 0x01);  //Send Power und Funktions to all active Apps 
+	ESP_LOGI(Z21_PARSER_TAG, "notifyLokAll...");
+	uint8_t DB2 = Steps;
+	if (DB2 == 3) //nicht vorhanden!
+		DB2 = 4;
+	if (Busy)
+		bitWrite(DB2, 3, 1);
+	uint8_t DB3 = Speed;
+	if (Direction == 1)
+		bitWrite(DB3, 7, 1);
+	uint8_t data[9];
+	data[0] = 0xEF; //X-HEADER
+	data[1] = Adr_High & 0x3F;
+	data[2] = Adr_Low;
+	data[3] = DB2;
+	data[4] = DB3;
+	data[5] = F0;	  //F0, F4, F3, F2, F1
+	data[6] = F1;	  //F5 - F12; Funktion F5 ist bit0 (LSB)
+	data[7] = F2;	  //F13-F20
+	data[8] = F3;	  //F21-F28
+	if (Req == false) //kein BC
+		//void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC)
+		EthSend(slot, 14, 0x40, data, true, 0x00); //Send Power und Funktions ask App
+	else
+		EthSend(0, 14, 0x40, data, true, 0x01); //Send Power und Funktions to all active Apps 
 }
 
 //--------------------------------------------------------------------------------------------

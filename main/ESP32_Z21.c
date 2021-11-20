@@ -227,8 +227,29 @@ static void xnet_tx_task(void *arg)
     while (1) 
     {
         //sendData(TX_TASK_TAG, "Hello world");
-        XNetsendout();
+        //XNetsendout();
         vTaskDelay(1000 / portTICK_PERIOD_MS);
+        if (XNetSend[0].length != 0)
+        { // && XNetSend[0].length < XSendMaxData) {
+            if (XNetSend[0].data[0] != 0)
+                XNetsend(XNetSend[0].data, XNetSend[0].length);
+            for (int i = 0; i < (XSendMax - 1); i++)
+            {
+                XNetSend[i].length = XNetSend[i + 1].length;
+                for (int j = 0; j < XSendMaxData; j++)
+                {
+                    XNetSend[i].data[j] = XNetSend[i + 1].data[j]; //Daten kopieren
+                }
+            }
+            //letzten Leeren
+            XNetSend[XSendMax - 1].length = 0x00;
+            for (int j = 0; j < XSendMaxData; j++)
+            {
+                XNetSend[XSendMax - 1].data[j] = 0x00; //Daten l�schen
+            }
+        }
+        else
+            XNetSend[0].length = 0;
     }
 }
 
@@ -241,7 +262,8 @@ static void xnet_rx_task(void *arg)
     {
         while (DataReady)
         {
-            vTaskDelay(10 / portTICK_PERIOD_MS);
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            
         }
         const int rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 1000 / portTICK_RATE_MS);
         if (rxBytes > 0) {
@@ -309,7 +331,7 @@ void monitoring_task(void *pvParameter)
     {
         //ESP_LOGI(TAG, "free heap: %d", esp_get_free_heap_size());
         esp_get_free_heap_size();
-        // vTaskDelay(pdMS_TO_TICKS(10000));
+        vTaskDelay(pdMS_TO_TICKS(1000));
         
         unsigned long currentMillis = esp_timer_get_time() / 1000;
 
@@ -477,7 +499,7 @@ void app_main()
     wifi_manager_set_callback(WM_ORDER_DISCONNECT_STA, &cb_connection_off);
 
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
-    xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 2048, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 1024, NULL, 1, NULL, 1);
 
 
 while (1) 
@@ -583,12 +605,15 @@ void notifyz21getSystemInfo(uint8_t client)
     notifyz21EthSend(client, data, 20);
 }
 //--------------------------------------------------------------------------------------------
+
+
+
 //--------------------------------------------------------------------------------------------
 void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps)
 {
-    setSpeed(Adr, speed);
-    reqLocoBusy(Adr); //Lok wird nicht von LokMaus gesteuert!
 
+    setSpeed(Adr, steps, speed);
+    reqLocoBusy(Adr); //Lok wird nicht von LokMaus gesteuert!
     switch (steps)
     {
     case 14:
@@ -600,7 +625,7 @@ void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps)
     default:
         setSpeed128(Adr, speed);
     }
-
+    getLocoStateFull(Adr, false);
 }
 
 //--------------------------------------------------------------------------------------------
