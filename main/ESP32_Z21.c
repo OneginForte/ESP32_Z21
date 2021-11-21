@@ -311,7 +311,7 @@ static void xnet_rx_task(void *arg)
             ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", rxBytes);
             ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, rxBytes, ESP_LOG_INFO);
             DataReady = 1;
-            xnetreceive();
+            
         }
     }
     free(data);
@@ -487,7 +487,7 @@ void app_main()
     }
 
     init_XNET();
-    xTaskCreate(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES, NULL);
+    xTaskCreate(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, 1, NULL);
     //xTaskCreate(xnet_tx_task, "xnet_tx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
     
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -497,7 +497,7 @@ void app_main()
 	XNettransmit (getLoco, 5);
 
     /* start the wifi manager */
-    //wifi_manager_start();
+    wifi_manager_start();
     /*
     nvs_handle handle;
 
@@ -510,8 +510,8 @@ void app_main()
     }
     */
     /* register a callback as an example to how you can integrate your code with the wifi manager */
-    //wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
-    //wifi_manager_set_callback(WM_ORDER_DISCONNECT_STA, &cb_connection_off);
+    wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
+    wifi_manager_set_callback(WM_ORDER_DISCONNECT_STA, &cb_connection_off);
 
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
     xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 1024, NULL, 1, NULL, 1);
@@ -519,6 +519,10 @@ void app_main()
 
 while (1) 
     {
+    if (DataReady==1){
+        xnetreceive();
+    }
+
     //vTaskDelay(1000 / portTICK_PERIOD_MS);
     //vTaskDelay(100 / portTICK_PERIOD_MS);
     //unsigned char getLoco[] = {0xE3, 0x00, 0, 3, 0x00};

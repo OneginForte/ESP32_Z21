@@ -44,11 +44,13 @@ void xnetreceive(void)
 	XNetMsg[XNetcommand] = 0x00;	savedData[1]
 	XNetMsg[XNetdata1] = 0x00;	savedData[2]
 	*/
+
 	unsigned long currentMillis = esp_timer_get_time() / 1000; //aktuelle Zeit setzten
 
 	if (DataReady == true)
 	{ //Serial Daten dekodieren
 		DataReady = false;
+		ESP_LOGI(XNETP_TASK_TAG, "Hello in XNET Parse!");
 		//	  previousMillis = millis();   // will store last time LED was updated
 		//Daten, setzte LED = ON!
 		if (ledState == LOW)
