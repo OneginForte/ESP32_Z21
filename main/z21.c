@@ -37,9 +37,9 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 
 //*********************************************************************************************
 // Determine and evaluate data 
-	void receive(uint8_t client, uint8_t * packet)
+	void receive(uint8_t client, uint8_t * packet, uint8_t rxlen)
 	{
-		//ESP_LOGI(Z21_PARSER_TAG, "Parser start.");
+		ESP_LOGI(Z21_PARSER_TAG, "Z21 Parser start. %d byte", rxlen);
 		// ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
 		addIPToSlot(client, 0);
 		// send a reply, to the IP address and port that sent us the packet we received
@@ -230,24 +230,27 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 					notifyz21RailPower(csEmergencyStop);
 				break;
 			case LAN_X_GET_LOCO_INFO:
-
+				ESP_LOGI(Z21_PARSER_TAG, "LAN_X_GET_LOCO_INFO");
+				ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
 				if (packet[5] == 0xF0)
 				{ // DB0
 					// ZDebug.print("X_GET_LOCO_INFO: ");
 					// Antwort: LAN_X_LOCO_INFO  Adr_MSB - Adr_LSB
 					// if (notifyz21getLocoState)
 					//notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
-					// uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
-					returnLocoStateFull(client, ((packet[6] & 0x3F) << 8) + packet[7], false);
+					getLocoInfo(Word(packet[6] & 0x3F, packet[7]));
+						// uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+					returnLocoStateFull(client, Word(packet[6] & 0x3F, packet[7]), false);
 					// Antwort via "setLocoStateFull"!
 				}
 				break;
 			case LAN_X_SET_LOCO:
 				// setLocoBusy:
-				ESP_LOGI(Z21_PARSER_TAG, "LAN_X_SET_LOCO aka setLocoBusy");
+				ESP_LOGI(Z21_PARSER_TAG, "LAN_X_SET_LOCO aka setLocoBusy: %d", Word(packet[6] & 0x3F, packet[7]));
+				ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
 				// uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
 
-				addBusySlot(client, ((packet[6] & 0x3F) << 8) + packet[7]);
+				addBusySlot(client, Word(packet[6] & 0x3F, packet[7]));
 
 				if (packet[5] == LAN_X_SET_LOCO_FUNCTION)
 				{ // DB0
@@ -255,22 +258,22 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 					// word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & 0b00111111
 
 					if (notifyz21LocoFkt)
-						notifyz21LocoFkt(((packet[6] & 0x3F) << 8) + packet[7], packet[8] >> 6, packet[8] & 0b00111111);
+						notifyz21LocoFkt(Word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & 0b00111111);
 					// uint16_t Adr, uint8_t type, uint8_t fkt
 				}
 				else
 				{ // DB0
 					// ZDebug.print("X_SET_LOCO_DRIVE ");
-					uint8_t steps = 14;
+					uint8_t steps = DCC14;
 					if ((packet[5] & 0x03) == 3)
-						steps = 128;
+						steps = DCC128;
 					else if ((packet[5] & 0x03) == 2)
-						steps = 28;
+						steps = DCC28;
 
 					if (notifyz21LocoSpeed)
-						notifyz21LocoSpeed(((packet[6] & 0x3F) << 8) + packet[7], packet[8], steps);
+						notifyz21LocoSpeed(Word(packet[6] & 0x3F, packet[7]), packet[8], steps);
 				}
-				returnLocoStateFull(client, ((packet[6] & 0x3F) << 8) + packet[7], true);
+				returnLocoStateFull(client, Word(packet[6] & 0x3F, packet[7]), true);
 				break;
 			case LAN_X_GET_FIRMWARE_VERSION:
 				ESP_LOGI(Z21_PARSER_TAG, "X_GET_FIRMWARE_VERSION");
@@ -596,6 +599,7 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 	}
 	//---------------------------------------------------------------------------------------
 	//check if IP is still used:
+	/*
 	unsigned long currentMillis = (unsigned long)(esp_timer_get_time() / 1000);
 	if ((currentMillis - z21IPpreviousMillis) > z21IPinterval)
 	{
@@ -613,6 +617,7 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 			}
 		}
 	}
+	*/
 }
 
 
@@ -719,6 +724,7 @@ void setCVPOMBYTE(uint16_t CVAdr, uint8_t value)
 //Zustand R�ckmeldung non - Z21 device - Busy!
 void setLocoStateExt (uint16_t Adr) 
 {
+	ESP_LOGI(Z21_PARSER_TAG, "setLocoStateExt ");
 	uint8_t ldata[6];
 	if (notifyz21LocoState)
 		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
@@ -734,8 +740,11 @@ void setLocoStateExt (uint16_t Adr)
 		data[3] = 2;	// 28 steps
 	if ((ldata[0] & 0x03) == DCCSTEP128)		
 		data[3] = 4;	// 128 steps
-	data[3] = data[3] | 0x08; //BUSY!
 
+	ESP_LOGI(Z21_PARSER_TAG, "step= %d", data[3]);
+	
+	data[3] = data[3] | 0x08; //BUSY!
+	
 	data[4] = (uint8_t)ldata[1];  // DSSS SSSS
 	data[5] = (uint8_t)ldata[2];  // F0, F4, F3, F2, F1
 	data[6] = (uint8_t)ldata[3];  // F5 - F12; Funktion F5 ist bit0 (LSB)
@@ -795,7 +804,7 @@ uint8_t addIPToSlot(uint8_t client, uint8_t BCFlag)
 	}
 	ActIP[Slot].client = client;
 	ActIP[Slot].time = z21ActTimeIP;
-	globalPower(Railpower) ;//z21setPower(Railpower);
+	z21setPower(Railpower);
 	return ActIP[Slot].BCFlag; //BC Flag 4. uint8_t R�ckmelden
 }
 
@@ -916,6 +925,7 @@ uint8_t getLocoSpeed(uint16_t adr)
 uint8_t LokStsgetSlot(uint16_t adr) // gibt Slot f�r Adresse zur�ck / erzeugt neuen Slot (0..126)
 {
 	uint8_t Slot;
+	ESP_LOGI(Z21_PARSER_TAG, "LokStsgetSlot: %d", adr);
 	for (Slot = 0; Slot < SlotMax; Slot++)
 	{
 		if ((LokDataUpdate[Slot].adr & 0x3FFF) == adr)
@@ -952,8 +962,8 @@ bool setSpeed14(uint16_t address, uint8_t speed)
 
 	uint8_t slot = LokStsgetSlot(address);
 	LokDataUpdate[slot].speed = speed;			  // write Dir and Speed into register to SAVE
-	if ((LokDataUpdate[slot].adr >> 14) != DCC14) // 0=>14steps, write speed steps into register
-		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC14 << 14);
+	if ((LokDataUpdate[slot].adr >> 14) != DCCSTEP14) // 0=>14steps, write speed steps into register
+		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCCSTEP14 << 14);
 
 	//uint8_t speed_data_uint8_ts[] = {0x40}; // speed indecator
 	/*
@@ -994,8 +1004,8 @@ bool setSpeed28(uint16_t address, uint8_t speed)
 
 	uint8_t slot = LokStsgetSlot(address);
 	LokDataUpdate[slot].speed = speed;			  // speed & B01111111 + Dir;	//write into register to SAVE
-	if ((LokDataUpdate[slot].adr >> 14) != DCC28) // 2=>28steps, write into register
-		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC28 << 14);
+	if ((LokDataUpdate[slot].adr >> 14) != DCCSTEP28) // 2=>28steps, write into register
+		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCCSTEP28 << 14);
 
 	//uint8_t speed_data_uint8_ts[] = {0x40}; // Speed indecator
 	/*
@@ -1041,8 +1051,8 @@ bool setSpeed128(uint16_t address, uint8_t speed)
 	}
 	uint8_t slot = LokStsgetSlot(address);
 	LokDataUpdate[slot].speed = speed;			   // write Speed and Dir into register to SAVE
-	if ((LokDataUpdate[slot].adr >> 14) != DCC128) // 3=>128steps, write into register
-		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC128 << 14);
+	if ((LokDataUpdate[slot].adr >> 14) != DCCSTEP128) // 3=>128steps, write into register
+		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCCSTEP128 << 14);
 
 	//uint8_t speed_data_uint8_ts[] = {0x3F, 0x00};
 
@@ -1080,33 +1090,37 @@ void setSpeed(uint16_t Adr, uint8_t Steps, uint8_t Speed)
 	// 0xE4 | Ident | AH | AL | RV | XOr
 	// Ident: 0x10 = F14; 0x11 = F27; 0x12 = F28; 0x13 = F128
 	// RV = RVVV VVVV Dirction and Speed
+	ESP_LOGI(Z21_PARSER_TAG, "setSpeed: %d", Adr);
 	uint8_t v = Speed;
-	if (Steps == Loco28 || Steps == Loco27)
+	if (Steps == DCC28 || Steps == DCC27)
 	{
 		v = (Speed & 0x0F) << 1;  //Speed Bit
 		v |= (Speed >> 4) & 0x01; //Addition Speed Bit
 		v |= 0x80 & Speed;		  //Dir
 	}
-	uint8_t LocoInfo[] = {0x00, 0xE4, 0x13, 0x00, 0x00, v, 0x00}; //default to 128 Steps!
+	uint8_t LocoInfo[] = {0xE4, 0x13, highByte(Adr), lowByte(Adr), v, 0x00}; //default to 128 Steps!
+
 	switch (Steps)
 	{
-	case 14:
-		LocoInfo[2] = 0x10;
+	case DCC14:
+		LocoInfo[1] = 0x10;
 		break;
-	case 27:
-		LocoInfo[2] = 0x11;
+	case DCC27:
+		LocoInfo[1] = 0x11;
 		break;
-	case 28:
-		LocoInfo[2] = 0x12;
+	case DCC28:
+		LocoInfo[1] = 0x12;
 		break;
 	}
+
 	if (Adr > 99) //Xpressnet long addresses (100 to 9999: AH/AL = 0xC064 to 0xE707)
-		LocoInfo[3] = (Adr >> 8) | 0xC0;
+		LocoInfo[2] = highByte(Adr) | 0xC0;
 	else
-		LocoInfo[3] = Adr >> 8; //short addresses (0 to 99: AH = 0x0000 and AL = 0x0000 to 0x0063)
-	LocoInfo[4] = Adr & 0xFF;
-	getXOR(LocoInfo, 7);
-	XNettransmit(LocoInfo, 7);
+		LocoInfo[2] = Adr >> 8; //short addresses (0 to 99: AH = 0x0000 and AL = 0x0000 to 0x0063)
+	LocoInfo[3] = lowByte(Adr);
+	ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, LocoInfo, 6, ESP_LOG_INFO);
+	getXOR(LocoInfo, 6);
+	XNettransmit(LocoInfo, 6);
 }
 
 bool dccsetSpeed(uint16_t address, uint8_t speed)
@@ -1114,11 +1128,11 @@ bool dccsetSpeed(uint16_t address, uint8_t speed)
 	// set Loco to speed with default settings!
 	switch (DCCdefaultSteps)
 	{
-	case 14:
+	case DCC14:
 		return (setSpeed14(address, speed));
-	case 28:
+	case DCC28:
 		return (setSpeed28(address, speed));
-	case 128:
+	case DCC128:
 		return (setSpeed128(address, speed));
 	}
 	return false; // invalid number of steps specified.
@@ -1127,7 +1141,9 @@ bool dccsetSpeed(uint16_t address, uint8_t speed)
 //--------------------------------------------------------------------------------------------
 void LokStsSetNew(uint8_t Slot, uint16_t adr) // Neue Lok eintragen mit Adresse
 {
-	LokDataUpdate[Slot].adr = adr | (DCCdefaultSteps << 14); // 0x4000; //0xC000;	// c = '3' => 128 Fahrstufen
+
+	ESP_LOGI(Z21_PARSER_TAG, "LokStsSetNew: %d", adr);
+	LokDataUpdate[Slot].adr = adr; // | (DCCdefaultSteps << 14); // 0x4000; //0xC000;	// c = '3' => 128 Fahrstufen
 	LokDataUpdate[Slot].mode = 0b1011;	//Busy und 128 Fahrstufen
 	LokDataUpdate[Slot].speed = 0x80;						 // default direction is forward
 	LokDataUpdate[Slot].f0 = 0x00;
@@ -1137,7 +1153,8 @@ void LokStsSetNew(uint8_t Slot, uint16_t adr) // Neue Lok eintragen mit Adresse
 	LokDataUpdate[Slot].state = 0x00;
 
 // generate first drive information:
-	dccsetSpeed(LokDataUpdate[Slot].adr, LokDataUpdate[Slot].speed);
+	//ESP_LOGI(Z21_PARSER_TAG, "LokStsSetNew exit: %d", LokDataUpdate[Slot].adr);
+	//setSpeed(LokDataUpdate[Slot].adr, DCCdefaultSteps, LokDataUpdate[Slot].speed);
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1318,6 +1335,7 @@ void getLocoStateFull(uint16_t adr)
 //Gibt aktuellen Lokstatus an Anfragenden Zur�ck
 void getLocoStateFull(uint16_t Addr, bool bc)
 {
+	ESP_LOGI(Z21_PARSER_TAG, "getLocoStateFull... %d", Addr);
 	uint8_t Slot = LokStsgetSlot(Addr);
 	uint8_t Busy = bitRead(LokDataUpdate[Slot].mode, 3);
 	uint8_t Dir = bitRead(LokDataUpdate[Slot].f0, 5);
@@ -1326,8 +1344,8 @@ void getLocoStateFull(uint16_t Addr, bool bc)
 	uint8_t F2 = LokDataUpdate[Slot].f2;
 	uint8_t F3 = LokDataUpdate[Slot].f3;
 	//if (notifyLokAll)
-		notifyLokAll(Slot, highByte(Addr), lowByte(Addr), Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
 	//Nutzung protokollieren:
+		notifyLokAll(Slot, highByte(Addr), lowByte(Addr), Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
 	if (LokDataUpdate[Slot].state < 0xFF)
 		LokDataUpdate[Slot].state++; //aktivit�t
 }
@@ -1429,7 +1447,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		setFunctions21to28(address, funcG5);	//funcG5 = F28 F27 F26 F25 F24 F23 F22 F21
 	}
 	getLocoStateFull(address, true);	//Alle aktiven Gerдte Senden!
-	//setLocoStateExt(address);
+	setLocoStateExt(address);
 }
 //--------------------------------------------------------------------------------------------
 void notifyz21LocoFkt(uint16_t Adr, uint8_t state, uint8_t fkt)
@@ -1696,10 +1714,12 @@ void globalPower(uint8_t state)
 		case csNormal:
 
 			XpressNetsetPower(Railpower); //send to XpressNet
+			z21setPower(Railpower);
 
 			break;
 		case csTrackVoltageOff:
 
+			XpressNetsetPower(Railpower);
 			z21setPower(Railpower);
 
 			break;
@@ -1711,11 +1731,14 @@ void globalPower(uint8_t state)
 		case csShortCircuit:
 
 			z21setPower(Railpower); //shut down via GO/STOP just for the Roco Booster
+			//XpressNetsetPower(Railpower);
+			
 
 			break;
 		case csEmergencyStop:
 
 			// dcc.eStop();
+			z21setPower(Railpower);
 			XpressNetsetPower(Railpower); //send to XpressNet
 
 			break;

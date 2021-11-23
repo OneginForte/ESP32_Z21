@@ -20,7 +20,7 @@
 #define interval 10500      //interval for Status LED (milliseconds)
 
 static const char *XNETP_TASK_TAG = "XNET_PARSER_TASK";
-
+static const char *XNETT_TASK_TAG = "XNET_TRANSMIT";
 //--------------------------------------------------------------------------------------------
 // calculate the XOR
 void getXOR(unsigned char *data, uint8_t length)
@@ -50,7 +50,7 @@ void xnetreceive(void)
 	if (DataReady == true)
 	{ //Serial Daten dekodieren
 		DataReady = false;
-		ESP_LOGI(XNETP_TASK_TAG, "Hello in XNET Parse!");
+		//ESP_LOGI(XNETP_TASK_TAG, "Hello in XNET Parse!");
 		//	  previousMillis = millis();   // will store last time LED was updated
 		//Daten, setzte LED = ON!
 		if (ledState == LOW)
@@ -62,8 +62,8 @@ void xnetreceive(void)
 		if (XNetMsg[XNetmsg] == 0x60)
 		{ //GENERAL_BROADCAST
 
-			ESP_LOGI(XNETP_TASK_TAG, "XNET GENERAL_BROADCAST:");
-			ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, XNetMsg, XNetMsg[XNetlength]+1, ESP_LOG_INFO);
+			//ESP_LOGI(XNETP_TASK_TAG, "XNET GENERAL_BROADCAST:");
+			//ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, XNetMsg, XNetMsg[XNetlength]+1, ESP_LOG_INFO);
 			if (XNetMsg[XNetlength] == 4 && XNetMsg[XNetcom] == 0x61)
 			{
 				if ((XNetMsg[XNetdata1] == 0x01) && (XNetMsg[XNetdata2] == 0x60))
@@ -148,7 +148,7 @@ void xnetreceive(void)
 			unsigned int Adr = (XNetMsg[XNetdata1] << 2) | ((XNetMsg[XNetdata2] & 0b0110) >> 1);  // Dir afectada
 			uint8_t Pos = (XNetMsg[XNetdata2] & 0b0001) + 1;
 			if (!A_bit) { // Accessory activation request
-			  //if (notifyTrnt){
+			  if (notifyTrnt){
 
 			    //highByte(Adr), lowByte(Adr)
 				//data[1] = Adr >> 8; //High
@@ -157,8 +157,9 @@ void xnetreceive(void)
             	}
             else { // Accessory deactivation request
 				Pos = Pos | 0b1000;
-				//if (notifyTrnt)
+				if (notifyTrnt)
 					notifyTrnt(Adr, Pos);
+				}
             }
           }
 		break;
@@ -237,6 +238,7 @@ void xnetreceive(void)
 			}
 		break;
 		case 0xE4:	//Antwort der abgefragen Lok
+			ESP_LOGI(XNETP_TASK_TAG, "Antwort der abgefragen Lok");
 			if ((XNetMsg[XNetlength] >= 7) && (ReqLocoAdr != 0) && ((XNetMsg[XNetdata1] >> 4) != 0)) {
 				uint16_t Addr=ReqLocoAdr;
 				
@@ -272,10 +274,11 @@ void xnetreceive(void)
 				}
 			}
 			else {
-				uint8_t Adr_MSB = XNetMsg[XNetdata2];
-				uint8_t Adr_LSB = XNetMsg[XNetdata3];
-				
-				uint8_t Slot = LokStsgetSlot(Word(Adr_MSB, Adr_LSB));
+				//uint8_t Adr_MSB = XNetMsg[XNetdata2];
+				//uint8_t Adr_LSB = XNetMsg[XNetdata3];
+				uint16_t Addr = (Word(XNetMsg[XNetdata2], XNetMsg[XNetdata3]));
+
+				uint8_t Slot = LokStsgetSlot(Addr);
 
 				switch (XNetMsg[XNetdata1]) {
 					case 0x10: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//14 Speed steps
@@ -297,10 +300,11 @@ void xnetreceive(void)
 					case 0x24: //Fkt Status			
 								break;				
 				}
-				getLocoStateFull(Word(Adr_MSB, Adr_LSB), true);
+				getLocoStateFull(Addr, true);
 			}
 		break;
 		case 0xE3:	//Antwort abgefrage Funktionen F13-F28
+			ESP_LOGI(XNETP_TASK_TAG, "Antwort abgefrage Funktionen F13-F28");
 			if (XNetMsg[XNetdata1] == 0x52 && XNetMsg[XNetlength] >= 6 && ReqFktAdr != 0) {	//Funktionszustadn F13 bis F28
 				uint8_t Adr_MSB = highByte(ReqFktAdr);
 				uint8_t Adr_LSB = lowByte(ReqFktAdr);
@@ -387,6 +391,7 @@ void sendSchaltinfo(bool schaltinfo, uint8_t data1, uint8_t data2)
 
 //--------------------------------------------------------------------------------------------
 //Zustand der Gleisversorgung setzten
+/*
 bool setPower(uint8_t Power)
 {
 	switch (Power) {	
@@ -402,20 +407,20 @@ bool setPower(uint8_t Power)
 			unsigned char PowerAus[] = { 0x21, 0x80, 0xA1 };
 			//return XNettransmit(PowerAus, 3);
 		}
-/*		case csShortCircuit:
+		case csShortCircuit:
 			return false;
 		case csServiceMode:
-			return false;	*/
+			return false;	
 	}
 	return false;
 }
-
+*/
 
 //--------------------------------------------------------------------------------------------
 //Halt Befehl weiterleiten
 void setHalt()
 {
-	setPower(csEmergencyStop);
+	XpressNetsetPower(csEmergencyStop);
 }
 
 
@@ -423,9 +428,11 @@ void setHalt()
 //Abfragen der Lokdaten (mit F0 bis F12)
 bool getLocoInfo(uint16_t Addr)
 {
+	ESP_LOGI(XNETT_TASK_TAG, "getLocoInfo %d", Addr);
+
 	bool ok = false;
 	
-	getLocoStateFull(Addr, false);
+	//getLocoStateFull(Addr, false);
 
 	uint8_t Slot = LokStsgetSlot(Addr);
 	if (LokDataUpdate[Slot].state < 0xFF)
@@ -434,7 +441,7 @@ bool getLocoInfo(uint16_t Addr)
 	if (LokStsBusy(Slot) == true && ReqLocoAdr == 0)	{		//Besetzt durch anderen XPressNet Handregler
 		
 		ReqLocoAdr = Addr; //Speichern der gefragen Lok Adresse
-		
+		ESP_LOGI(XNETT_TASK_TAG, "ReqLocoAdr %d", ReqLocoAdr);
 		unsigned char getLoco[] = {0xE3, 0x00, highByte(Addr), lowByte(Addr), 0x00};
 		if (ReqLocoAdr > 99)
 			getLoco[2] = highByte(Addr) | 0xC0;
@@ -449,17 +456,19 @@ bool getLocoInfo(uint16_t Addr)
 //Abfragen der Lok Funktionszust�nde F13 bis F28
 bool getLocoFunc(uint16_t Addr)
 {
+	ESP_LOGI(XNETT_TASK_TAG, "getLocoFunc %d", Addr);
+
+	unsigned char getLoco[] = {0xE3, 0x09, highByte(Addr), lowByte(Addr), 0x00};
 	if (ReqFktAdr == 0) {
-		
-		//ReqFktAdr = word(Adr_High, Adr_Low); //Speichern der gefragen Lok Adresse
-		
-		unsigned char getLoco[] = {0xE3, 0x09, highByte(Addr), lowByte(Addr), 0x00};
+
+		ReqFktAdr = Word(highByte(Addr), lowByte(Addr)); //Speichern der gefragen Lok Adresse
+
 		if (Addr > 99)
 			getLoco[2] = highByte(Addr) | 0xC0;
 		getXOR(getLoco, 5);
 		return XNettransmit(getLoco, 5);
 	}
-	unsigned char getLoco[] = {0xE3, 0x09, highByte(Addr), lowByte(Addr), 0x00};
+	else
 	if (Addr > 99)
 			getLoco[2] = highByte(Addr) | 0xC0;
 	getXOR(getLoco, 5);
@@ -504,6 +513,7 @@ bool setLocoHalt(uint16_t Addr)
 //Lokdaten setzten
 bool setLocoDrive(uint16_t Addr, uint8_t Steps, uint8_t Speed)
 {
+	ESP_LOGI(XNETT_TASK_TAG, "setLocoDrive %d", Addr);
 	bool ok = false;
 	unsigned char setLoco[] = {0xE4, 0x10, highByte(Addr), lowByte(Addr), Speed, 0x00};
 	if (Addr > 99)
@@ -518,7 +528,7 @@ bool setLocoDrive(uint16_t Addr, uint8_t Steps, uint8_t Speed)
 	LokDataUpdate[Slot].speed = Speed & 0b01111111;
 	bitWrite(LokDataUpdate[Slot].f0, 5, bitRead(Speed, 7)); //Dir
 
-	//	getLocoStateFull(Adr_High, Adr_Low, true);	
+	//getLocoStateFull(Adr_High, Adr_Low, true);	
 
 	//Nutzung protokollieren:
 	if (LokDataUpdate[Slot].state < 0xFF)
@@ -604,8 +614,8 @@ void getresultCV ()
 bool XNettransmit(uint8_t *dataString, uint8_t byteCount)
 {
 	uart_write_bytes(UART_NUM_1, dataString, byteCount);
-	ESP_LOGI(XNETP_TASK_TAG, "XNET XNettransmit:");
-	ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, dataString, byteCount, ESP_LOG_INFO);
+	ESP_LOGI(XNETT_TASK_TAG, "XNET XNettransmit:");
+	ESP_LOG_BUFFER_HEXDUMP(XNETT_TASK_TAG, dataString, byteCount, ESP_LOG_INFO);
 	return true;
 	//RAW_output(dataString, byteCount);
 }

@@ -58,7 +58,7 @@ void notifyXNetLocoDrive28(uint16_t Address, uint8_t Speed) {
   if (Speed == 0)
   setSpeed28(Address, (getLocoDir(Address) << 7) | (Speed & 0b01111111));
   else setSpeed28(Address, Speed);
-  //dcc.getLocoStateFull(Address);      //request for other devices
+  getLocoStateFull(Address, 1);      //request for other devices
 
   setLocoStateExt (Address);
   
@@ -68,11 +68,11 @@ void notifyXNetLocoDrive28(uint16_t Address, uint8_t Speed) {
 void notifyXNetLocoDrive128(uint16_t Address, uint8_t Speed) {
 
 
-  //if ((Speed & 0x7F) == 0) 
-//    dcc.setSpeed128(Address, (dcc.getLocoDir(Address) << 7) | (Speed & B01111111));
-  //else 
+  if ((Speed & 0x7F) == 0) 
+    setSpeed128(Address, (getLocoDir(Address) << 7) | (Speed & 0b01111111));
+  else 
   setSpeed128(Address, Speed);
-  //dcc.getLocoStateFull(Address);      //request for other devices
+  getLocoStateFull(Address, 1);      //request for other devices
 
   setLocoStateExt (Address);
   
@@ -83,7 +83,7 @@ void notifyXNetLocoFunc1(uint16_t Address, uint8_t Func1) {
 
 
   setFunctions0to4(Address, Func1);	//- F0 F4 F3 F2 F1
-  //dcc.getLocoStateFull(Address);      //request for other devices
+  getLocoStateFull(Address, 1);      //request for other devices
 
   setLocoStateExt (Address);
   
@@ -93,7 +93,7 @@ void notifyXNetLocoFunc1(uint16_t Address, uint8_t Func1) {
 void notifyXNetLocoFunc2(uint16_t Address, uint8_t Func2) {
 
   setFunctions5to8(Address, Func2);	//- F8 F7 F6 F5
-  //dcc.getLocoStateFull(Address);      //request for other devices
+  getLocoStateFull(Address,1);      //request for other devices
   
   setLocoStateExt (Address);
   
@@ -103,7 +103,7 @@ void notifyXNetLocoFunc2(uint16_t Address, uint8_t Func2) {
 void notifyXNetLocoFunc3(uint16_t Address, uint8_t Func3) {
 
   setFunctions9to12(Address, Func3);	//- F12 F11 F10 F9
-  //dcc.getLocoStateFull(Address);      //request for other devices
+  getLocoStateFull(Address,1);      //request for other devices
 
   setLocoStateExt (Address);
   
@@ -114,7 +114,7 @@ void notifyXNetLocoFunc4(uint16_t Address, uint8_t Func4) {
   
 
   setFunctions13to20(Address, Func4);	//F20 F19 F18 F17 F16 F15 F14 F13
-  //dcc.getLocoStateFull(Address);      //request for other devices
+  getLocoStateFull(Address,1);      //request for other devices
 
   setLocoStateExt (Address);
   
@@ -124,7 +124,7 @@ void notifyXNetLocoFunc4(uint16_t Address, uint8_t Func4) {
 void notifyXNetLocoFunc5(uint16_t Address, uint8_t Func5) {
 
   setFunctions21to28(Address, Func5);	//F28 F27 F26 F25 F24 F23 F22 F21
-  //dcc.getLocoStateFull(Address);      //request for other devices
+  getLocoStateFull(Address,1);      //request for other devices
 
   setLocoStateExt (Address);
 }

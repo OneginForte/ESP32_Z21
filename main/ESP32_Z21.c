@@ -188,9 +188,9 @@ static void udp_server_task(void *pvParameters)
                         ip4addr_ntoa_r((const ip4_addr_t*)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                         uint16_t from_port = (((struct sockaddr_in *)&source_addr)->sin_port);
                         uint8_t client = Z21addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), from_port);
-                        //ESP_LOGI(Z21_TASK_TAG, "Recieve from UDP");
-                        //ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&Z21rxBuffer, len, ESP_LOG_INFO);
-                        receive(client, Z21rxBuffer);
+                        ESP_LOGI(Z21_TASK_TAG, "Recieve from UDP");
+                        ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&Z21rxBuffer, len, ESP_LOG_INFO);
+                        receive(client, Z21rxBuffer, len);
                     }
                 }
             
@@ -272,7 +272,7 @@ static void xnet_rx_task(void *arg)
         //}
         const int rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 10 / portTICK_RATE_MS);
         if (rxBytes > 0) {
-            ESP_LOGI(RX_TASK_TAG, "New Xnet data!");
+            //ESP_LOGI(RX_TASK_TAG, "New Xnet data!");
             if (data[1] == 0xFF && data[2] == 0xFA)
             {
                 switch (data[3])
@@ -306,11 +306,11 @@ static void xnet_rx_task(void *arg)
             vTaskDelay(1 / portTICK_PERIOD_MS);            
             }
             memcpy(XNetMsg,data,rxBytes);
-            
-            //data[rxBytes] = 0;
-            ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", rxBytes);
-            ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, rxBytes, ESP_LOG_INFO);
             DataReady = 1;
+            //data[rxBytes] = 0;
+            //ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", rxBytes);
+            //ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, rxBytes, ESP_LOG_INFO);
+            
             
         }
     }
@@ -341,7 +341,7 @@ void monitoring_task(void *pvParameter)
     {
         //ESP_LOGI(TAG, "free heap: %d", esp_get_free_heap_size());
         esp_get_free_heap_size();
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(100));
         
         unsigned long currentMillis = esp_timer_get_time() / 1000;
 
@@ -424,11 +424,11 @@ void app_main()
     txBlen=0;
     txBflag=0;
     rxFlag=0;
-    rxlen = 0;
+    //rxlen = 0;
     rxclient = 0;
     storedIP = 0;
     slotFullNext=0;
-    DCCdefaultSteps=128;
+    DCCdefaultSteps = DCC128;
     TrntFormat = SwitchFormat;
 
         // initialize this instance's variables
@@ -490,11 +490,11 @@ void app_main()
     xTaskCreate(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, 1, NULL);
     //xTaskCreate(xnet_tx_task, "xnet_tx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
     
-    vTaskDelay(pdMS_TO_TICKS(100));
+    //vTaskDelay(pdMS_TO_TICKS(100));
 	
-    unsigned char getLoco[] = {0xE3, 0x00, 0, 3, 0x00};
-	getXOR(getLoco, 5);
-	XNettransmit (getLoco, 5);
+    //unsigned char getLoco[] = {0xE3, 0x00, 0, 3, 0x00};
+	//getXOR(getLoco, 5);
+	//XNettransmit (getLoco, 5);
 
     /* start the wifi manager */
     wifi_manager_start();
@@ -549,8 +549,8 @@ void notifyz21RailPower(uint8_t State)
 //--------------------------------------------------------------------------------------------
 void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 {
-    ESP_LOGI(Z21_SENDER_TAG, "notifyz21EthSend. Client is %d, sending data:", client);
-    ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
+    //ESP_LOGI(Z21_SENDER_TAG, "notifyz21EthSend. Client is %d, sending data:", client);
+    //ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
     ip4_addr_t Addr;
     while (txSendFlag)
     {
@@ -630,10 +630,10 @@ void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps)
     reqLocoBusy(Adr); //Lok wird nicht von LokMaus gesteuert!
     switch (steps)
     {
-    case 14:
+    case DCC14:
         setSpeed14(Adr, speed);
         break;
-    case 28:
+    case DCC28:
         setSpeed28(Adr, speed);
         break;
     default:

@@ -63,7 +63,7 @@
 uint8_t Z21txBuffer[Z21_UDP_TX_MAX_SIZE];
 uint8_t Z21rxBuffer[Z21_UDP_RX_MAX_SIZE];
 volatile uint8_t txBlen;
-volatile uint8_t rxlen;
+//olatile uint8_t rxlen;
 volatile uint8_t txBflag;
 volatile uint8_t txSendFlag;
 volatile uint8_t rxFlag;
@@ -80,10 +80,20 @@ uint8_t DCCdefaultSteps;
 
 // DCC Speed Steps
 #define DCC14 0x01
-#define DCC28 0x02
-#define DCC128 0x03
+#define DCC27 0x02
+#define DCC28 0x03
+#define DCC128 0x04
 
+//DCC Speed Steps
+#define DCCSTEP14 0x01
+#define DCCSTEP28 0x02
+#define DCCSTEP128 0x03
 
+//Fahrstufen:
+#define Loco14 0x00	 //FFF = 000 = 14 speed step
+#define Loco27 0x01	 //FFF = 001 = 27 speed step
+#define Loco28 0x02	 //FFF = 010 = 28 speed step
+#define Loco128 0x04 //FFF = 100 = 128 speed step
 
 //**************************************************************
 //Firmware-Version der Z21:
@@ -112,10 +122,7 @@ HwType: #define D_HWT_Z21_OLD 0x00000200 // �schwarze Z21� (Hardware-Variant
 #define z21ActTimeIP 20    //Aktivhaltung einer IP f�r (sec./2)
 #define z21IPinterval 2000   //interval at milliseconds
 
-//DCC Speed Steps
-#define DCCSTEP14	0x01
-#define DCCSTEP28	0x02
-#define DCCSTEP128	0x03
+
 
 struct TypeActIP
 {
@@ -172,7 +179,7 @@ unsigned long z21IPpreviousMillis;	   // will store last time of IP decount upda
 
 struct TypeActIP ActIP[z21clientMAX]; //Speicherarray f�r IPs
 
-void receive(uint8_t client, uint8_t *packet); //Pr�fe auf neue Ethernet Daten
+void receive(uint8_t client, uint8_t *packet, uint8_t rxlen); //Pr�fe auf neue Ethernet Daten
 
 void z21setPower(uint8_t state); //Zustand Gleisspannung Melden
 
@@ -232,7 +239,7 @@ uint8_t getFunktion21to28(uint16_t address); //gibt Funktionszustand F28 - F21 z
 
 void setLocoStateExt(uint16_t Adr);
 uint8_t getLocoSpeed(uint16_t adr);
-void setSpeed(uint16_t Adr, uint8_t Steps, uint8_t Speed); 
+void setSpeed(uint16_t Adr, uint8_t Steps, uint8_t Speed);
 bool dccsetSpeed(uint16_t address, uint8_t speed);
 bool setSpeed14(uint16_t address, uint8_t speed);
 bool setSpeed28(uint16_t address, uint8_t speed);

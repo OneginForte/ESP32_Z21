@@ -539,7 +539,7 @@ void notifyz21RailPower(uint8_t State)
 }
 
 //--------------------------------------------------------------------------------------------
-void notifyz21LocoState(uint16_t Adr, uint8_t data[])
+void notifyz21LocoState(uint16_t Adr, uint8_t data[]) 
 {
   #if defined(DCC) 
   dcc.getLocoData(Adr, data);

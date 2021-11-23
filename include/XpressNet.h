@@ -144,9 +144,9 @@ void XNetsendout(void);
 bool XNetSendadd(uint8_t *dataString, uint8_t uint8_tCount); //Zum Sendebuffer Hinzuf�gen
 
 //Adressrequest:
-int ReqLocoAdr; //Adresse f�r die Lok Daten angefragt wurden
-int ReqLocoAgain;
-int ReqFktAdr; //Adresse f�r die F2 und F3 angefragt wurde
+volatile uint16_t ReqLocoAdr; //Adresse f�r die Lok Daten angefragt wurden
+volatile uint16_t ReqLocoAgain;
+volatile uint16_t ReqFktAdr; //Adresse f�r die F2 und F3 angefragt wurde
 
 //SlotServer:
 long SlotTime;															 //store last time the Slot ask
