@@ -80,9 +80,9 @@ uint8_t DCCdefaultSteps;
 
 // DCC Speed Steps
 #define DCC14 0x01
-#define DCC27 0x02
-#define DCC28 0x03
-#define DCC128 0x04
+//#define DCC27 0x02
+#define DCC28 0x02
+#define DCC128 0x03
 
 //DCC Speed Steps
 #define DCCSTEP14 0x01

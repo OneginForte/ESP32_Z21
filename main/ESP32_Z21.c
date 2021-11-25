@@ -300,11 +300,6 @@ static void xnet_rx_task(void *arg)
                 }
             }
 
-            while (DataReady)
-            {
-            //vTaskDelay(pdMS_TO_TICKS(1));
-            vTaskDelay(1 / portTICK_PERIOD_MS);            
-            }
             memcpy(XNetMsg,data,rxBytes);
             DataReady = 1;
             //data[rxBytes] = 0;
@@ -487,7 +482,7 @@ void app_main()
     }
 
     init_XNET();
-    xTaskCreate(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, 1, NULL);
+    xTaskCreatePinnedToCore(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, 2, NULL, 1);
     //xTaskCreate(xnet_tx_task, "xnet_tx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
     
     //vTaskDelay(pdMS_TO_TICKS(100));
@@ -497,7 +492,7 @@ void app_main()
 	//XNettransmit (getLoco, 5);
 
     /* start the wifi manager */
-    wifi_manager_start();
+    //wifi_manager_start();
     /*
     nvs_handle handle;
 
@@ -510,8 +505,8 @@ void app_main()
     }
     */
     /* register a callback as an example to how you can integrate your code with the wifi manager */
-    wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
-    wifi_manager_set_callback(WM_ORDER_DISCONNECT_STA, &cb_connection_off);
+    //wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
+    //wifi_manager_set_callback(WM_ORDER_DISCONNECT_STA, &cb_connection_off);
 
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
     xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 1024, NULL, 1, NULL, 1);
@@ -521,13 +516,19 @@ while (1)
     {
     if (DataReady==1){
         xnetreceive();
+        vTaskDelay(1 / portTICK_PERIOD_MS);
+        
     }
 
     //vTaskDelay(1000 / portTICK_PERIOD_MS);
-    //vTaskDelay(100 / portTICK_PERIOD_MS);
-    //unsigned char getLoco[] = {0xE3, 0x00, 0, 3, 0x00};
-	//getXOR(getLoco, 5);
-	//XNettransmit(getLoco, 5);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    unsigned char getLoco[] = {0xE3, 0x00, 0, 3, 0x00};
+	getXOR(getLoco, 5);
+	XNettransmit(getLoco, 5);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    unsigned char setLoco[] = {0xE4, 0x13, 0, 3, 50, 0x00};
+    getXOR(setLoco, 6);
+    XNettransmit(setLoco, 6);
     }
 free(Z21txBuffer);
 //free(Z21rxBuffer);

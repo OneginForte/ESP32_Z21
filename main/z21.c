@@ -734,15 +734,15 @@ void setLocoStateExt (uint16_t Adr)
 	data[1] = (Adr >> 8) & 0x3F;
 	data[2] = Adr & 0xFF;
 	// Fahrstufeninformation: 0=14, 2=28, 4=128 
-	if ((ldata[0] & 0x03) == DCCSTEP14)
+	if ((ldata[0] & 0x03) == DCC14)
 		data[3] = 0;	// 14 steps
-	if ((ldata[0] & 0x03) == DCCSTEP28)
+	if ((ldata[0] & 0x03) == DCC28)
 		data[3] = 2;	// 28 steps
-	if ((ldata[0] & 0x03) == DCCSTEP128)		
+	if ((ldata[0] & 0x03) == DCC128)		
 		data[3] = 4;	// 128 steps
 
 	ESP_LOGI(Z21_PARSER_TAG, "step= %d", data[3]);
-	
+
 	data[3] = data[3] | 0x08; //BUSY!
 	
 	data[4] = (uint8_t)ldata[1];  // DSSS SSSS
@@ -962,8 +962,8 @@ bool setSpeed14(uint16_t address, uint8_t speed)
 
 	uint8_t slot = LokStsgetSlot(address);
 	LokDataUpdate[slot].speed = speed;			  // write Dir and Speed into register to SAVE
-	if ((LokDataUpdate[slot].adr >> 14) != DCCSTEP14) // 0=>14steps, write speed steps into register
-		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCCSTEP14 << 14);
+	if ((LokDataUpdate[slot].adr >> 14) != DCC14) // 0=>14steps, write speed steps into register
+		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC14 << 14);
 
 	//uint8_t speed_data_uint8_ts[] = {0x40}; // speed indecator
 	/*
@@ -1004,8 +1004,8 @@ bool setSpeed28(uint16_t address, uint8_t speed)
 
 	uint8_t slot = LokStsgetSlot(address);
 	LokDataUpdate[slot].speed = speed;			  // speed & B01111111 + Dir;	//write into register to SAVE
-	if ((LokDataUpdate[slot].adr >> 14) != DCCSTEP28) // 2=>28steps, write into register
-		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCCSTEP28 << 14);
+	if ((LokDataUpdate[slot].adr >> 14) != DCC28) // 2=>28steps, write into register
+		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC28 << 14);
 
 	//uint8_t speed_data_uint8_ts[] = {0x40}; // Speed indecator
 	/*
@@ -1051,8 +1051,8 @@ bool setSpeed128(uint16_t address, uint8_t speed)
 	}
 	uint8_t slot = LokStsgetSlot(address);
 	LokDataUpdate[slot].speed = speed;			   // write Speed and Dir into register to SAVE
-	if ((LokDataUpdate[slot].adr >> 14) != DCCSTEP128) // 3=>128steps, write into register
-		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCCSTEP128 << 14);
+	if ((LokDataUpdate[slot].adr >> 14) != DCC128) // 3=>128steps, write into register
+		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC128 << 14);
 
 	//uint8_t speed_data_uint8_ts[] = {0x3F, 0x00};
 
@@ -1092,7 +1092,7 @@ void setSpeed(uint16_t Adr, uint8_t Steps, uint8_t Speed)
 	// RV = RVVV VVVV Dirction and Speed
 	ESP_LOGI(Z21_PARSER_TAG, "setSpeed: %d", Adr);
 	uint8_t v = Speed;
-	if (Steps == DCC28 || Steps == DCC27)
+	if (Steps == DCC28)
 	{
 		v = (Speed & 0x0F) << 1;  //Speed Bit
 		v |= (Speed >> 4) & 0x01; //Addition Speed Bit
@@ -1105,9 +1105,9 @@ void setSpeed(uint16_t Adr, uint8_t Steps, uint8_t Speed)
 	case DCC14:
 		LocoInfo[1] = 0x10;
 		break;
-	case DCC27:
-		LocoInfo[1] = 0x11;
-		break;
+	//case DCC27:
+	//	LocoInfo[1] = 0x11;
+	//	break;
 	case DCC28:
 		LocoInfo[1] = 0x12;
 		break;
@@ -1713,13 +1713,13 @@ void globalPower(uint8_t state)
 		{
 		case csNormal:
 
-			XpressNetsetPower(Railpower); //send to XpressNet
+			//XpressNetsetPower(Railpower); //send to XpressNet
 			z21setPower(Railpower);
 
 			break;
 		case csTrackVoltageOff:
 
-			XpressNetsetPower(Railpower);
+			//XpressNetsetPower(Railpower);
 			z21setPower(Railpower);
 
 			break;
@@ -1739,7 +1739,7 @@ void globalPower(uint8_t state)
 
 			// dcc.eStop();
 			z21setPower(Railpower);
-			XpressNetsetPower(Railpower); //send to XpressNet
+			//XpressNetsetPower(Railpower); //send to XpressNet
 
 			break;
 		}
@@ -1747,7 +1747,7 @@ void globalPower(uint8_t state)
 		{
 			z21setPower(Railpower);
 
-			XpressNetsetPower(Railpower); //send to XpressNet
+			//XpressNetsetPower(Railpower); //send to XpressNet
 		}
 	}
 }
