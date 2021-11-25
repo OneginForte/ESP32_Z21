@@ -616,9 +616,10 @@ void getresultCV ()
 // send along a bunch of bytes to the Command Station
 bool XNettransmit(uint8_t *dataString, uint8_t byteCount)
 {
+	//uart_write_bytes(UART_NUM_1, &byteCount, 1);
 	uart_write_bytes(UART_NUM_1, dataString, byteCount);
-	ESP_LOGI(XNETT_TASK_TAG, "XNET XNettransmit:");
-	ESP_LOG_BUFFER_HEXDUMP(XNETT_TASK_TAG, dataString, byteCount, ESP_LOG_INFO);
+	//ESP_LOGI(XNETT_TASK_TAG, "XNET XNettransmit:");
+	//ESP_LOG_BUFFER_HEXDUMP(XNETT_TASK_TAG, dataString, byteCount, ESP_LOG_INFO);
 	return true;
 	//RAW_output(dataString, byteCount);
 }

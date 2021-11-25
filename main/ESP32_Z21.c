@@ -207,9 +207,9 @@ static void udp_server_task(void *pvParameters)
     vTaskDelete(NULL);
 }
 
-int XnetSendData(const char *data, uint8_t len)
+int XnetSendData(const uint8_t *data, uint8_t len)
 {
-    const int txBytes = uart_write_bytes(UART_NUM_1, &data, len);
+    const uint16_t txBytes = uart_write_bytes(UART_NUM_1, &data, len);
     
     return txBytes;
 }
@@ -270,7 +270,7 @@ static void xnet_rx_task(void *arg)
             //vTaskDelay(pdMS_TO_TICKS(1));
             //vTaskDelay(1 / portTICK_PERIOD_MS);            
         //}
-        const int rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 10 / portTICK_RATE_MS);
+        const uint16_t rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 100 / portTICK_RATE_MS);
         if (rxBytes > 0) {
             //ESP_LOGI(RX_TASK_TAG, "New Xnet data!");
             if (data[1] == 0xFF && data[2] == 0xFA)
@@ -482,7 +482,7 @@ void app_main()
     }
 
     init_XNET();
-    xTaskCreatePinnedToCore(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, 2, NULL, 1);
+    xTaskCreatePinnedToCore(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, 2, NULL, 0);
     //xTaskCreate(xnet_tx_task, "xnet_tx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
     
     //vTaskDelay(pdMS_TO_TICKS(100));
