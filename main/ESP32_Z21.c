@@ -110,7 +110,8 @@ static void udp_sender_task(void *pvParameters)
                     break;
                     }
                 //ESP_LOGI(Z21_SENDER_TAG, "%d bytes send.", txBlen);
-                    memset(&Z21txBuffer,0,Z21_UDP_TX_MAX_SIZE);
+                    //memset(&Z21txBuffer,0,Z21_UDP_TX_MAX_SIZE);
+                    bzero(Z21txBuffer, Z21_UDP_TX_MAX_SIZE);
                     txSendFlag = 0;
                     break;
             }
@@ -148,6 +149,7 @@ static void udp_server_task(void *pvParameters)
 
         int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
         global_sock = sock;
+        xTaskCreate(udp_sender_task, "udp_client", 4096, NULL, 5, &xHandle2);
         if (sock < 0)
             {
             ESP_LOGE(Z21_TASK_TAG, "Unable to create socket: errno %d", errno);
@@ -193,7 +195,7 @@ static void udp_server_task(void *pvParameters)
                         receive(client, Z21rxBuffer, len);
                     }
                 }
-            
+            vTaskDelay(100 / portTICK_PERIOD_MS);
             }
             if (sock != -1)
             {
@@ -308,6 +310,7 @@ static void xnet_rx_task(void *arg)
             
             
         }
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
     free(data);
 }
@@ -379,7 +382,7 @@ void cb_connection_ok(void *pvParameter)
     //ESP_ERROR_CHECK(example_connect());
     
     xTaskCreate(udp_server_task, "udp_server", 4096, (void *)AF_INET, 5, &xHandle1);
-    xTaskCreate(udp_sender_task, "udp_client", 4096, NULL, 5, &xHandle2);
+    
 
 
 }
@@ -511,24 +514,39 @@ void app_main()
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
     xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 1024, NULL, 1, NULL, 1);
 
+    //ReqLocoAdr = 3;
+    uint16_t rndAddr;
+    rndAddr = 3;
+    uint8_t rndSpeed;
 
-while (1) 
+   //rndAddr = (rand() % 1000);
+    rndSpeed = rand() % 127;
+    //vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    //getLocoInfo(rndAddr);
+
+    //ReqLocoAdr = rndAddr;
+    setLocoDrive(rndAddr, DCC128, rndSpeed);
+
+    while (1) 
     {
     if (DataReady==1){
         xnetreceive();
-        vTaskDelay(1 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         
     }
+ 
 
-    //vTaskDelay(1000 / portTICK_PERIOD_MS);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-    unsigned char getLoco[] = {0xE3, 0x00, 0, 3, 0x00};
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    
+    //unsigned char setLoco[] = {0xE4, 0x13, highByte(rndAddr), lowByte(rndAddr), rand() % 127, 0x00};
+    //getXOR(setLoco, 6);
+    //XNettransmit(setLoco, 6);
+    ReqLocoAdr = rndAddr;
+    unsigned char getLoco[] = {0xE3, 0x00, highByte(rndAddr), lowByte(rndAddr), 0x00};
 	getXOR(getLoco, 5);
 	XNettransmit(getLoco, 5);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-    unsigned char setLoco[] = {0xE4, 0x13, 0, 3, 50, 0x00};
-    getXOR(setLoco, 6);
-    XNettransmit(setLoco, 6);
+
     }
 free(Z21txBuffer);
 //free(Z21rxBuffer);
@@ -688,4 +706,15 @@ void notifyz21LocoFkt(uint16_t Adr, uint8_t state, uint8_t fkt)
     reqLocoBusy(Adr); //Lok wird nicht von LokMaus gesteuert!
 
 
+}
+
+//--------------------------------------------------------------------------------------------
+void notifyCVInfo(uint8_t State ) {
+  if (State == 0x01 || State == 0x02) {  //Busy or No Data
+    //LAN_X_CV_NACK
+    uint8_t data[2];
+    data[0] = 0x61;  //HEADER
+    data[1] = 0x13; //DB0
+    EthSend (0, 0x07, 0x40, data, true, 0x00);  
+  }
 }

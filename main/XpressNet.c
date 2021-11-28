@@ -50,7 +50,8 @@ void xnetreceive(void)
 	if (DataReady == true)
 	{ //Serial Daten dekodieren
 		DataReady = false;
-		//ESP_LOGI(XNETP_TASK_TAG, "Hello in XNET Parse!");
+		ESP_LOGI(XNETP_TASK_TAG, "Hello in XNET Parse!");
+		ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, XNetMsg, XNetMsg[XNetlength]+1, ESP_LOG_INFO);
 		//	  previousMillis = millis();   // will store last time LED was updated
 		//Daten, setzte LED = ON!
 		if (ledState == LOW)
@@ -240,7 +241,7 @@ void xnetreceive(void)
 		case 0xE4:	//Antwort der abgefragen Lok
 			ESP_LOGI(XNETP_TASK_TAG, "Antwort der abgefragen Lok");
 			if ((XNetMsg[XNetlength] >= 7) && (ReqLocoAdr != 0) && ((XNetMsg[XNetdata1] >> 4) != 0)) {
-				ESP_LOGI(XNETT_TASK_TAG, "ReqLocoAdr:  %d", ReqLocoAdr);
+				ESP_LOGI(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
 				uint16_t Addr=ReqLocoAdr;
 				
 				ReqLocoAdr = 0;
@@ -277,8 +278,9 @@ void xnetreceive(void)
 			else {
 				//uint8_t Adr_MSB = XNetMsg[XNetdata2];
 				//uint8_t Adr_LSB = XNetMsg[XNetdata3];
+				
 				uint16_t Addr = (Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
-
+				ESP_LOGI(XNETP_TASK_TAG, "Antwort Addr:  %d", Addr);
 				uint8_t Slot = LokStsgetSlot(Addr);
 
 				switch (XNetMsg[XNetdata1]) {
@@ -433,7 +435,7 @@ bool getLocoInfo(uint16_t Addr)
 
 	bool ok = false;
 	
-	getLocoStateFull(Addr, false);
+	//getLocoStateFull(Addr, false);
 
 	uint8_t Slot = LokStsgetSlot(Addr);
 	if (LokDataUpdate[Slot].state < 0xFF)
