@@ -495,7 +495,7 @@ void app_main()
 	//XNettransmit (getLoco, 5);
 
     /* start the wifi manager */
-    //wifi_manager_start();
+    wifi_manager_start();
     /*
     nvs_handle handle;
 
@@ -508,44 +508,44 @@ void app_main()
     }
     */
     /* register a callback as an example to how you can integrate your code with the wifi manager */
-    //wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
-    //wifi_manager_set_callback(WM_ORDER_DISCONNECT_STA, &cb_connection_off);
+    wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
+    wifi_manager_set_callback(WM_ORDER_DISCONNECT_STA, &cb_connection_off);
 
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
     xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 1024, NULL, 1, NULL, 1);
 
     //ReqLocoAdr = 3;
-    uint16_t rndAddr;
-    rndAddr = 3;
-    uint8_t rndSpeed;
+    //uint16_t rndAddr;
+    //rndAddr = 3;
+    //uint8_t rndSpeed;
 
    //rndAddr = (rand() % 1000);
-    rndSpeed = rand() % 127;
+    //rndSpeed = rand() % 127;
     //vTaskDelay(1000 / portTICK_PERIOD_MS);
     vTaskDelay(500 / portTICK_PERIOD_MS);
     //getLocoInfo(rndAddr);
 
     //ReqLocoAdr = rndAddr;
-    setLocoDrive(rndAddr, DCC128, rndSpeed);
+    //setLocoDrive(rndAddr, DCC128, rndSpeed);
 
     while (1) 
     {
     if (DataReady==1){
         xnetreceive();
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(1 / portTICK_PERIOD_MS);
         
     }
  
 
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+    //vTaskDelay(500 / portTICK_PERIOD_MS);
     
     //unsigned char setLoco[] = {0xE4, 0x13, highByte(rndAddr), lowByte(rndAddr), rand() % 127, 0x00};
     //getXOR(setLoco, 6);
     //XNettransmit(setLoco, 6);
-    ReqLocoAdr = rndAddr;
-    unsigned char getLoco[] = {0xE3, 0x00, highByte(rndAddr), lowByte(rndAddr), 0x00};
-	getXOR(getLoco, 5);
-	XNettransmit(getLoco, 5);
+    //ReqLocoAdr = rndAddr;
+    //unsigned char getLoco[] = {0xE3, 0x00, highByte(rndAddr), lowByte(rndAddr), 0x00};
+	//getXOR(getLoco, 5);
+	//XNettransmit(getLoco, 5);
 
     }
 free(Z21txBuffer);

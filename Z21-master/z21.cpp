@@ -20,6 +20,13 @@
 DueFlashStorage FlashStore;
 #define FSTORAGE 	FlashStore
 #define FSTORAGEMODE write
+
+#elif defined(ESP32)  //use NVS on ESP32!
+#include "z21nvs.h"
+z21nvsClass NVSZ21;
+#define FSTORAGE NVSZ21
+#define FSTORAGEMODE write
+
 #else
 // AVR based Boards follows
 #include <EEPROM.h>
@@ -203,6 +210,31 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			  #endif
 			}
 			break;      
+		  case LAN_X_SET_TURNOUT: {  //and notify other Clients with LAN_X_GET_TURNOUT_INFO!
+			#if defined(SERIALDEBUG)
+			ZDebug.print("X_SET_TURNOUT Adr.:");
+			ZDebug.print((packet[5] << 8) + packet[6]);
+			ZDebug.print(":");
+			ZDebug.print(bitRead(packet[7], 0));
+			ZDebug.print("-");
+			ZDebug.println(bitRead(packet[7], 3));
+			#endif
+			//bool TurnOnOff = bitRead(packet[7],3);  //Spule EIN/AUS
+			if (notifyz21Accessory) {
+				notifyz21Accessory((packet[5] << 8) + packet[6], bitRead(packet[7], 0), bitRead(packet[7], 3));
+			}						//	Addresse					Links/Rechts			Spule EIN/AUS
+			//Check if Broadcast Flag is correct set up?
+			bool BCset = true;
+			for (byte i = 0; i < z21clientMAX; i++) {
+				if (ActIP[i].client == client && ActIP[i].BCFlag == 0) {
+					BCset = false;
+					break;
+				}
+			}
+			//Fall to next if no BCFlag is set!
+			if (BCset)
+				break;
+		  }
 		  case LAN_X_GET_TURNOUT_INFO: {
 			#if defined(SERIALDEBUG)
 			  ZDebug.print("X_GET_TURNOUT_INFO ");
@@ -217,21 +249,6 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			      EthSend (client, 0x09, LAN_X_Header, data, true, Z21bcNone);    //BC new 23.04. !!!(old = 0)
 			  }
 			  break;
-		  }
-		  case LAN_X_SET_TURNOUT: {
-			#if defined(SERIALDEBUG)
-			ZDebug.print("X_SET_TURNOUT Adr.:");
-			ZDebug.print((packet[5] << 8) + packet[6]);
-			ZDebug.print(":");
-			ZDebug.print(bitRead(packet[7], 0));
-			ZDebug.print("-");
-			ZDebug.println(bitRead(packet[7], 3));
-			#endif
-			//bool TurnOnOff = bitRead(packet[7],3);  //Spule EIN/AUS
-			if (notifyz21Accessory) {
-				notifyz21Accessory((packet[5] << 8) + packet[6], bitRead(packet[7], 0), bitRead(packet[7], 3));
-			}						//	Addresse					Links/Rechts			Spule EIN/AUS
-			break;  
 		  }
 		  case LAN_X_SET_EXT_ACCESSORY: {
 			#if defined(SERIALDEBUG)
@@ -335,7 +352,14 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			if (notifyz21RailPower)
 				notifyz21RailPower(Railpower); //Zustand Gleisspannung Antworten
 			#if defined(SERIALDEBUG)
-			  ZDebug.print("SET_BROADCASTFLAGS: "); 
+			  ZDebug.print(packet[7], BIN); 	
+			  ZDebug.print("-"); 	
+			  ZDebug.print(packet[6], BIN); 	
+			  ZDebug.print("-"); 	
+			  ZDebug.print(packet[5], BIN); 	
+			  ZDebug.print("-"); 	
+			  ZDebug.print(packet[4], BIN); 	
+			  ZDebug.print(" SET_BROADCASTFLAGS: "); 
 			  ZDebug.println(addIPToSlot(client, 0x00), BIN);
 			  // 1=BC Power, Loco INFO, Trnt INFO; 2=BC ƒnderungen der R¸ckmelder am R-Bus
 			#endif
@@ -428,14 +452,15 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			#if defined(SERIALDEBUG)
 			  ZDebug.println("LOCONET_FROM_LAN"); 
 			#endif
-			if (notifyz21LNSendPacket) {
-				byte LNdata[packet[0] - 0x04];  //n Bytes
-				for (byte i = 0; i < (packet[0] - 0x04); i++) 
-					LNdata[i] = packet[0x04+i];
+			
+			byte LNdata[packet[0] - 0x04];  //n Bytes
+			for (byte i = 0; i < (packet[0] - 0x04); i++) 
+				LNdata[i] = packet[0x04+i];
+			if (notifyz21LNSendPacket)
 				notifyz21LNSendPacket(LNdata, packet[0] - 0x04);  
-				//Melden an andere LAN-Client das Meldung auf LocoNet-Bus geschrieben wurde
-				EthSend(client, packet[0], LAN_LOCONET_FROM_LAN, packet, false, Z21bcLocoNet_s);  //LAN_LOCONET_FROM_LAN
-			}
+			//Melden an andere LAN-Client das Meldung auf LocoNet-Bus geschrieben wurde
+			EthSend(client, packet[0], LAN_LOCONET_FROM_LAN, LNdata, false, Z21bcLocoNet_s);  //LAN_LOCONET_FROM_LAN not to the client!
+
 			break;
 		}
 		case (LAN_LOCONET_DISPATCH_ADDR): {
@@ -523,11 +548,11 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			#if defined(ESP32)
 			portENTER_CRITICAL(&myMutex);
 			#endif
-			
+			/*
 			#if defined(ESP8266) || defined(ESP32)
-			EEPROM.commit();
+			FSTORAGE.commit();
 			#endif
-			
+			*/
 			#if defined(ESP32) 
 			portEXIT_CRITICAL(&myMutex);
 			#endif 
@@ -620,10 +645,11 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			for (byte i = 0; i < 16; i++) {
 				FSTORAGE.FSTORAGEMODE(CONF2STORE+i,packet[4+i]);
 			}
+			/*
 			#if defined(ESP8266) || defined(ESP32)
-			EEPROM.commit();
+			FSTORAGE.commit();
 			#endif
-			
+			*/
 			//Request DCC to change
 			if (notifyz21UpdateConf)
 				notifyz21UpdateConf();
@@ -748,6 +774,11 @@ void z21Class::returnLocoStateFull (byte client, uint16_t Adr, bool bc)
 //bc = true => to inform also other client over the change.
 //bc = false => just ask about the loco state
 {
+	if (Adr == 0) {
+		//Not a valid loco adr!
+		return;
+	}
+	
 	uint8_t ldata[6];
 	if (notifyz21LocoState)
 		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
@@ -801,7 +832,9 @@ void z21Class::setS88Data(byte *data) {
 //--------------------------------------------------------------------------------------------
 //return state from LN detector
 void z21Class::setLNDetector(uint8_t client, byte *data, byte DataLen) {
-	EthSend(client, 0x04 + DataLen, LAN_LOCONET_DETECTOR, data, false, Z21bcLocoNet_s);  //LAN_LOCONET_DETECTOR
+	if (client > 0)
+		EthSend(client, 0x04 + DataLen, LAN_LOCONET_DETECTOR, data, false, Z21bcNone);  //LAN_LOCONET_DETECTOR
+	else EthSend(0, 0x04 + DataLen, LAN_LOCONET_DETECTOR, data, false, Z21bcLocoNet_s);  //LAN_LOCONET_DETECTOR
 }
 
 //--------------------------------------------------------------------------------------------
@@ -924,7 +957,9 @@ void z21Class::sendSystemInfo(byte client, uint16_t maincurrent, uint16_t mainvo
 	data[15] = 0x00;  //reserved
 	
 	//only to the request client if or if client = 0 to all that select this message (Abo)!
-	EthSend (client, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcSystemInfo_s);	
+	if (client > 0)
+		EthSend (client, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcNone);	
+	else EthSend (0, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcSystemInfo_s);
 }			  
 
 // Private Methods ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -932,7 +967,7 @@ void z21Class::sendSystemInfo(byte client, uint16_t maincurrent, uint16_t mainvo
 
 //--------------------------------------------------------------------------------------------
 void z21Class::EthSend (byte client, unsigned int DataLen, unsigned int Header, byte *dataString, boolean withXOR, byte BC) {
-	byte data[24]; 			//z21 send storage
+	byte data[DataLen]; 			//z21 send storage
 	
 	//--------------------------------------------        
 	//XOR bestimmen:
@@ -949,7 +984,7 @@ void z21Class::EthSend (byte client, unsigned int DataLen, unsigned int Header, 
         dataString++;
     }
    //--------------------------------------------        		
-   if (client > 0) {
+   if (client > 0 && BC == Z21bcNone) {
 		if (notifyz21EthSend)
 			notifyz21EthSend(client, data);
 
@@ -965,7 +1000,7 @@ void z21Class::EthSend (byte client, unsigned int DataLen, unsigned int Header, 
 		#endif
    }
    else {
-	byte clientOut = client;
+	byte clientOut = 0; //client;
 	for (byte i = 0; i < z21clientMAX; i++) {
 		if ( (ActIP[i].time > 0) && ( (BC & ActIP[i].BCFlag) > 0) ) {    //Boradcast & Noch aktiv
 
@@ -975,25 +1010,28 @@ void z21Class::EthSend (byte client, unsigned int DataLen, unsigned int Header, 
 			else clientOut = ActIP[i].client;
 		  }
 		  
-		  //--------------------------------------------
-		  if (notifyz21EthSend)
-			notifyz21EthSend(clientOut, data);
+		  if ((clientOut != client) || (clientOut == 0)) {	//wenn client > 0 und nicht Z21bcNone, sende an alle auﬂer den client!
+		  
+			  //--------------------------------------------
+			  if (notifyz21EthSend)
+				notifyz21EthSend(clientOut, data);
 
-		  #if defined (SERIALDEBUG)
-			  ZDebug.print(i);
-			  ZDebug.print("BTX ");
-			  ZDebug.print(clientOut);
-			  ZDebug.print(" BC:");
-			  ZDebug.print(BC & ActIP[i].BCFlag, BIN);
-			  ZDebug.print(" : ");
-			  for (byte x = 0; x < data[0]; x++) {
-				  ZDebug.print(data[x], HEX);
-				  ZDebug.print(" ");
-			  }
-			  ZDebug.println();
-		  #endif
-		  if (clientOut == 0)
-			  return;
+			  #if defined (SERIALDEBUG)
+				  ZDebug.print(i);
+				  ZDebug.print("BTX ");
+				  ZDebug.print(clientOut);
+				  ZDebug.print(" BC:");
+				  ZDebug.print(BC & ActIP[i].BCFlag, BIN);
+				  ZDebug.print(" : ");
+				  for (byte x = 0; x < data[0]; x++) {
+					  ZDebug.print(data[x], HEX);
+					  ZDebug.print(" ");
+				  }
+				  ZDebug.println();
+			  #endif
+			  if (clientOut == 0)
+				  return;
+		  }
 		}
 	}
   }
@@ -1071,75 +1109,42 @@ void z21Class::clearIPSlot(byte client) {
 }
 
 //--------------------------------------------------------------------------------------------
-//Read out the lenth of stored BC-Flags in EEPROM
-byte z21Class::getEEPROMBCFlagIndex() {
-	//check index store?
-	byte index = FSTORAGE.read(CLIENTINDEXSTORE);
-	
-	//check index if is correct?
-	if ((index == 0xFF) || (index > CLIENTSTORELENGTH)) { //empty or to big?
-		//flush the hole store!
-		FSTORAGE.FSTORAGEMODE(CLIENTINDEXSTORE, 0);	
-		
-		return 0;
-	}
-	return index;
-}
-
-//--------------------------------------------------------------------------------------------
+//speichern des BCFlag im EEPROM
 void z21Class::setEEPROMBCFlag(byte IPHash, byte BCFlag) {
-	//check index store?
-	byte index = getEEPROMBCFlagIndex();
-	
-	//search if already inside?
-	for (byte clientstore = CLIENTHASHSTORE; clientstore < index; clientstore++) {
-		if (FSTORAGE.read(clientstore) == IPHash) {
-			
-			FSTORAGE.FSTORAGEMODE(clientstore + CLIENTSTORELENGTH, BCFlag);
-			
-			return;
-		}
-	}
-
-	//insert on last position:
-	FSTORAGE.FSTORAGEMODE(index, IPHash);	//set Hash
-	FSTORAGE.FSTORAGEMODE(index + CLIENTSTORELENGTH, BCFlag);	//set BC-Flag
-	//Update index:
-	index++;
-	FSTORAGE.FSTORAGEMODE(CLIENTINDEXSTORE, index);	
+	FSTORAGE.FSTORAGEMODE(CLIENTHASHSTORE | IPHash, BCFlag);
+	#if defined(SERIALDEBUG)
+	ZDebug.print(CLIENTHASHSTORE | IPHash);
+	ZDebug.print(" write: ");
+	ZDebug.println(BCFlag, BIN);
+	#endif
 }
 
 //--------------------------------------------------------------------------------------------
+//lesen des BCFlag im EEPROM
 byte z21Class::findEEPROMBCFlag(byte IPHash) {
-	for (byte clientstore = CLIENTHASHSTORE; clientstore < getEEPROMBCFlagIndex(); clientstore++) {
-		if (FSTORAGE.read(clientstore) == IPHash)
-			return FSTORAGE.read(clientstore + CLIENTSTORELENGTH);
-	}
-	return 0x00;	//not found!
+	uint8_t flag = FSTORAGE.read(CLIENTHASHSTORE | IPHash);
+	#if defined(SERIALDEBUG)
+	ZDebug.print(CLIENTHASHSTORE | IPHash);
+	ZDebug.print("read: ");
+	ZDebug.println(flag, BIN);
+	#endif
+	//wurde BC im EEPROM bereits erfasst?
+	if (flag == 0xFF)
+		return 0x00;	//not found!
+	return flag;
 }
 
 //--------------------------------------------------------------------------------------------
 byte z21Class::addIPToSlot (byte client, byte BCFlag) {
   byte Slot = z21clientMAX;
   
-  #if defined(ESP32)
-  portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
-  #endif
-  
   for (byte i = 0; i < z21clientMAX; i++) {
     if (ActIP[i].client == client) {
       ActIP[i].time = z21ActTimeIP;
       if (BCFlag != 0) {   //Falls BC Flag ¸bertragen wurde diesen hinzuf¸gen!
         ActIP[i].BCFlag = BCFlag;
-		
-		#if defined(ESP32)
-		portENTER_CRITICAL(&myMutex);
-		#endif
-		if (requestz21ClientHash)
-			setEEPROMBCFlag(requestz21ClientHash(client), BCFlag);
-		#if defined(ESP32)	
-		portEXIT_CRITICAL(&myMutex);
-		#endif	
+		if (notifyz21ClientHash)
+			setEEPROMBCFlag(notifyz21ClientHash(client), BCFlag);
 	  }
       return ActIP[i].BCFlag;    //BC Flag 4. Byte R¸ckmelden
     }
@@ -1149,15 +1154,11 @@ byte z21Class::addIPToSlot (byte client, byte BCFlag) {
   ActIP[Slot].client = client;
   ActIP[Slot].time = z21ActTimeIP;
   setPower(Railpower);		//inform the client with last power state
+
   //read out last BCFlag from EEPROM:
-  #if defined(ESP32)
-  portENTER_CRITICAL(&myMutex);
-  #endif
-  if (requestz21ClientHash)
-	ActIP[Slot].BCFlag = findEEPROMBCFlag(requestz21ClientHash(client));
-  #if defined(ESP32)	
-  portEXIT_CRITICAL(&myMutex);
-  #endif	
+  if (notifyz21ClientHash)
+	ActIP[Slot].BCFlag = findEEPROMBCFlag(notifyz21ClientHash(client));
+
   return ActIP[Slot].BCFlag;   //BC Flag 4. Byte R¸ckmelden
 }
 
