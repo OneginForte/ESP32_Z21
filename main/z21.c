@@ -39,7 +39,7 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 // Determine and evaluate data 
 	void receive(uint8_t client, uint8_t * packet, uint8_t rxlen)
 	{
-		ESP_LOGI(Z21_PARSER_TAG, "Z21 Parser start. %d byte", rxlen);
+		//ESP_LOGI(Z21_PARSER_TAG, "Z21 Parser start. %d byte", rxlen);
 		// ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
 		addIPToSlot(client, 0);
 		// send a reply, to the IP address and port that sent us the packet we received
@@ -263,12 +263,21 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 				}
 				else
 				{ // DB0
+
+					/*
+					0x1SAnzahl der Fahrstufen,abhängig vomeingestellten Schienenformat
+					S=0: DCC14 Fahrstufenbzw. MMI mit 14 Fahrstufen und F0
+					S=2:DCC28 Fahrstufenbzw. MMII mit 14 realenFahrstufen und F0-F4
+					S=3:DCC 128 Fahrstufen(alias„126 Fahrstufen“ ohne die Stops),bzw. MMII mit 28 realenFahrstufen (Licht-Trit) und F0-F4
+					*/
 					// ZDebug.print("X_SET_LOCO_DRIVE ");
-					uint8_t steps = DCC14;
+					uint8_t steps = DCC128;
 					if ((packet[5] & 0x03) == 3)
 						steps = DCC128;
 					else if ((packet[5] & 0x03) == 2)
 						steps = DCC28;
+					else if ((packet[5] & 0x03) == 0)
+						steps = DCC14;
 
 					if (notifyz21LocoSpeed)
 						notifyz21LocoSpeed(Word(packet[6] & 0x3F, packet[7]), packet[8], steps);
@@ -734,11 +743,11 @@ void setLocoStateExt (uint16_t Adr)
 	data[1] = (Adr >> 8) & 0x3F;
 	data[2] = Adr & 0xFF;
 	// Fahrstufeninformation: 0=14, 2=28, 4=128 
-	if ((ldata[0] & 0x03) == DCC14)
+	if ((ldata[0] & 0x03) == DCCSTEP14)
 		data[3] = 0;	// 14 steps
-	if ((ldata[0] & 0x03) == DCC28)
+	if ((ldata[0] & 0x03) == DCCSTEP28)
 		data[3] = 2;	// 28 steps
-	if ((ldata[0] & 0x03) == DCC128)		
+	if ((ldata[0] & 0x03) == DCCSTEP128)		
 		data[3] = 4;	// 128 steps
 
 	ESP_LOGI(Z21_PARSER_TAG, "step= %d", data[3]);
@@ -902,7 +911,7 @@ void getLocoData(uint16_t adr, uint8_t data[])
 {
 	//uint8_t Steps, uint8_t Speed, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3
 	uint8_t Slot = LokStsgetSlot(adr);
-	data[0] = LokDataUpdate[Slot].adr >> 14; //Steps
+	data[0] = LokDataUpdate[Slot].mode & 0b00000011; //Steps   //Kennung 0000 B0FF -> B=Busy(1), F=Fahrstufen (0=14, 1=27, 2=28, 3=128)
 	data[1] = LokDataUpdate[Slot].speed;
 	data[2] = LokDataUpdate[Slot].f0 & 0x1F; //F0 - F4
 	data[3] = LokDataUpdate[Slot].f1;
@@ -1084,13 +1093,13 @@ bool setSpeed128(uint16_t address, uint8_t speed)
 }
 
 //--------------------------------------------------------------------------------------------
-void setSpeed(uint16_t Adr, uint8_t Steps, uint8_t Speed)
+void XnetSetSpeed(uint16_t Adr, uint8_t Steps, uint8_t Speed)
 {
 	//Locomotive speed and direction operation
 	// 0xE4 | Ident | AH | AL | RV | XOr
 	// Ident: 0x10 = F14; 0x11 = F27; 0x12 = F28; 0x13 = F128
 	// RV = RVVV VVVV Dirction and Speed
-	ESP_LOGI(Z21_PARSER_TAG, "setSpeed: %d", Adr);
+	ESP_LOGI(Z21_PARSER_TAG, "XnetSetSpeed: %d", Adr);
 	uint8_t v = Speed;
 	if (Steps == DCC28)
 	{
@@ -1105,9 +1114,9 @@ void setSpeed(uint16_t Adr, uint8_t Steps, uint8_t Speed)
 	case DCC14:
 		LocoInfo[1] = 0x10;
 		break;
-	//case DCC27:
-	//	LocoInfo[1] = 0x11;
-	//	break;
+	case DCC27:
+		LocoInfo[1] = 0x11;
+		break;
 	case DCC28:
 		LocoInfo[1] = 0x12;
 		break;
@@ -1154,7 +1163,7 @@ void LokStsSetNew(uint8_t Slot, uint16_t adr) // Neue Lok eintragen mit Adresse
 
 // generate first drive information:
 	//ESP_LOGI(Z21_PARSER_TAG, "LokStsSetNew exit: %d", LokDataUpdate[Slot].adr);
-	//setSpeed(LokDataUpdate[Slot].adr, DCCdefaultSteps, LokDataUpdate[Slot].speed);
+	XnetSetSpeed(LokDataUpdate[Slot].adr, DCCdefaultSteps, LokDataUpdate[Slot].speed);
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1179,12 +1188,12 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 	data[1] = (Adr >> 8) & 0x3F;
 	data[2] = Adr & 0xFF;
 	// Fahrstufeninformation: 0=14, 2=28, 4=128 
-	if ((ldata[0] & 0x03) == DCCSTEP14)
-		data[3] = 0;	// 14 steps
-	if ((ldata[0] & 0x03) == DCCSTEP28)
-		data[3] = 2;	// 28 steps
-	if ((ldata[0] & 0x03) == DCCSTEP128)		
-		data[3] = 4;	// 128 steps
+	if ((ldata[0] & 0x03) == DCC14)
+		data[3] = Loco14;	// 14 steps
+	if ((ldata[0] & 0x03) == DCC28)
+		data[3] = Loco28;	// 28 steps
+	if ((ldata[0] & 0x03) == DCC128)		
+		data[3] = Loco128;	// 128 steps
 	data[3] = data[3] | 0x08; //BUSY!
 		
 	data[4] = (char) ldata[1];	//DSSS SSSS
@@ -1337,7 +1346,7 @@ void getLocoStateFull(uint16_t Addr, bool bc)
 {
 	ESP_LOGI(Z21_PARSER_TAG, "getLocoStateFull... %d", Addr);
 	uint8_t Slot = LokStsgetSlot(Addr);
-	uint8_t Busy = bitRead(LokDataUpdate[Slot].mode, 3);
+	uint8_t Busy = bitRead(LokDataUpdate[Slot].mode, 3); //Kennung 0000 B0FF -> B=Busy(1), F=Fahrstufen (0=14, 1=27, 2=28, 3=128)
 	uint8_t Dir = bitRead(LokDataUpdate[Slot].f0, 5);
 	uint8_t F0 = LokDataUpdate[Slot].f0 & 0b00011111;
 	uint8_t F1 = LokDataUpdate[Slot].f1;

@@ -109,7 +109,7 @@ static void udp_sender_task(void *pvParameters)
                     txSendFlag = 0;
                     break;
                     }
-                //ESP_LOGI(Z21_SENDER_TAG, "%d bytes send.", txBlen);
+                    //ESP_LOGI(Z21_SENDER_TAG, "%d bytes send.", txBlen);
                     //memset(&Z21txBuffer,0,Z21_UDP_TX_MAX_SIZE);
                     bzero(Z21txBuffer, Z21_UDP_TX_MAX_SIZE);
                     txSendFlag = 0;
@@ -190,8 +190,8 @@ static void udp_server_task(void *pvParameters)
                         ip4addr_ntoa_r((const ip4_addr_t*)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                         uint16_t from_port = (((struct sockaddr_in *)&source_addr)->sin_port);
                         uint8_t client = Z21addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), from_port);
-                        ESP_LOGI(Z21_TASK_TAG, "Recieve from UDP");
-                        ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&Z21rxBuffer, len, ESP_LOG_INFO);
+                        //ESP_LOGI(Z21_TASK_TAG, "Recieve from UDP");
+                        //ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&Z21rxBuffer, len, ESP_LOG_INFO);
                         receive(client, Z21rxBuffer, len);
                     }
                 }
@@ -272,7 +272,7 @@ static void xnet_rx_task(void *arg)
             //vTaskDelay(pdMS_TO_TICKS(1));
             //vTaskDelay(1 / portTICK_PERIOD_MS);            
         //}
-        const uint16_t rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 100 / portTICK_RATE_MS);
+        const uint16_t rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 10 / portTICK_RATE_MS);
         if (rxBytes > 0) {
             //ESP_LOGI(RX_TASK_TAG, "New Xnet data!");
             if (data[1] == 0xFF && data[2] == 0xFA)
@@ -304,13 +304,14 @@ static void xnet_rx_task(void *arg)
 
             memcpy(XNetMsg,data,rxBytes);
             DataReady = 1;
+            xnetreceive();
             //data[rxBytes] = 0;
-            //ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", rxBytes);
-            //ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, rxBytes, ESP_LOG_INFO);
+            ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", rxBytes);
+            ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, rxBytes, ESP_LOG_INFO);
             
             
         }
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        //vTaskDelay(1 / portTICK_PERIOD_MS);
     }
     free(data);
 }
@@ -531,8 +532,8 @@ void app_main()
     while (1) 
     {
     if (DataReady==1){
-        xnetreceive();
-        vTaskDelay(1 / portTICK_PERIOD_MS);
+       //xnetreceive();
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         
     }
  
@@ -644,8 +645,8 @@ void notifyz21getSystemInfo(uint8_t client)
 //--------------------------------------------------------------------------------------------
 void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps)
 {
-
-    setSpeed(Adr, steps, speed);
+    //setSpeed(Adr, steps, speed);
+    setLocoDrive(Adr, steps, speed);
     reqLocoBusy(Adr); //Lok wird nicht von LokMaus gesteuert!
     switch (steps)
     {

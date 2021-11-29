@@ -79,8 +79,8 @@ uint8_t slotFullNext; // if no free slot, override existing slots
 uint8_t DCCdefaultSteps;
 
 // DCC Speed Steps
-#define DCC14 0x01
-//#define DCC27 0x02
+#define DCC14 0x00
+#define DCC27 0x01
 #define DCC28 0x02
 #define DCC128 0x03
 

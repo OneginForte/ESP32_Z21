@@ -440,9 +440,9 @@ bool getLocoInfo(uint16_t Addr)
 	uint8_t Slot = LokStsgetSlot(Addr);
 	if (LokDataUpdate[Slot].state < 0xFF)
 		LokDataUpdate[Slot].state++; //aktivit�t
-	ESP_LOGI(XNETT_TASK_TAG, "Old ReqLocoAdr %d", ReqLocoAdr);
-	ESP_LOGI(XNETT_TASK_TAG, "getLocoInfo slot %d", Slot);
-	if (LokStsBusy(Slot) == true && ReqLocoAdr == 0)	{		//Besetzt durch anderen XPressNet Handregler
+	//ESP_LOGI(XNETT_TASK_TAG, "Old ReqLocoAdr %d", ReqLocoAdr);
+	//ESP_LOGI(XNETT_TASK_TAG, "getLocoInfo slot %d", Slot);
+	//if (LokStsBusy(Slot) == true && ReqLocoAdr == 0)	{		//Besetzt durch anderen XPressNet Handregler
 		
 		ReqLocoAdr = Addr; //Speichern der gefragen Lok Adresse
 		ESP_LOGI(XNETT_TASK_TAG, "New ReqLocoAdr %d", ReqLocoAdr);
@@ -451,7 +451,7 @@ bool getLocoInfo(uint16_t Addr)
 			getLoco[2] = highByte(Addr) | 0xC0;
 		getXOR(getLoco, 5);
 		ok = XNettransmit (getLoco, 5);
-	}
+	//}
 	
 	return ok;
 }
@@ -523,7 +523,8 @@ bool setLocoDrive(uint16_t Addr, uint8_t Steps, uint8_t Speed)
 	unsigned char setLoco[] = {0xE4, 0x13, highByte(Addr), lowByte(Addr), Speed, 0x00};
 	if (Addr > 99)
 		setLoco[2] = highByte(Addr) | 0xC0;
-	setLoco[1] |= Steps;
+	
+	//setLoco[1] |= Steps;   //ignore steps
 	
 	getXOR(setLoco, 6);
 	ok = XNettransmit (setLoco, 6);
