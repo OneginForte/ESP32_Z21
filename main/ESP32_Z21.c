@@ -273,11 +273,14 @@ static void xnet_rx_task(void *arg)
             //vTaskDelay(1 / portTICK_PERIOD_MS);            
         //}
         const uint16_t rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 10 / portTICK_RATE_MS);
-        if (rxBytes > 0) {
-            //ESP_LOGI(RX_TASK_TAG, "New Xnet data!");
-            if (data[1] == 0xFF && data[2] == 0xFA)
+        if (rxBytes > 0) { 
+        if (data[0]<rxBytes)        
             {
-                switch (data[3])
+            memcpy(XNetMsg,data,data[0]);
+            //ESP_LOGI(RX_TASK_TAG, "New Xnet data!");
+            if (XNetMsg[1] == 0xFF && XNetMsg[2] == 0xFA)
+            {
+                switch (XNetMsg[3])
                 {
                 case 0xA0: //XNet bridge is offline!
                     ESP_LOGI(RX_TASK_TAG, "XnetRun false");
@@ -301,15 +304,16 @@ static void xnet_rx_task(void *arg)
                     break;
                 }
             }
-
+        else {
             memcpy(XNetMsg,data,rxBytes);
             DataReady = 1;
             xnetreceive();
             //data[rxBytes] = 0;
             ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", rxBytes);
             ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, rxBytes, ESP_LOG_INFO);
+        }    
             
-            
+        }
         }
         //vTaskDelay(1 / portTICK_PERIOD_MS);
     }
