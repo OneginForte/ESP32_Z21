@@ -51,7 +51,7 @@ void xnetreceive(void)
 	{ //Serial Daten dekodieren
 		DataReady = false;
 		ESP_LOGI(XNETP_TASK_TAG, "Hello in XNET Parse!");
-		ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, XNetMsg, XNetMsg[XNetlength]+1, ESP_LOG_INFO);
+		ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, XNetMsg, XNetMsg[XNetlength], ESP_LOG_INFO);
 		//	  previousMillis = millis();   // will store last time LED was updated
 		//Daten, setzte LED = ON!
 		if (ledState == LOW)
@@ -63,9 +63,9 @@ void xnetreceive(void)
 		if (XNetMsg[XNetmsg] == 0x60)
 		{ //GENERAL_BROADCAST
 
-			//ESP_LOGI(XNETP_TASK_TAG, "XNET GENERAL_BROADCAST:");
-			//ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, XNetMsg, XNetMsg[XNetlength]+1, ESP_LOG_INFO);
-			if (XNetMsg[XNetlength] == 4 && XNetMsg[XNetcom] == 0x61)
+			ESP_LOGI(XNETP_TASK_TAG, "XNET GENERAL_BROADCAST:");
+			ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, XNetMsg, XNetMsg[XNetlength], ESP_LOG_INFO);
+			if (XNetMsg[XNetlength] == 5 && XNetMsg[XNetcom] == 0x61)
 			{
 				if ((XNetMsg[XNetdata1] == 0x01) && (XNetMsg[XNetdata2] == 0x60))
 				{
@@ -136,8 +136,8 @@ void xnetreceive(void)
 	}
 	//else if (XNetMsg[XNetmsg] == myDirectedOps && XNetMsg[XNetlength] >= 3) {
 		//change by Andr� Schenk
-	else if (XNetMsg[XNetlength] >= 3) {	
-
+	else if (XNetMsg[XNetlength] >= 3) {
+		ESP_LOGI(XNETP_TASK_TAG, "Parse XNetcom: %d", XNetMsg[XNetcom]);
 		switch (XNetMsg[XNetcom]) {
 		//add by Norberto Redondo Melchor:	
 		case 0x52:	// Some other device asked for an accessory change
@@ -240,6 +240,7 @@ void xnetreceive(void)
 		break;
 		case 0xE4:	//Antwort der abgefragen Lok
 			ESP_LOGI(XNETP_TASK_TAG, "Antwort der abgefragen Lok");
+			ESP_LOGI(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
 			if ((XNetMsg[XNetlength] >= 7) && (ReqLocoAdr != 0) && ((XNetMsg[XNetdata1] >> 4) != 0)) {
 				ESP_LOGI(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
 				uint16_t Addr=ReqLocoAdr;
@@ -344,7 +345,7 @@ void xnetreceive(void)
 		break;
 		}	//switch myDirectedOps ENDE
 	}
-//	if (ReadData == false)	//Nachricht komplett empfangen, dann hier l�schen!
+	if (ReadData == false)	//Nachricht komplett empfangen, dann hier l�schen!
 		XNetclear();	//alte verarbeitete Nachricht l�schen
   }		//Daten vorhanden ENDE
   else {	//keine Daten empfangen, setzte LED = Blink
@@ -360,6 +361,7 @@ void xnetreceive(void)
 	  }
   }
   //Slot Server aktualisieren
+  //DataReady = false;
   if (currentMillis - SlotTime > SlotInterval) {
 	  SlotTime = currentMillis;
 	  UpdateBusySlot();		//Server Update - Anfrage nach Status�nderungen
@@ -524,7 +526,7 @@ bool setLocoDrive(uint16_t Addr, uint8_t Steps, uint8_t Speed)
 	if (Addr > 99)
 		setLoco[2] = highByte(Addr) | 0xC0;
 	
-	//setLoco[1] |= Steps;   //ignore steps
+	setLoco[1] |= Steps;   //ignore steps
 	
 	getXOR(setLoco, 6);
 	ok = XNettransmit (setLoco, 6);

@@ -265,56 +265,67 @@ static void xnet_rx_task(void *arg)
     static const char *RX_TASK_TAG = "XNET_RX_TASK";
     esp_log_level_set(RX_TASK_TAG, ESP_LOG_INFO);
     uint8_t *data = (uint8_t *)malloc(XNET_RX_BUF_SIZE);
+    uint8_t pos_p;
+    uint16_t rxb;
     while (1) 
     {
-        //while (DataReady)
-        //{
-            //vTaskDelay(pdMS_TO_TICKS(1));
-            //vTaskDelay(1 / portTICK_PERIOD_MS);            
-        //}
-        const uint16_t rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 10 / portTICK_RATE_MS);
+
+        
+        const uint16_t rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 100 / portTICK_RATE_MS);
         if (rxBytes > 0) { 
-        if (data[0]<rxBytes)        
+        pos_p=0;
+        rxb=rxBytes;
+        if (data[0] <= rxb){
+            memcpy(XNetMsg, data + pos_p, data[pos_p]);
+            ESP_LOGI(RX_TASK_TAG, "New Xnet data!");
+            while (DataReady)
             {
-            memcpy(XNetMsg,data,data[0]);
-            //ESP_LOGI(RX_TASK_TAG, "New Xnet data!");
+                // vTaskDelay(pdMS_TO_TICKS(1));
+                //vTaskDelay(2 / portTICK_PERIOD_MS);
+            }
             if (XNetMsg[1] == 0xFF && XNetMsg[2] == 0xFA)
             {
-                switch (XNetMsg[3])
-                {
-                case 0xA0: //XNet bridge is offline!
-                    ESP_LOGI(RX_TASK_TAG, "XnetRun false");
-                    XNetRun = false;
-                    break;
-                case 0xA1: //Xnet bridge is online!
-                    ESP_LOGI(RX_TASK_TAG, "XnetRun true");
-                    XNetRun = true;
-                    break;
-                case 0xA2: //Answer from Stop Xnet request
+                switch (XNetMsg[3]){
+                case 0xA0: // XNet bridge is offline!
+                ESP_LOGI(RX_TASK_TAG, "XnetRun false");
+                XNetRun = false;
+                break;
+                case 0xA1: // Xnet bridge is online!
+                ESP_LOGI(RX_TASK_TAG, "XnetRun true");
+                XNetRun = true;
+                break;
+                case 0xA2: // Answer from Stop Xnet request
 
-                    break;
-                case 0xA3: //XnetSlot addr request from Z21
+                break;
+                case 0xA3: // XnetSlot addr request from Z21
 
-                    break;
-                case 0xA4: //Set new XnetSlot addr
+                break;
+                case 0xA4: // Set new XnetSlot addr
 
-                    break;
+                break;
                 default:
 
-                    break;
+                break;
                 }
             }
-        else {
-            memcpy(XNetMsg,data,rxBytes);
-            DataReady = 1;
-            xnetreceive();
-            //data[rxBytes] = 0;
-            ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", rxBytes);
-            ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, rxBytes, ESP_LOG_INFO);
-        }    
-            
+                else
+                {
+                    //memcpy(XNetMsg, data, rxBytes);
+                    ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", data[pos_p]);
+                    ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data + pos_p, data[pos_p], ESP_LOG_INFO);
+                    DataReady = true;
+                    // xnetreceive();
+                    // data[pos_p] = 0;
+                }
+
+                rxb = rxb - data[pos_p];
+                pos_p = pos_p + data[pos_p];
+                
+
+            }
+
         }
-        }
+
         //vTaskDelay(1 / portTICK_PERIOD_MS);
     }
     free(data);
@@ -344,7 +355,7 @@ void monitoring_task(void *pvParameter)
     {
         //ESP_LOGI(TAG, "free heap: %d", esp_get_free_heap_size());
         esp_get_free_heap_size();
-        vTaskDelay(pdMS_TO_TICKS(100));
+        //vTaskDelay(pdMS_TO_TICKS(100));
         
         unsigned long currentMillis = esp_timer_get_time() / 1000;
 
@@ -490,7 +501,7 @@ void app_main()
     }
 
     init_XNET();
-    xTaskCreatePinnedToCore(xnet_rx_task, "xnet_rx_task", 1024 * 2, NULL, 2, NULL, 0);
+    xTaskCreatePinnedToCore(xnet_rx_task, "xnet_rx_task", 2048 * 2, NULL, 2, NULL, 0);
     //xTaskCreate(xnet_tx_task, "xnet_tx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
     
     //vTaskDelay(pdMS_TO_TICKS(100));
@@ -535,12 +546,13 @@ void app_main()
 
     while (1) 
     {
-    if (DataReady==1){
+    //if (DataReady==1){
        //xnetreceive();
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+       // vTaskDelay(100 / portTICK_PERIOD_MS);
         
-    }
- 
+    //}
+    xnetreceive();
+    //vTaskDelay(2 / portTICK_PERIOD_MS);
 
     //vTaskDelay(500 / portTICK_PERIOD_MS);
     

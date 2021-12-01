@@ -47,7 +47,7 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 		uint8_t data[16]; // z21 send storage
 
 		//#if defined(ESP32)
-		// portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
+		//portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
 		//#endif
 
 		switch (header)
@@ -238,8 +238,9 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 					// Antwort: LAN_X_LOCO_INFO  Adr_MSB - Adr_LSB
 					// if (notifyz21getLocoState)
 					//notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
-					getLocoInfo(Word(packet[6] & 0x3F, packet[7]));
+					//getLocoInfo(Word(packet[6] & 0x3F, packet[7]));
 						// uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+					ESP_LOGI(Z21_PARSER_TAG, "Adr:  %d", Word(packet[6] & 0x3F, packet[7]));
 					returnLocoStateFull(client, Word(packet[6] & 0x3F, packet[7]), false);
 					// Antwort via "setLocoStateFull"!
 				}
@@ -272,11 +273,11 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 					*/
 					// ZDebug.print("X_SET_LOCO_DRIVE ");
 					uint8_t steps = DCC128;
-					if ((packet[5] & 0x03) == 3)
+					if ((packet[5] & 0x03) == DCC128)
 						steps = DCC128;
-					else if ((packet[5] & 0x03) == 2)
+					else if ((packet[5] & 0x03) == DCC28)
 						steps = DCC28;
-					else if ((packet[5] & 0x03) == 0)
+					else if ((packet[5] & 0x03) == DCC14)
 						steps = DCC14;
 
 					if (notifyz21LocoSpeed)
@@ -934,7 +935,7 @@ uint8_t getLocoSpeed(uint16_t adr)
 uint8_t LokStsgetSlot(uint16_t adr) // gibt Slot f�r Adresse zur�ck / erzeugt neuen Slot (0..126)
 {
 	uint8_t Slot;
-	ESP_LOGI(Z21_PARSER_TAG, "LokStsgetSlot: %d", adr);
+	//ESP_LOGI(Z21_PARSER_TAG, "LokStsgetSlot: %d", adr);
 	for (Slot = 0; Slot < SlotMax; Slot++)
 	{
 		if ((LokDataUpdate[Slot].adr & 0x3FFF) == adr)
@@ -1178,6 +1179,12 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 //bc = true => to inform also other client over the change.
 //bc = false => just ask about the loco state
 {
+	if (Adr == 0)
+	{
+		// Not a valid loco adr!
+		return;
+	}
+
 	ESP_LOGI(Z21_PARSER_TAG, "returnLocoStateFull:");
 	uint8_t ldata[6];
 	if (notifyz21LocoState)

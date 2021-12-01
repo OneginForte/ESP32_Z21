@@ -38,6 +38,39 @@ uint8_t TrntFormat; // The Addressing of BasicAccessory Messages
 #define bitWrite(value, bit, bitvalue) (bitvalue ? bitSet(value, bit):bitClear(value, bit))
 #define bit(b)                         (1UL << (b))
 
+//--------------------------------------------------------------
+void notifyXNetgiveLocoInfo(uint8_t UserOps, uint16_t Address)
+{
+// XNetReturnLoco |= 0x01;
+// XNetUserOps = UserOps;
+
+  // dcc.getLocoStateFull(Address, false); //request for XpressNet only!
+  uint8_t ldata[6];
+  getLocoData(Address, ldata);                                        // uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
+  if (ldata[0] == 0x03)                                                   // 128 Steps?
+    ldata[0]++;                                                           // set Steps to 0x04
+  SetLocoInfo(UserOps, ldata[0], ldata[1], ldata[2], ldata[3]); // UserOps,Steps,Speed,F0,F1
+}
+void
+ SetLocoInfo(uint8_t UserOps, uint8_t Steps, uint8_t Speed, uint8_t F0, uint8_t F1)
+{
+  // 0xE4	| 0000 BFFF | RVVV VVVV | 000F FFFF | FFFF FFFF | XOr
+  //  B = 0 free; B = 1 controlled by another Device
+  //  FFF -> 000 = 14; 001 = 27; 010 = 28; 100 = 128
+  // LokInfo Identification Speed FA FB
+  uint8_t v = Speed;
+  if (Steps == Loco28 || Steps == Loco27)
+  {
+    v = (Speed & 0x0F) << 1;  // Speed Bit
+    v |= (Speed >> 4) & 0x01; // Addition Speed Bit
+    v |= 0x80 & Speed;        // Dir
+  }
+  uint8_t LocoInfo[] = {UserOps, 0xE4, Steps, v, F0, F1, 0x00};
+  if (SlotLokUse[UserOps & 0x1F] == 0x00) // has Slot a Address?
+    LocoInfo[2] |= 0x08;                  // set BUSY
+  getXOR(LocoInfo, 7);
+  XNetsend(LocoInfo, 7);
+}
 
 //--------------------------------------------------------------
 void notifyXNetLocoDrive14(uint16_t Address, uint8_t Speed) {
