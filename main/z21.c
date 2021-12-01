@@ -1061,15 +1061,17 @@ bool setSpeed128(uint16_t address, uint8_t speed)
 	}
 	uint8_t slot = LokStsgetSlot(address);
 	LokDataUpdate[slot].speed = speed;			   // write Speed and Dir into register to SAVE
-	if ((LokDataUpdate[slot].adr >> 14) != DCC128) // 3=>128steps, write into register
-		LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF) | (DCC128 << 14);
+	//if ((LokDataUpdate[slot].adr >> 14) != DCC128) // 3=>128steps, write into register
+	LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF);// | (DCC128 << 14);
+	LokDataUpdate[slot].mode = 0b1011;
+	
 
-	//uint8_t speed_data_uint8_ts[] = {0x3F, 0x00};
+	// uint8_t speed_data_uint8_ts[] = {0x3F, 0x00};
 
 	//	if (speed == 1) //estop!
 	//		return eStop(address);//speed_data_uint8_ts[1] |= 0x01; //estop
 	// else
-	//speed_data_uint8_ts[1] = speed; // no conversion necessary.
+	// speed_data_uint8_ts[1] = speed; // no conversion necessary.
 
 	// why do we get things like this?
 	//  03 3F 16 15 3F (speed packet addressed to loco 03)

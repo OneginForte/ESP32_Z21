@@ -240,8 +240,9 @@ void xnetreceive(void)
 		break;
 		case 0xE4:	//Antwort der abgefragen Lok
 			ESP_LOGI(XNETP_TASK_TAG, "Antwort der abgefragen Lok");
-			ESP_LOGI(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
-			if ((XNetMsg[XNetlength] >= 7) && (ReqLocoAdr != 0) && ((XNetMsg[XNetdata1] >> 4) != 0)) {
+			//ESP_LOGI(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
+			if ((XNetMsg[XNetlength] >= 7) && (ReqLocoAdr != 0) )
+			{ //&& ((XNetMsg[XNetdata1] >> 4) != 0)
 				ESP_LOGI(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
 				uint16_t Addr=ReqLocoAdr;
 				
@@ -276,10 +277,10 @@ void xnetreceive(void)
 					setLocoHalt (Addr);//Sende Lok HALT um Busy zu erzeugen!
 				}
 			}
-			else {
+			//else {
 				//uint8_t Adr_MSB = XNetMsg[XNetdata2];
 				//uint8_t Adr_LSB = XNetMsg[XNetdata3];
-				
+				/*
 				uint16_t Addr = (Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
 				ESP_LOGI(XNETP_TASK_TAG, "Antwort Addr:  %d", Addr);
 				uint8_t Slot = LokStsgetSlot(Addr);
@@ -302,10 +303,11 @@ void xnetreceive(void)
 					case 0x23: LokDataUpdate[Slot].f3 = XNetMsg[XNetdata4];//Fkt Group4			
 								break;				
 					case 0x24: //Fkt Status			
-								break;				
-				}
-				getLocoStateFull(Addr, true);
-			}
+								break;	
+								*/			
+				//}
+				//getLocoStateFull(Addr, true);
+			//}
 		break;
 		case 0xE3:	//Antwort abgefrage Funktionen F13-F28
 			ESP_LOGI(XNETP_TASK_TAG, "Antwort abgefrage Funktionen F13-F28");
@@ -322,7 +324,8 @@ void xnetreceive(void)
 				}
 			}
 			if (XNetMsg[XNetdata1] == 0x40 && XNetMsg[XNetlength] >= 6) { 	// Locomotive is being operated by another device
-				LokStsSetBusy(Word( XNetMsg[XNetdata2], XNetMsg[XNetdata3]));
+				LokStsSetBusy(Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
+				ESP_LOGI(XNETP_TASK_TAG, "Busy by another device addr:  %d", Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
 			}
 		break;
 		case 0xE1:
@@ -691,22 +694,26 @@ bool XNetSendadd(uint8_t *dataString, uint8_t byteCount)
 //--------------------------------------------------------------------------------------------
 void UpdateBusySlot(void)	//Fragt Zentrale nach aktuellen Zust�nden
 {
-/*
+
 	if (ReqLocoAdr == 0) {
-		if (xLokStsIsEmpty(SlotLast) == false && xLokSts[SlotLast].state > 0 && xLokStsBusy(SlotLast) == true) { 
-			byte Adr_High = xLokSts[SlotLast].high & 0x3F;
-			byte Adr_Low = xLokSts[SlotLast].low; 
-			ReqLocoAdr = word(Adr_High, Adr_Low); //Speichern der gefragen Lok Adresse
+		if (LokStsIsEmpty(SlotLast) == false && LokDataUpdate[SlotLast].state > 0 && LokStsBusy(SlotLast) == true)
+		{
+			uint8_t Adr_High = highByte(LokDataUpdate[SlotLast].adr) & 0x3F;
+			uint8_t Adr_Low = lowByte(LokDataUpdate[SlotLast].adr);
+			ReqLocoAdr = LokDataUpdate[SlotLast].adr; // Speichern der gefragen Lok Adresse
 			unsigned char getLoco[] = {0xE3, 0x00, Adr_High, Adr_Low, 0x00};
+			if (ReqLocoAdr > 99)
+				getLoco[2] = highByte(ReqLocoAdr) | 0xC0;
 			getXOR(getLoco, 5);
 			XNetSendadd (getLoco, 5);
-//			if (bitRead(xLokSts[SlotLast].mode, 3) == 1)	//Slot BUSY?
-				getLocoFunc (Adr_High, Adr_Low);	//F13 bis F28 abfragen
+			if (bitRead(LokDataUpdate[SlotLast].mode, 3) == 1) // Slot BUSY?
+				getLocoFunc(ReqLocoAdr);					   // F13 bis F28 abfragen
+			ESP_LOGI(XNETT_TASK_TAG, "UpdateBusySlot, ReqLocoAdr:  %d", ReqLocoAdr);
 		}
 		int Slot = SlotLast;
 		SlotLast = getNextSlot(SlotLast);	//n�chste Lok holen
 		while (SlotLast != Slot) {
-			if (xLokStsBusy(SlotLast) == true) {
+			if (LokStsBusy(SlotLast) == true) {
 				Slot = SlotLast;
 				break;
 			}
@@ -715,30 +722,32 @@ void UpdateBusySlot(void)	//Fragt Zentrale nach aktuellen Zust�nden
 		
 	}
 	else
-*/
-ESP_LOGI(XNETT_TASK_TAG, "UpdateBusySlot, ReqLocoAdr:  %d", ReqLocoAdr);
+
+
 if (ReqLocoAdr != 0)
 {
 	ReqLocoAgain++;
 	if (ReqLocoAgain > 9)
 	{
-		unsigned char getLoco[] = {0xE3, 0x00, highByte(ReqLocoAdr), lowByte(ReqLocoAdr), 0x00};
+		unsigned char getLoco[] = {0xE3, 0x00, highByte(ReqLocoAdr) & 0x3F, lowByte(ReqLocoAdr), 0x00};
+		ESP_LOGI(XNETT_TASK_TAG, "UpdateBusySlot, ReqLocoAgain:  %d", ReqLocoAdr);
 		if (ReqLocoAdr > 99)
 			getLoco[2] = highByte(ReqLocoAdr) | 0xC0;
 		getXOR(getLoco, 5);
 		XNettransmit(getLoco, 5);
 		ReqLocoAgain = 0;
+		
 	}
 	}
-/*
+
 	//Nichtnutzung von Slots erfassen:
 	for (int i = 0; i < SlotMax; i++) {
-		if (xLokSts[i].state > 0)
-			xLokSts[i].state--;
-		if (xLokSts[i].state > 0)
-			xLokSts[i].state--;
+		if (LokDataUpdate[i].state > 0)
+			LokDataUpdate[i].state--;
+		if (LokDataUpdate[i].state > 0)
+			LokDataUpdate[i].state--;
 	}
-*/
+
 }
 
 //--------------------------------------------------------------------------------------------
