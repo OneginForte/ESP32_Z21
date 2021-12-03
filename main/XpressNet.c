@@ -240,11 +240,11 @@ void xnetreceive(void)
 		break;
 		case 0xE4:	//Antwort der abgefragen Lok
 			//ESP_LOGI(XNETP_TASK_TAG, "Antwort der abgefragen Lok");
-			ESP_LOGI(XNETP_TASK_TAG, "Antwort from ReqLocoAdr, data1=  %d", (XNetMsg[XNetdata1]));
+			//ESP_LOGI(XNETP_TASK_TAG, "Antwort from ReqLocoAdr, data1=  %d", (XNetMsg[XNetdata1]));
 			//ESP_LOGI(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
 			if ((XNetMsg[XNetlength] >= 7) && (ReqLocoAdr != 0) && (bitRead(XNetMsg[XNetdata1], 3) != 0))
 			{ //&& ((XNetMsg[XNetdata1] >> 4) != 0)
-				ESP_LOGI(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
+				//ESP_LOGI(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
 				uint16_t Addr=ReqLocoAdr;
 				
 				ReqLocoAdr = 0;
@@ -313,7 +313,7 @@ void xnetreceive(void)
 		case 0xE3:	//Antwort abgefrage Funktionen F13-F28
 			ESP_LOGI(XNETP_TASK_TAG, "Antwort abgefrage Funktionen F13-F28");
 			if (XNetMsg[XNetdata1] == 0x52 && XNetMsg[XNetlength] >= 6 && ReqFktAdr != 0) {	//Funktionszustadn F13 bis F28
-				uint8_t Adr_MSB = highByte(ReqFktAdr);
+				uint8_t Adr_MSB = highByte(ReqFktAdr) & 0x3F;
 				uint8_t Adr_LSB = lowByte(ReqFktAdr);
 				ReqFktAdr = 0;
 				uint8_t F2 = XNetMsg[XNetdata2]; //F2 = F20 F19 F18 F17 F16 F15 F14 F13

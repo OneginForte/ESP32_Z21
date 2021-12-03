@@ -128,9 +128,9 @@ static void udp_server_task(void *pvParameters)
 {
     //uint8_t rx_buffer[128];
     char addr_str[16];
-    //uint8_t *addr_str = (uint8_t *)malloc(16);
+    uint8_t * rxBuffer= (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
     memset(&addr_str, 0x00, sizeof(addr_str));
-
+    //uint8_t *Z21_rx_buffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
     int addr_family = (int)pvParameters;
     int ip_protocol = 0;
     //struct sockaddr_in dest_addr;
@@ -139,7 +139,7 @@ static void udp_server_task(void *pvParameters)
     socklen = sizeof(dest_addr);
 
     ESP_LOGI(Z21_TASK_TAG, "Init server task started.");
-    //uint8_t *Z21_rx_buffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
+    
     while (1)
         {
         struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
@@ -175,10 +175,9 @@ static void udp_server_task(void *pvParameters)
             dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
             while (1){
                 if (!z21rcvFlag)
-                {
-                    z21RcvLen=0;
+                {                    
                     bzero(Z21rxBuffer, Z21_UDP_RX_MAX_SIZE);
-                    z21RcvLen = recvfrom(sock, Z21rxBuffer, Z21_UDP_RX_MAX_SIZE, 0, (struct sockaddr *)&source_addr, &socklenr);
+                    int Len = recvfrom(sock, rxBuffer, Z21_UDP_RX_MAX_SIZE, 0, (struct sockaddr *)&source_addr, &socklenr);
                     // Error occurred during receiving
                     if (z21RcvLen < 0)
                     {
@@ -193,6 +192,8 @@ static void udp_server_task(void *pvParameters)
                         z21client = Z21addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), from_port);
                         //ESP_LOGI(Z21_TASK_TAG, "Recieve from UDP");
                         //ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&Z21rxBuffer, len, ESP_LOG_INFO);
+                        memcpy(Z21rxBuffer,rxBuffer,z21RcvLen);
+                        z21RcvLen = Len;
                         z21rcvFlag = true;
                         //receive(client, Z21rxBuffer, len);
                     }
@@ -274,7 +275,7 @@ static void xnet_rx_task(void *arg)
     {
 
         
-        const uint16_t rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 100 / portTICK_RATE_MS);
+        const uint16_t rxBytes = uart_read_bytes(UART_NUM_1, data, XNET_RX_BUF_SIZE, 10 / portTICK_RATE_MS);
         if (rxBytes > 0) { 
         pos_p=0;
         rxb=rxBytes;
@@ -441,6 +442,7 @@ void app_main()
     txBlen=0;
     txBflag=0;
     rxFlag=0;
+    z21rcvFlag = false;
     //rxlen = 0;
     rxclient = 0;
     storedIP = 0;
@@ -531,7 +533,7 @@ void app_main()
     wifi_manager_set_callback(WM_ORDER_DISCONNECT_STA, &cb_connection_off);
 
     /* your code should go here. Here we simply create a task on core 2 that monitors free heap memory */
-    xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 1024, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(&monitoring_task, "monitoring_task", 1024, NULL, 5, NULL, 1);
 
     //ReqLocoAdr = 3;
     //uint16_t rndAddr;

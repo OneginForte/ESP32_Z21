@@ -356,18 +356,18 @@ void z21receive( void )
 			data[1] = Z21rxBuffer[5];
 			data[2] = 0;	//0=DCC Format; 1=MM Format
 			EthSend (client, 0x07, LAN_GET_LOCOMODE, data, false, Z21bcNone);
-		break;
-	case (LAN_SET_LOCOMODE):
-		break;
-	case (LAN_GET_TURNOUTMODE):
+			break;
+		case (LAN_SET_LOCOMODE):
+			break;
+		case (LAN_GET_TURNOUTMODE):
 				data[0] = Z21rxBuffer[4];
 			data[1] = Z21rxBuffer[5];
 			data[2] = 0;	//0=DCC Format; 1=MM Format
 			EthSend (client, 0x07, LAN_GET_LOCOMODE, data, false, Z21bcNone);
-		break;
-	case (LAN_SET_TURNOUTMODE):
-		break;
-	case (LAN_RMBUS_GETDATA):
+			break;
+		case (LAN_SET_TURNOUTMODE):
+			break;
+		case (LAN_RMBUS_GETDATA):
 		if (notifyz21S88Data)
 		{
 			ESP_LOGI(Z21_PARSER_TAG, "RMBUS_GETDATA");
@@ -375,47 +375,49 @@ void z21receive( void )
 			//ask for group state 'Gruppenindex'
 			notifyz21S88Data(Z21rxBuffer[4]); //normal Antwort hier nur an den anfragenden Client! (Antwort geht hier an alle!)
 		}
-		break;
-	case (LAN_RMBUS_PROGRAMMODULE):
-		break;
-	case (LAN_SYSTEMSTATE_GETDATA):
-	{ //System state
+			break;
+		case (LAN_RMBUS_PROGRAMMODULE):
+			break;
+		case (LAN_SYSTEMSTATE_GETDATA):
+		{ //System state
 			ESP_LOGI(Z21_PARSER_TAG,"LAN_SYS-State");
 
 		if (notifyz21getSystemInfo)
 			notifyz21getSystemInfo(client);
 		break;
-	}
-	case (LAN_RAILCOM_GETDATA):
-	{
+		}
+		case (LAN_RAILCOM_GETDATA):
+		{
 		uint16_t Adr = 0;
-		if (Z21rxBuffer[4] == 0x01)
-		{ //RailCom-Daten f�r die gegebene Lokadresse anfordern
+		if (Z21rxBuffer[4] == 0x01){ 
+			//RailCom-Daten f�r die gegebene Lokadresse anfordern
 			//Adr = word(packet[6], packet[5]);
 			Adr = (((uint16_t)Z21rxBuffer[6]) << 8) | ((uint16_t)Z21rxBuffer[5]);
-		}
-		if (notifyz21Railcom)
-		Adr = notifyz21Railcom(); //return global Railcom Adr
-		data[0] = Adr >> 8;					//LocoAddress
-		data[1] = Adr & 0xFF;				//LocoAddress
-		data[2] = 0x00;							//UINT32 ReceiveCounter Empfangsz�hler in Z21
-		data[3] = 0x00;
-		data[4] = 0x00;
-		data[5] = 0x00;
-		data[6] = 0x00; //UINT32 ErrorCounter Empfangsfehlerz�hler in Z21
-		data[7] = 0x00;
-		data[8] = 0x00;
-		data[9] = 0x00;
-		/*
+			}
+		if (notifyz21Railcom){		
+			Adr = notifyz21Railcom(); //return global Railcom Adr
+			}
+
+			data[0] = Adr >> 8;					//LocoAddress
+			data[1] = Adr & 0xFF;				//LocoAddress
+			data[2] = 0x00;							//UINT32 ReceiveCounter Empfangsz�hler in Z21
+			data[3] = 0x00;
+			data[4] = 0x00;
+			data[5] = 0x00;
+			data[6] = 0x00; //UINT32 ErrorCounter Empfangsfehlerz�hler in Z21
+			data[7] = 0x00;
+			data[8] = 0x00;
+			data[9] = 0x00;
+				/*
 			  data[10] = 0x00;	//UINT8 Reserved1 experimentell, siehe Anmerkung 
 			  data[11] = 0x00;	//UINT8 Reserved2 experimentell, siehe Anmerkung 
 			  data[12] = 0x00;	//UINT8 Reserved3 experimentell, siehe Anmerkung 
 			  */
 		EthSend(client, 0x0E, LAN_RAILCOM_DATACHANGED, data, false, Z21bcNone);
 		break;
-	}
-	case (LAN_LOCONET_FROM_LAN):
-	{
+		}
+		case (LAN_LOCONET_FROM_LAN):
+		{
 		ESP_LOGI(Z21_PARSER_TAG, "LOCONET_FROM_LAN");
 
 		if (notifyz21LNSendPacket)
@@ -428,9 +430,9 @@ void z21receive( void )
 			EthSend(client, Z21rxBuffer[0], LAN_LOCONET_FROM_LAN, Z21rxBuffer, false, Z21bcLocoNet_s); //LAN_LOCONET_FROM_LAN
 		}
 		break;
-	}
-	case (LAN_LOCONET_DISPATCH_ADDR):
-	{
+		}
+		case (LAN_LOCONET_DISPATCH_ADDR):
+		{
 		if (notifyz21LNdispatch)
 		{
 			data[0] = Z21rxBuffer[4];
@@ -441,8 +443,8 @@ void z21receive( void )
 			EthSend(client, 0x07, LAN_LOCONET_DISPATCH_ADDR, data, false, Z21bcNone);
 		}
 		break;
-	}
-	case (LAN_LOCONET_DETECTOR):
+		}
+		case (LAN_LOCONET_DETECTOR):
 		if (notifyz21LNdetector)
 		{
 			ESP_LOGI(Z21_PARSER_TAG, "LOCONET_DETECTOR Abfrage");
@@ -450,7 +452,7 @@ void z21receive( void )
 			notifyz21LNdetector(client, Z21rxBuffer[4], ADDR); //Anforderung Typ & Reportadresse
 		}
 		break;
-	case (LAN_CAN_DETECTOR):
+		case (LAN_CAN_DETECTOR):
 		if (notifyz21CANdetector)
 		{
 			ESP_LOGI(Z21_PARSER_TAG, "CAN_DETECTOR Abfrage");
@@ -458,7 +460,7 @@ void z21receive( void )
 			notifyz21CANdetector(client, Z21rxBuffer[4], ADDR); //Anforderung Typ & CAN-ID
 		}
 		break;
-	case (0x12): //configuration read
+		case (0x12): //configuration read
 		// <-- 04 00 12 00
 		// 0e 00 12 00 01 00 01 03 01 00 03 00 00 00
 		data[0] = 0x0e;
@@ -482,8 +484,8 @@ void z21receive( void )
 		ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(read) ");
 
 		break;
-	case (0x13):
-	{ 	//configuration write
+		case (0x13):
+		{ 	//configuration write
 		//<-- 0e 00 13 00 01 00 01 03 01 00 03 00 00 00
 		//0x0e = Length; 0x12 = Header
 		/* Daten:
@@ -520,44 +522,44 @@ void z21receive( void )
 		//if (notifyz21UpdateConf)
 		//	notifyz21UpdateConf();
 		break;
-	}
-	case (0x16): //configuration read
-	{	//<-- 04 00 16 00
+		}
+		case (0x16): //configuration read
+		{	//<-- 04 00 16 00
 		//14 00 16 00 19 06 07 01 05 14 88 13 10 27 32 00 50 46 20 4e
-	data[0] = 0x14;
-	data[1] = 0x00;
-	data[2] = 0x16;
-	data[3] = 0x00;
-	data[4] = 0x19;
-	data[5] = 0x06;
-	data[6] = 0x07;
-	data[7] = 0x01;
-	data[8] = 0x05;
-	data[9] = 0x14;
-	data[10] = 0x88;
-	data[11] = 0x13;
-	data[12] = 0x10;
-	data[13] = 0x27;
-	data[14] = 0x32;
-	data[15] = 0x00;
-	data[16] = 0x50;
-	data[17] = 0x46;
-	data[18] = 0x20;
-	data[19] = 0x4e;
-	// for (uint8_t i = 0; i < 16; i++)
-	//{
-	//	data[i] = FSTORAGE.read(CONF2STORE + i);
-	//}
-	EthSend(client, 0x14, 0x16, data, false, Z21bcNone);
-	ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(read) ");
-	
-	break;
-	}
-	case (0x17):
-	{ //configuration write
-//<-- 14 00 17 00 19 06 07 01 05 14 88 13 10 27 32 00 50 46 20 4e
-//0x14 = Length; 0x16 = Header(read), 0x17 = Header(write)
-/* Daten:
+		data[0] = 0x14;
+		data[1] = 0x00;
+		data[2] = 0x16;
+		data[3] = 0x00;
+		data[4] = 0x19;
+		data[5] = 0x06;
+		data[6] = 0x07;
+		data[7] = 0x01;
+		data[8] = 0x05;
+		data[9] = 0x14;
+		data[10] = 0x88;
+		data[11] = 0x13;
+		data[12] = 0x10;
+		data[13] = 0x27;
+		data[14] = 0x32;
+		data[15] = 0x00;
+		data[16] = 0x50;
+		data[17] = 0x46;
+		data[18] = 0x20;
+		data[19] = 0x4e;
+		// for (uint8_t i = 0; i < 16; i++)
+		//{
+		//	data[i] = FSTORAGE.read(CONF2STORE + i);
+		//}
+		EthSend(client, 0x14, 0x16, data, false, Z21bcNone);
+		ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(read) ");
+		
+		break;
+		}
+		case (0x17):
+		{ //configuration write
+		//<-- 14 00 17 00 19 06 07 01 05 14 88 13 10 27 32 00 50 46 20 4e
+		//0x14 = Length; 0x16 = Header(read), 0x17 = Header(write)
+		/* Daten:
 			(0x19) Reset Packet (starten) (25-255)
 			(0x06) Reset Packet (fortsetzen) (6-64)
 			(0x07) Programmier-Packete (7-64)
@@ -604,8 +606,8 @@ void z21receive( void )
 			if (notifyz21UpdateConf)
 				notifyz21UpdateConf();
 			break;
-	}
-	default:
+		}
+		default:
 		ESP_LOGI(Z21_PARSER_TAG, "UNKNOWN_COMMAND");
 
 		ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, Z21rxBuffer, sizeof(Z21rxBuffer), ESP_LOG_INFO);
@@ -613,7 +615,7 @@ void z21receive( void )
 		data[0] = 0x61;
 		data[1] = 0x82;
 		EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
-	}
+		}
 	//---------------------------------------------------------------------------------------
 	//check if IP is still used:
 	/*
