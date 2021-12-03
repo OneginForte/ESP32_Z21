@@ -70,9 +70,9 @@ TaskHandle_t xHandle2;
 static void udp_sender_task(void *pvParameters)
 {
     //char addr_str[128];
-    uint8_t *addr_str = (uint8_t *)malloc(16);
+    //uint8_t *addr_str = (uint8_t *)malloc(16);
     //ESP_LOGI(Z21_SENDER_TAG, "Sender task started");
-    memset(&addr_str, 0x00, sizeof(addr_str));
+    //memset(&addr_str, 0x00, sizeof(addr_str));
     struct sockaddr_in dest_addr;
     dest_addr.sin_family = AF_INET;
     int opt = 1;
@@ -109,17 +109,17 @@ static void udp_sender_task(void *pvParameters)
                     txSendFlag = 0;
                     break;
                     }
-                    //ESP_LOGI(Z21_SENDER_TAG, "%d bytes send.", txBlen);
+                ESP_LOGI(Z21_SENDER_TAG, "%d bytes send.", txBlen);
                     //memset(&Z21txBuffer,0,Z21_UDP_TX_MAX_SIZE);
-                    bzero(Z21txBuffer, Z21_UDP_TX_MAX_SIZE);
-                    txSendFlag = 0;
-                    break;
+                bzero(Z21txBuffer, Z21_UDP_TX_MAX_SIZE);
+                txSendFlag = 0;
+                break;
             }
-            //vTaskDelay(1 / portTICK_PERIOD_MS);
+            vTaskDelay(1 / portTICK_PERIOD_MS);
         }
 
     }
-    free(addr_str);
+    //free(addr_str);
     vTaskDelete(NULL);
 
 }
@@ -128,7 +128,8 @@ static void udp_server_task(void *pvParameters)
 {
     //uint8_t rx_buffer[128];
     char addr_str[16];
-    //memset(&addr_str, 0x00, sizeof(addr_str));
+    //uint8_t *addr_str = (uint8_t *)malloc(16);
+    memset(&addr_str, 0x00, sizeof(addr_str));
 
     int addr_family = (int)pvParameters;
     int ip_protocol = 0;
@@ -172,14 +173,14 @@ static void udp_server_task(void *pvParameters)
             struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
             socklen_t socklenr = sizeof(source_addr);
             dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
-            while (1)
-            {
-                if (!txSendFlag)
+            while (1){
+                if (!z21rcvFlag)
                 {
+                    z21RcvLen=0;
                     bzero(Z21rxBuffer, Z21_UDP_RX_MAX_SIZE);
-                    int len = recvfrom(sock, Z21rxBuffer, Z21_UDP_RX_MAX_SIZE, 0, (struct sockaddr *)&source_addr, &socklenr);
+                    z21RcvLen = recvfrom(sock, Z21rxBuffer, Z21_UDP_RX_MAX_SIZE, 0, (struct sockaddr *)&source_addr, &socklenr);
                     // Error occurred during receiving
-                    if (len < 0)
+                    if (z21RcvLen < 0)
                     {
                         ESP_LOGE(Z21_TASK_TAG, "Recvfrom failed: errno %d", errno);
                         break;
@@ -189,23 +190,25 @@ static void udp_server_task(void *pvParameters)
                     {
                         ip4addr_ntoa_r((const ip4_addr_t*)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                         uint16_t from_port = (((struct sockaddr_in *)&source_addr)->sin_port);
-                        uint8_t client = Z21addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), from_port);
+                        z21client = Z21addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), from_port);
                         //ESP_LOGI(Z21_TASK_TAG, "Recieve from UDP");
                         //ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&Z21rxBuffer, len, ESP_LOG_INFO);
-                        receive(client, Z21rxBuffer, len);
+                        z21rcvFlag = true;
+                        //receive(client, Z21rxBuffer, len);
                     }
                 }
-            vTaskDelay(100 / portTICK_PERIOD_MS);
+                vTaskDelay(2 / portTICK_PERIOD_MS);
             }
             if (sock != -1)
-            {
+                {
                 ESP_LOGE(Z21_TASK_TAG, "Shutting down socket and restarting...");
                 shutdown(sock, SHUT_RDWR);
                 close(sock);
+                }
             }
+           
         }
-    }
-    //free(Z21rxBuffer);
+    //free(addr_str);
     vTaskDelete(NULL);
 }
 
@@ -326,7 +329,7 @@ static void xnet_rx_task(void *arg)
 
         }
 
-        //vTaskDelay(1 / portTICK_PERIOD_MS);
+        vTaskDelay(2 / portTICK_PERIOD_MS);
     }
     free(data);
 }
@@ -466,7 +469,7 @@ void app_main()
     }
 
     uint8_t *Z21txBuffer = (uint8_t *)malloc(Z21_UDP_TX_MAX_SIZE);
-    //uint8_t *Z21rxBuffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
+    uint8_t *Z21rxBuffer = (uint8_t *)malloc(Z21_UDP_RX_MAX_SIZE);
     
     // txSendFlag=0;
 
@@ -552,7 +555,9 @@ void app_main()
         
     //}
     xnetreceive();
-    //vTaskDelay(2 / portTICK_PERIOD_MS);
+    vTaskDelay(2 / portTICK_PERIOD_MS);
+    z21receive();
+    vTaskDelay(2 / portTICK_PERIOD_MS);
 
     //vTaskDelay(500 / portTICK_PERIOD_MS);
     
@@ -566,7 +571,7 @@ void app_main()
 
     }
 free(Z21txBuffer);
-//free(Z21rxBuffer);
+free(Z21rxBuffer);
 }
 
 

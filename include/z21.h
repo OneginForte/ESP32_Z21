@@ -66,6 +66,10 @@ volatile uint8_t txBlen;
 //olatile uint8_t rxlen;
 volatile uint8_t txBflag;
 volatile uint8_t txSendFlag;
+volatile bool z21rcvFlag;
+volatile int z21RcvLen;
+volatile uint8_t z21client;
+volatile uint8_t z21client;
 volatile uint8_t rxFlag;
 volatile uint8_t rxclient;
 volatile uint16_t txport;
@@ -179,7 +183,7 @@ unsigned long z21IPpreviousMillis;	   // will store last time of IP decount upda
 
 struct TypeActIP ActIP[z21clientMAX]; //Speicherarray f�r IPs
 
-void receive(uint8_t client, uint8_t *packet, uint8_t rxlen); //Pr�fe auf neue Ethernet Daten
+void z21receive( void ); // Pr�fe auf neue Ethernet Daten
 
 void z21setPower(uint8_t state); //Zustand Gleisspannung Melden
 

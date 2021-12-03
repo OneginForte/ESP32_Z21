@@ -36,18 +36,25 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 
 
 //*********************************************************************************************
-// Determine and evaluate data 
-	void receive(uint8_t client, uint8_t * packet, uint8_t rxlen)
+// Determine and evaluate data
+void z21receive( void )
+{
+	// ESP_LOGI(Z21_PARSER_TAG, "Z21 Parser start. %d byte", rxlen);
+	//  ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
+	// uint8_t client, uint8_t *packet, uint8_t rxlen
+
+
+	if (z21rcvFlag == true)
 	{
-		//ESP_LOGI(Z21_PARSER_TAG, "Z21 Parser start. %d byte", rxlen);
-		// ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
+		uint8_t rxlen = z21RcvLen;
+		uint8_t client = z21client;
 		addIPToSlot(client, 0);
 		// send a reply, to the IP address and port that sent us the packet we received
-		int header = (packet[3] << 8) + packet[2];
+		int header = (Z21rxBuffer[3] << 8) + Z21rxBuffer[2];
 		uint8_t data[16]; // z21 send storage
 
 		//#if defined(ESP32)
-		//portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
+		// portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
 		//#endif
 
 		switch (header)
@@ -92,10 +99,10 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 			EthSend(client, 0x05, LAN_GET_CODE, data, false, Z21bcNone);
 			break;
 		case (LAN_X_Header):
-			switch (packet[4])
+			switch (Z21rxBuffer[4])
 			{ // X-Header
 			case LAN_X_GET_SETTING:
-				switch (packet[5])
+				switch (Z21rxBuffer[5])
 				{ // DB0
 				case 0x21:
 					ESP_LOGI(Z21_PARSER_TAG, "X_GET_VERSION");
@@ -136,37 +143,37 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 				}
 				break; // ENDE DB0
 			case LAN_X_CV_READ:
-				if (packet[5] == 0x11)
+				if (Z21rxBuffer[5] == 0x11)
 				{ // DB0
 					ESP_LOGI(Z21_PARSER_TAG, "X_CV_READ");
 
 					if (notifyz21CVREAD)
-						notifyz21CVREAD(packet[6], packet[7]); // CV_MSB, CV_LSB
+						notifyz21CVREAD(Z21rxBuffer[6], Z21rxBuffer[7]); // CV_MSB, CV_LSB
 				}
 				break;
 			case LAN_X_CV_WRITE:
-				if (packet[5] == 0x12)
+				if (Z21rxBuffer[5] == 0x12)
 				{ // DB0
 					ESP_LOGI(Z21_PARSER_TAG, "X_CV_WRITE");
 
 					if (notifyz21CVWRITE)
-						notifyz21CVWRITE(packet[6], packet[7], packet[8]); // CV_MSB, CV_LSB, value
+						notifyz21CVWRITE(Z21rxBuffer[6], Z21rxBuffer[7], Z21rxBuffer[8]); // CV_MSB, CV_LSB, value
 				}
 				break;
 			case LAN_X_CV_POM:
-				if (packet[5] == 0x30)
+				if (Z21rxBuffer[5] == 0x30)
 				{ // DB0
-					uint8_t Adr = ((packet[6] & 0x3F) << 8) + packet[7];
-					uint8_t CVAdr = ((packet[8] & 0b11000000) << 8) + packet[9];
-					uint8_t value = packet[10];
-					if ((packet[8] & 0xFC) == 0xEC)
+					uint8_t Adr = ((Z21rxBuffer[6] & 0x3F) << 8) + Z21rxBuffer[7];
+					uint8_t CVAdr = ((Z21rxBuffer[8] & 0b11000000) << 8) + Z21rxBuffer[9];
+					uint8_t value = Z21rxBuffer[10];
+					if ((Z21rxBuffer[8] & 0xFC) == 0xEC)
 					{
 						ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_WRITE_BYTE");
 
 						if (notifyz21CVPOMWRITEBYTE)
 							notifyz21CVPOMWRITEBYTE(Adr, CVAdr, value); // set decoder
 					}
-					else if ((packet[8] & 0xFC) == 0xE8)
+					else if ((Z21rxBuffer[8] & 0xFC) == 0xE8)
 					{
 						ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_WRITE_BIT");
 					}
@@ -178,7 +185,7 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 							notifyz21CVPOMREADBYTE(Adr, CVAdr); // set decoder
 					}
 				}
-				else if (packet[5] == 0x31)
+				else if (Z21rxBuffer[5] == 0x31)
 				{ // DB0
 					ESP_LOGI(Z21_PARSER_TAG, "LAN_X_CV_POM_ACCESSORY");
 				}
@@ -189,11 +196,11 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 
 				if (notifyz21AccessoryInfo)
 				{
-					data[0] = 0x43;		 // X-HEADER
-					data[1] = packet[5]; // High
-					data[2] = packet[6]; // Low
-					if (notifyz21AccessoryInfo((packet[5] << 8) + packet[6]) == true) //setCANDetector(uint16_t NID, uint16_t Adr, uint8_t port, uint8_t typ, uint16_t v1, uint16_t v2);
-						data[3] = 0x02; // active
+					data[0] = 0x43;													  // X-HEADER
+					data[1] = Z21rxBuffer[5];											  // High
+					data[2] = Z21rxBuffer[6];											  // Low
+					if (notifyz21AccessoryInfo((Z21rxBuffer[5] << 8) + Z21rxBuffer[6]) == true) // setCANDetector(uint16_t NID, uint16_t Adr, uint8_t port, uint8_t typ, uint16_t v1, uint16_t v2);
+						data[3] = 0x02;												  // active
 					else
 						data[3] = 0x01;											// inactive
 					EthSend(client, 0x09, LAN_X_Header, data, true, Z21bcNone); // BC new 23.04. !!! (old = 0)
@@ -204,17 +211,17 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 			{
 				ESP_LOGI(Z21_PARSER_TAG, "X_SET_TURNOUT");
 
-				// bool TurnOnOff = bitRead(packet[7],3);  //Spule EIN/AUS
+				// bool TurnOnOff = bitRead(Z21rxBuffer[7],3);  //Spule EIN/AUS
 				if (notifyz21Accessory)
 				{
-					notifyz21Accessory((packet[5] << 8) + packet[6], bitRead(packet[7], 0), bitRead(packet[7], 3));
+					notifyz21Accessory((Z21rxBuffer[5] << 8) + Z21rxBuffer[6], bitRead(Z21rxBuffer[7], 0), bitRead(Z21rxBuffer[7], 3));
 				} //	Addresse					Links/Rechts			Spule EIN/AUS
 				break;
 			}
 			case LAN_X_SET_EXT_ACCESSORY:
 			{
 				ESP_LOGI(Z21_PARSER_TAG, "X_SET_EXT_ACCESSORY RAdr");
-				// setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
+				// setExtACCInfo((Z21rxBuffer[5] << 8) + Z21rxBuffer[6], Z21rxBuffer[7]);
 				break;
 			}
 			case LAN_X_GET_EXT_ACCESSORY_INFO:
@@ -231,35 +238,35 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 				break;
 			case LAN_X_GET_LOCO_INFO:
 				ESP_LOGI(Z21_PARSER_TAG, "LAN_X_GET_LOCO_INFO");
-				ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
-				if (packet[5] == 0xF0)
+				ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, Z21rxBuffer, rxlen, ESP_LOG_INFO);
+				if (Z21rxBuffer[5] == 0xF0)
 				{ // DB0
 					// ZDebug.print("X_GET_LOCO_INFO: ");
 					// Antwort: LAN_X_LOCO_INFO  Adr_MSB - Adr_LSB
 					// if (notifyz21getLocoState)
-					//notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
-					//getLocoInfo(Word(packet[6] & 0x3F, packet[7]));
-						// uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
-					ESP_LOGI(Z21_PARSER_TAG, "Adr:  %d", Word(packet[6] & 0x3F, packet[7]));
-					returnLocoStateFull(client, Word(packet[6] & 0x3F, packet[7]), false);
+					// notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
+					getLocoInfo(Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
+					// uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+					ESP_LOGI(Z21_PARSER_TAG, "Adr:  %d", Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
+					returnLocoStateFull(client, Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]), false);
 					// Antwort via "setLocoStateFull"!
 				}
 				break;
 			case LAN_X_SET_LOCO:
 				// setLocoBusy:
-				ESP_LOGI(Z21_PARSER_TAG, "LAN_X_SET_LOCO aka setLocoBusy: %d", Word(packet[6] & 0x3F, packet[7]));
-				ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
-				// uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
+				ESP_LOGI(Z21_PARSER_TAG, "LAN_X_SET_LOCO aka setLocoBusy: %d", Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
+				ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, Z21rxBuffer, rxlen, ESP_LOG_INFO);
+				// uint16_t WORD = (((uint16_t)Z21rxBuffer[6] & 0x3F) << 8) | ((uint16_t)Z21rxBuffer[7]);
 
-				addBusySlot(client, Word(packet[6] & 0x3F, packet[7]));
+				addBusySlot(client, Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
 
-				if (packet[5] == LAN_X_SET_LOCO_FUNCTION)
+				if (Z21rxBuffer[5] == LAN_X_SET_LOCO_FUNCTION)
 				{ // DB0
 					// LAN_X_SET_LOCO_FUNCTION  Adr_MSB        Adr_LSB            Type (00=AUS/01=EIN/10=UM)      Funktion
 					// word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & 0b00111111
 
 					if (notifyz21LocoFkt)
-						notifyz21LocoFkt(Word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & 0b00111111);
+						notifyz21LocoFkt(Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]), Z21rxBuffer[8] >> 6, Z21rxBuffer[8] & 0b00111111);
 					// uint16_t Adr, uint8_t type, uint8_t fkt
 				}
 				else
@@ -273,17 +280,17 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 					*/
 					// ZDebug.print("X_SET_LOCO_DRIVE ");
 					uint8_t steps = DCC128;
-					if ((packet[5] & 0x03) == DCC128)
+					if ((Z21rxBuffer[5] & 0x03) == DCC128)
 						steps = DCC128;
-					else if ((packet[5] & 0x03) == DCC28)
+					else if ((Z21rxBuffer[5] & 0x03) == DCC28)
 						steps = DCC28;
-					else if ((packet[5] & 0x03) == DCC14)
+					else if ((Z21rxBuffer[5] & 0x03) == DCC14)
 						steps = DCC14;
 
 					if (notifyz21LocoSpeed)
-						notifyz21LocoSpeed(Word(packet[6] & 0x3F, packet[7]), packet[8], steps);
+						notifyz21LocoSpeed(Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]), Z21rxBuffer[8], steps);
 				}
-				returnLocoStateFull(client, Word(packet[6] & 0x3F, packet[7]), true);
+				returnLocoStateFull(client, Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]), true);
 				break;
 			case LAN_X_GET_FIRMWARE_VERSION:
 				ESP_LOGI(Z21_PARSER_TAG, "X_GET_FIRMWARE_VERSION");
@@ -316,10 +323,10 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 			//---------------------- LAN X-Header ENDE ---------------------------
 		case (LAN_SET_BROADCASTFLAGS):
 		{
-			unsigned long bcflag = packet[7];
-			bcflag = packet[6] | (bcflag << 8);
-			bcflag = packet[5] | (bcflag << 8);
-			bcflag = packet[4] | (bcflag << 8);
+			unsigned long bcflag = Z21rxBuffer[7];
+			bcflag = Z21rxBuffer[6] | (bcflag << 8);
+			bcflag = Z21rxBuffer[5] | (bcflag << 8);
+			bcflag = Z21rxBuffer[4] | (bcflag << 8);
 			addIPToSlot(client, getLocalBcFlag(bcflag));
 			// no inside of the protokoll, but good to have:
 			if (notifyz21RailPower)
@@ -345,16 +352,16 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 			break;
 		}
 		case (LAN_GET_LOCOMODE):
-			data[0] = packet[4];
-			data[1] = packet[5];
+			data[0] = Z21rxBuffer[4];
+			data[1] = Z21rxBuffer[5];
 			data[2] = 0;	//0=DCC Format; 1=MM Format
 			EthSend (client, 0x07, LAN_GET_LOCOMODE, data, false, Z21bcNone);
 		break;
 	case (LAN_SET_LOCOMODE):
 		break;
 	case (LAN_GET_TURNOUTMODE):
-				data[0] = packet[4];
-			data[1] = packet[5];
+				data[0] = Z21rxBuffer[4];
+			data[1] = Z21rxBuffer[5];
 			data[2] = 0;	//0=DCC Format; 1=MM Format
 			EthSend (client, 0x07, LAN_GET_LOCOMODE, data, false, Z21bcNone);
 		break;
@@ -366,7 +373,7 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 			ESP_LOGI(Z21_PARSER_TAG, "RMBUS_GETDATA");
 
 			//ask for group state 'Gruppenindex'
-			notifyz21S88Data(packet[4]); //normal Antwort hier nur an den anfragenden Client! (Antwort geht hier an alle!)
+			notifyz21S88Data(Z21rxBuffer[4]); //normal Antwort hier nur an den anfragenden Client! (Antwort geht hier an alle!)
 		}
 		break;
 	case (LAN_RMBUS_PROGRAMMODULE):
@@ -382,10 +389,10 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 	case (LAN_RAILCOM_GETDATA):
 	{
 		uint16_t Adr = 0;
-		if (packet[4] == 0x01)
+		if (Z21rxBuffer[4] == 0x01)
 		{ //RailCom-Daten f�r die gegebene Lokadresse anfordern
 			//Adr = word(packet[6], packet[5]);
-			Adr = (((uint16_t)packet[6]) << 8) | ((uint16_t)packet[5]);
+			Adr = (((uint16_t)Z21rxBuffer[6]) << 8) | ((uint16_t)Z21rxBuffer[5]);
 		}
 		if (notifyz21Railcom)
 		Adr = notifyz21Railcom(); //return global Railcom Adr
@@ -413,12 +420,12 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 
 		if (notifyz21LNSendPacket)
 		{
-			uint8_t LNdata[packet[0] - 0x04]; //n Bytes
-			for (uint8_t i = 0; i < (packet[0] - 0x04); i++)
-				LNdata[i] = packet[0x04 + i];
-			notifyz21LNSendPacket(LNdata, packet[0] - 0x04);
+			uint8_t LNdata[Z21rxBuffer[0] - 0x04]; //n Bytes
+			for (uint8_t i = 0; i < (Z21rxBuffer[0] - 0x04); i++)
+				LNdata[i] = Z21rxBuffer[0x04 + i];
+			notifyz21LNSendPacket(LNdata, Z21rxBuffer[0] - 0x04);
 			//Melden an andere LAN-Client das Meldung auf LocoNet-Bus geschrieben wurde
-			EthSend(client, packet[0], LAN_LOCONET_FROM_LAN, packet, false, Z21bcLocoNet_s); //LAN_LOCONET_FROM_LAN
+			EthSend(client, Z21rxBuffer[0], LAN_LOCONET_FROM_LAN, Z21rxBuffer, false, Z21bcLocoNet_s); //LAN_LOCONET_FROM_LAN
 		}
 		break;
 	}
@@ -426,9 +433,9 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 	{
 		if (notifyz21LNdispatch)
 		{
-			data[0] = packet[4];
-			data[1] = packet[5];
-			data[2] = notifyz21LNdispatch(packet[5], packet[4]); //dispatchSlot
+			data[0] = Z21rxBuffer[4];
+			data[1] = Z21rxBuffer[5];
+			data[2] = notifyz21LNdispatch(Z21rxBuffer[5], Z21rxBuffer[4]); //dispatchSlot
 			ESP_LOGI(Z21_PARSER_TAG, "LOCONET_DISPATCH_ADDR ");
 
 			EthSend(client, 0x07, LAN_LOCONET_DISPATCH_ADDR, data, false, Z21bcNone);
@@ -439,16 +446,16 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 		if (notifyz21LNdetector)
 		{
 			ESP_LOGI(Z21_PARSER_TAG, "LOCONET_DETECTOR Abfrage");
-			uint16_t ADDR = (((uint16_t)packet[6]) << 8) | ((uint16_t)packet[5]);
-			notifyz21LNdetector(client, packet[4], ADDR); //Anforderung Typ & Reportadresse
+			uint16_t ADDR = (((uint16_t)Z21rxBuffer[6]) << 8) | ((uint16_t)Z21rxBuffer[5]);
+			notifyz21LNdetector(client, Z21rxBuffer[4], ADDR); //Anforderung Typ & Reportadresse
 		}
 		break;
 	case (LAN_CAN_DETECTOR):
 		if (notifyz21CANdetector)
 		{
 			ESP_LOGI(Z21_PARSER_TAG, "CAN_DETECTOR Abfrage");
-			uint16_t ADDR = (((uint16_t)packet[6]) << 8) | ((uint16_t)packet[5]);
-			notifyz21CANdetector(client, packet[4], ADDR); //Anforderung Typ & CAN-ID
+			uint16_t ADDR = (((uint16_t)Z21rxBuffer[6]) << 8) | ((uint16_t)Z21rxBuffer[5]);
+			notifyz21CANdetector(client, Z21rxBuffer[4], ADDR); //Anforderung Typ & CAN-ID
 		}
 		break;
 	case (0x12): //configuration read
@@ -573,26 +580,26 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 			//{
 			//		FSTORAGE.FSTORAGEMODE(CONF2STORE + i, packet[4 + i]);
 			//}
-			packet[4] = 0x14;
-			packet[5] = 0x00;
-			packet[6] = 0x17;
-			packet[7] = 0x00;
-			packet[8] = 0x19;
-			packet[9] = 0x06;
-			packet[10] = 0x07;
-			packet[11] = 0x01;
-			packet[12] = 0x05;
-			packet[13] = 0x14;
-			packet[14] = 0x88;
-			packet[15] = 0x13;
-			packet[16] = 0x10;
-			packet[17] = 0x27;
-			packet[18] = 0x32;
-			packet[19] = 0x00;
-			packet[20] = 0x50;
-			packet[21] = 0x46;
-			packet[22] = 0x20;
-			packet[23] = 0x4e;
+			Z21rxBuffer[4] = 0x14;
+			Z21rxBuffer[5] = 0x00;
+			Z21rxBuffer[6] = 0x17;
+			Z21rxBuffer[7] = 0x00;
+			Z21rxBuffer[8] = 0x19;
+			Z21rxBuffer[9] = 0x06;
+			Z21rxBuffer[10] = 0x07;
+			Z21rxBuffer[11] = 0x01;
+			Z21rxBuffer[12] = 0x05;
+			Z21rxBuffer[13] = 0x14;
+			Z21rxBuffer[14] = 0x88;
+			Z21rxBuffer[15] = 0x13;
+			Z21rxBuffer[16] = 0x10;
+			Z21rxBuffer[17] = 0x27;
+			Z21rxBuffer[18] = 0x32;
+			Z21rxBuffer[19] = 0x00;
+			Z21rxBuffer[20] = 0x50;
+			Z21rxBuffer[21] = 0x46;
+			Z21rxBuffer[22] = 0x20;
+			Z21rxBuffer[23] = 0x4e;
 			//Request DCC to change
 			if (notifyz21UpdateConf)
 				notifyz21UpdateConf();
@@ -601,7 +608,7 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 	default:
 		ESP_LOGI(Z21_PARSER_TAG, "UNKNOWN_COMMAND");
 
-		ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, sizeof(packet), ESP_LOG_INFO);
+		ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, Z21rxBuffer, sizeof(Z21rxBuffer), ESP_LOG_INFO);
 
 		data[0] = 0x61;
 		data[1] = 0x82;
@@ -628,6 +635,10 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 		}
 	}
 	*/
+	z21rcvFlag = false;
+	}
+	
+	
 }
 
 
@@ -1682,15 +1693,36 @@ void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataStr
 //Change Power Status
 void notifyXNetPower(uint8_t State)
 {
-	if (Railpower != State)
-	{
-		globalPower(State);
-	}
+		uint8_t data[] = {0x61, 0x00};
+		switch (State)
+		{
+		case csNormal:
+			data[1] = 0x01;
+			break;
+		case csTrackVoltageOff:
+			data[1] = 0x00;
+			break;
+		case csServiceMode:
+			data[1] = 0x02;
+			break;
+		case csShortCircuit:
+			data[1] = 0x08;
+			break;
+		case csEmergencyStop:
+			data[0] = 0x81;
+			data[1] = 0x00;
+			break;
+		default:
+			return;
+		}
+		EthSend(0, 0x07, LAN_X_Header, data, true, Z21bcAll);
+		//EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
+	
 }
 
 //--------------------------------------------------------------------------------------------
 void notifyLokAll(uint8_t slot, uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, uint8_t Speed, uint8_t Direction, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool Req ) {
-	ESP_LOGI(Z21_PARSER_TAG, "notifyLokAll...");
+	//ESP_LOGI(Z21_PARSER_TAG, "notifyLokAll...");
 	uint8_t DB2 = Steps;
 	if (DB2 == 3) //nicht vorhanden!
 		DB2 = 4;
@@ -1731,13 +1763,13 @@ void globalPower(uint8_t state)
 		{
 		case csNormal:
 
-			//XpressNetsetPower(Railpower); //send to XpressNet
+			XpressNetsetPower(Railpower); //send to XpressNet
 			z21setPower(Railpower);
 
 			break;
 		case csTrackVoltageOff:
 
-			//XpressNetsetPower(Railpower);
+			XpressNetsetPower(Railpower);
 			z21setPower(Railpower);
 
 			break;
@@ -1749,7 +1781,7 @@ void globalPower(uint8_t state)
 		case csShortCircuit:
 
 			z21setPower(Railpower); //shut down via GO/STOP just for the Roco Booster
-			//XpressNetsetPower(Railpower);
+			XpressNetsetPower(Railpower);
 			
 
 			break;
@@ -1757,7 +1789,7 @@ void globalPower(uint8_t state)
 
 			// dcc.eStop();
 			z21setPower(Railpower);
-			//XpressNetsetPower(Railpower); //send to XpressNet
+			XpressNetsetPower(Railpower); //send to XpressNet
 
 			break;
 		}
@@ -1765,7 +1797,7 @@ void globalPower(uint8_t state)
 		{
 			z21setPower(Railpower);
 
-			//XpressNetsetPower(Railpower); //send to XpressNet
+			XpressNetsetPower(Railpower); //send to XpressNet
 		}
 	}
 }
