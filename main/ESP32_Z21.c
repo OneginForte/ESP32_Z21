@@ -926,8 +926,8 @@ static void xnet_rx_task(void *arg)
                         // vTaskDelay(pdMS_TO_TICKS(1));
                         //vTaskDelay(10 / portTICK_PERIOD_MS);
                     }
-                    //ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", data[pos_p]);
-                    //ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data + pos_p, data[pos_p], ESP_LOG_INFO);
+                    ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", data[pos_p]);
+                    ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data + pos_p, data[pos_p], ESP_LOG_INFO);
                     DataReady = true;
                     //Z21_send_message(MESSAGE_XNET_SERVER, NULL);
                     if (cb_z21_ptr_arr[MESSAGE_XNET_SERVER])
@@ -964,7 +964,7 @@ void init_XNET(void) {
     uart_param_config(UART_NUM_1, &uart_config);
     uart_set_pin(UART_NUM_1, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
-    xTaskCreatePinnedToCore(xnet_rx_task, "xnet_rx_task", 2048 * 2, NULL, 4, NULL, 0);
+    xTaskCreatePinnedToCore(xnet_rx_task, "xnet_rx_task", 2048 * 2, NULL, 5, NULL, 0);
 }
 /**
  * @brief RTOS task that periodically prints the heap memory available.
@@ -978,7 +978,7 @@ void monitoring_task(void *pvParameter)
         esp_get_free_heap_size();
         vTaskDelay(pdMS_TO_TICKS(10));
         
-        unsigned long currentMillis = esp_timer_get_time()/100;
+        unsigned long currentMillis = esp_timer_get_time();
 
         if (currentMillis - SlotTime > SlotInterval)
         {
