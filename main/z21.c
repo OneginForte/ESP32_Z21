@@ -37,15 +37,16 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 
 //*********************************************************************************************
 // Determine and evaluate data
-void z21receive( void )
+void z21receive  ( void )
 {
-	// ESP_LOGI(Z21_PARSER_TAG, "Z21 Parser start. %d byte", rxlen);
+	
 	//  ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
 	// uint8_t client, uint8_t *packet, uint8_t rxlen
 
 
-	if (z21rcvFlag == true)
+	if (z21rcvFlag)
 	{
+		ESP_LOGI(Z21_PARSER_TAG, "Z21 Parser start. %d byte", z21RcvLen);
 		uint8_t rxlen = z21RcvLen;
 		uint8_t client = z21client;
 		addIPToSlot(client, 0);
@@ -1231,7 +1232,7 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 			if ((ActIP[i].BCFlag & (Z21bcAll_s | Z21bcNetAll_s)) > 0) {
 				if (bc == true)
 					EthSend (ActIP[i].client, 14, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to BC Apps
-				ESP_LOGI(Z21_PARSER_TAG, "to ALL!");
+				//ESP_LOGI(Z21_PARSER_TAG, "to ALL!");
 			}
 		}
 		else { //Info to client that ask:
@@ -1239,7 +1240,7 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 				data[3] = data[3] & 0b111;	//clear busy flag!
 			}
 			EthSend (client, 14, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to request App
-			ESP_LOGI(Z21_PARSER_TAG, "to Client!");
+			//ESP_LOGI(Z21_PARSER_TAG, "to Client!");
 			data[3] = data[3] | 0x08; //BUSY!
 		}
 	}
@@ -1478,7 +1479,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		setFunctions21to28(address, funcG5);	//funcG5 = F28 F27 F26 F25 F24 F23 F22 F21
 	}
 	getLocoStateFull(address, true);	//Alle aktiven Gerдte Senden!
-	setLocoStateExt(address);
+	//setLocoStateExt(address);
 }
 //--------------------------------------------------------------------------------------------
 void notifyz21LocoFkt(uint16_t Adr, uint8_t state, uint8_t fkt)

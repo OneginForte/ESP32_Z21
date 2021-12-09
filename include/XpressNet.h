@@ -93,7 +93,8 @@ typedef struct	//Antwort/Abfragespeicher
 
 
 // library interface description
-void xnetreceive(void);
+void cb_xnet_parse(void *pvParameter);
+//void xnetreceive(void);
 
 void XpressNetsetPower(uint8_t Power);            //Zustand Gleisspannung Melden
 void setHalt();																  //Zustand Halt Melden

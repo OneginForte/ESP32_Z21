@@ -54,9 +54,30 @@
 #define z21Port 21105      // local port to listen on
 #define PORT z21Port
 
-#define Z21_UDP_TX_MAX_SIZE 128 // max received UDP packet size
-#define Z21_UDP_RX_MAX_SIZE 128 // max received UDP packet size
+#define Z21_UDP_TX_MAX_SIZE 64 // max received UDP packet size
+#define Z21_UDP_RX_MAX_SIZE 64 // max received UDP packet size
 #define CONFIG_EXAMPLE_IPV4
+
+typedef enum cb_z21_message_t
+{
+	Z21_NONE = 0,
+	MESSAGE_XNET_SERVER = 1,
+	MESSAGE_Z21_SERVER = 2,
+	MESSAGE_Z21_SENDER = 3,
+	MESSAGE_Z21_CODE_COUNT = 4
+
+} cb_z21_message_t;
+
+typedef struct
+{
+	cb_z21_message_t code;
+	void *param;
+} z21_message;
+
+QueueHandle_t z21_queue;
+
+
+
 
 // Init local variables
 //uint8_t packetBuffer[Z21_UDP_TX_MAX_SIZE];
@@ -122,7 +143,7 @@ HwType: #define D_HWT_Z21_OLD 0x00000200 // �schwarze Z21� (Hardware-Variant
 
 
 // IP settings
-#define z21clientMAX 20        //Speichergr��e f�r IP-Adressen
+#define z21clientMAX 5        //Speichergr��e f�r IP-Adressen
 #define z21ActTimeIP 20    //Aktivhaltung einer IP f�r (sec./2)
 #define z21IPinterval 2000   //interval at milliseconds
 

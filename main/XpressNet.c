@@ -36,7 +36,7 @@ void getXOR(unsigned char *data, uint8_t length)
 
 //*******************************************************************************************
 //Daten ermitteln und Auswerten
-void xnetreceive(void) 
+void cb_xnet_parse (void *pvParameter)
 {
 	/*
 	XNetMsg[XNetlength] = 0x00;
@@ -45,13 +45,13 @@ void xnetreceive(void)
 	XNetMsg[XNetdata1] = 0x00;	savedData[2]
 	*/
 
-	unsigned long currentMillis = esp_timer_get_time() / 1000; //aktuelle Zeit setzten
+	//unsigned long currentMillis = esp_timer_get_time() / 1000; //aktuelle Zeit setzten
 
 	if (DataReady == true)
 	{ //Serial Daten dekodieren
 		//DataReady = false;
-		ESP_LOGI(XNETP_TASK_TAG, "Hello in XNET Parse!");
-		ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, XNetMsg, XNetMsg[XNetlength], ESP_LOG_INFO);
+		//ESP_LOGI(XNETP_TASK_TAG, "Hello in XNET Parse!");
+		//ESP_LOG_BUFFER_HEXDUMP(XNETP_TASK_TAG, XNetMsg, XNetMsg[XNetlength], ESP_LOG_INFO);
 		//	  previousMillis = millis();   // will store last time LED was updated
 		//Daten, setzte LED = ON!
 		if (ledState == LOW)
@@ -137,7 +137,7 @@ void xnetreceive(void)
 	//else if (XNetMsg[XNetmsg] == myDirectedOps && XNetMsg[XNetlength] >= 3) {
 		//change by Andr� Schenk
 	else if (XNetMsg[XNetlength] >= 3) {
-		ESP_LOGI(XNETP_TASK_TAG, "Parse XNetcom: %d", XNetMsg[XNetcom]);
+		//ESP_LOGI(XNETP_TASK_TAG, "Parse XNetcom: %d", XNetMsg[XNetcom]);
 		switch (XNetMsg[XNetcom]) {
 		//add by Norberto Redondo Melchor:	
 		case 0x52:	// Some other device asked for an accessory change
@@ -244,9 +244,8 @@ void xnetreceive(void)
 			//ESP_LOGI(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
 			if ((XNetMsg[XNetlength] >= 7) && (ReqLocoAdr != 0) && (bitRead(XNetMsg[XNetdata1], 3) != 0))
 			{ //&& ((XNetMsg[XNetdata1] >> 4) != 0)
-				//ESP_LOGI(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
+				ESP_LOGE(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
 				uint16_t Addr=ReqLocoAdr;
-				
 				ReqLocoAdr = 0;
 				uint8_t Steps = XNetMsg[XNetdata1];		//0000 BFFF - B=Busy; F=Fahrstufen	
 				bitWrite(Steps, 3, 0);	//Busy bit l�schen
@@ -326,7 +325,8 @@ void xnetreceive(void)
 			}
 			if (XNetMsg[XNetdata1] == 0x40 && XNetMsg[XNetlength] >= 6) { 	// Locomotive is being operated by another device
 				LokStsSetBusy(Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
-				ESP_LOGI(XNETP_TASK_TAG, "Busy by another device addr:  %d", Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
+				getLocoInfo(Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
+				ESP_LOGE(XNETP_TASK_TAG, "Busy by another device addr:  %d", Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
 			}
 		break;
 		case 0xE1:
@@ -366,11 +366,7 @@ void xnetreceive(void)
   }
   //Slot Server aktualisieren
   DataReady = false;
-  if (currentMillis - SlotTime > SlotInterval) {
-	  SlotTime = currentMillis;
-	  UpdateBusySlot();		//Server Update - Anfrage nach Status�nderungen
-  }
-  
+
 }
 
 //--------------------------------------------------------------------------------------------
@@ -438,11 +434,11 @@ void setHalt()
 //Abfragen der Lokdaten (mit F0 bis F12)
 bool getLocoInfo(uint16_t Addr)
 {
-	ESP_LOGI(XNETT_TASK_TAG, "getLocoInfo %d", Addr);
+	//ESP_LOGI(XNETT_TASK_TAG, "getLocoInfo %d", Addr);
 
 	bool ok = false;
 	
-	//getLocoStateFull(Addr, false);
+	getLocoStateFull(Addr, false);
 
 	uint8_t Slot = LokStsgetSlot(Addr);
 	if (LokDataUpdate[Slot].state < 0xFF)
@@ -696,7 +692,7 @@ bool XNetSendadd(uint8_t *dataString, uint8_t byteCount)
 //--------------------------------------------------------------------------------------------
 void UpdateBusySlot(void)	//Fragt Zentrale nach aktuellen Zust�nden
 {
-
+	//ESP_LOGI(XNETT_TASK_TAG, "UpdateBusySlot");
 	if (ReqLocoAdr == 0) {
 		if (LokStsIsEmpty(SlotLast) == false && LokDataUpdate[SlotLast].state > 0 && LokStsBusy(SlotLast) == true)
 		{
@@ -707,10 +703,10 @@ void UpdateBusySlot(void)	//Fragt Zentrale nach aktuellen Zust�nden
 			if (ReqLocoAdr > 99)
 				getLoco[2] = highByte(ReqLocoAdr) | 0xC0;
 			getXOR(getLoco, 5);
-			XNetSendadd (getLoco, 5);
+			XNettransmit(getLoco, 5);
 			if (bitRead(LokDataUpdate[SlotLast].mode, 3) == 1) // Slot BUSY?
 				getLocoFunc(ReqLocoAdr);					   // F13 bis F28 abfragen
-			ESP_LOGI(XNETT_TASK_TAG, "UpdateBusySlot, ReqLocoAdr:  %d", ReqLocoAdr);
+			ESP_LOGI(XNETT_TASK_TAG, "UpdateBusySlot, ReqLocoAdr if =0:  %d", ReqLocoAdr);
 		}
 		int Slot = SlotLast;
 		SlotLast = getNextSlot(SlotLast);	//n�chste Lok holen
@@ -732,7 +728,7 @@ if (ReqLocoAdr != 0)
 	if (ReqLocoAgain > 9)
 	{
 		unsigned char getLoco[] = {0xE3, 0x00, highByte(ReqLocoAdr) & 0x3F, lowByte(ReqLocoAdr), 0x00};
-		ESP_LOGI(XNETT_TASK_TAG, "UpdateBusySlot, ReqLocoAgain:  %d", ReqLocoAdr);
+		ESP_LOGI(XNETT_TASK_TAG, "UpdateBusySlot, ReqLocoAgain if != 0:  %d", ReqLocoAdr);
 		if (ReqLocoAdr > 99)
 			getLoco[2] = highByte(ReqLocoAdr) | 0xC0;
 		getXOR(getLoco, 5);
@@ -749,7 +745,6 @@ if (ReqLocoAdr != 0)
 		if (LokDataUpdate[i].state > 0)
 			LokDataUpdate[i].state--;
 	}
-
 }
 
 //--------------------------------------------------------------------------------------------
