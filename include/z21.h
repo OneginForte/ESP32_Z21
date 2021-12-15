@@ -182,7 +182,7 @@ typedef struct // Lokdaten	(Lok Events)
 	uint16_t adr; // SS1, SS0, A13, A12| A11, A10, A9, A8| A7, A6, A5, A4| A3, A2, A1, A0
 	// A0-A13 = Adresse
 	// SS = Fahrstufen-speedsteps (0=error, 1=14, 2=28, 3=128)
-	uint8_t mode;  //Kennung 0000 B0FF -> B=Busy(1), F=Fahrstufen (0=14, 1=27, 2=28, 3=128)
+	uint8_t mode;  //Kennung 0000 B0FF -> B=Busy(1), F=Fahrstufen (0=14, 1=27, 2=28, 3=128) 000B-busy xnet? B0FF
 	uint8_t speed; // Dir, Speed 0..127 (0x00 - 0x7F) -> 0SSS SSSS + (0x80) -> D000 0000
 	uint8_t f0;	   // X   X   X   F0 | F4  F3  F2  F1
 	uint8_t f1;	   // F12 F11 F10 F9 | F8  F7  F6  F5

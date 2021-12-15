@@ -52,7 +52,7 @@
 #define XNetdata3	5		//Databyte3
 #define XNetdata4	6		//Databyte4
 #define XNetdata5	7		//Databyte5
-
+/*
 typedef struct	//Lokdaten	(Lok Events)
 {
 	uint8_t low;		// A7, A6, A5, A4, A3, A2, A1, A0
@@ -65,7 +65,7 @@ typedef struct	//Lokdaten	(Lok Events)
 	uint8_t f3;		//F28 F27 F26 F25 F24 F23 F22 F21 
 	uint8_t state;	//Zahl der Zugriffe
 } XNetLok;
-
+*/
 #define AccessoryMax 128                  //64 Weichen / 8 = 8 byte
 uint8_t BasicAccessory[AccessoryMax / 8]; //Speicher f�r Weichenzust�nde
 

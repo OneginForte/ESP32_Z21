@@ -246,7 +246,7 @@ void z21receive  ( void )
 					// Antwort: LAN_X_LOCO_INFO  Adr_MSB - Adr_LSB
 					// if (notifyz21getLocoState)
 					// notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
-					getLocoInfo(Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
+					//getLocoInfo(Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
 					// uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
 					ESP_LOGI(Z21_PARSER_TAG, "Adr:  %d", Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
 					returnLocoStateFull(client, Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]), false);
@@ -1377,7 +1377,7 @@ void getLocoStateFull(uint16_t Addr, bool bc)
 	uint8_t F3 = LokDataUpdate[Slot].f3;
 	//if (notifyLokAll)
 	//Nutzung protokollieren:
-		notifyLokAll(Slot, highByte(Addr), lowByte(Addr), Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
+		notifyLokAll(Slot, highByte(Addr)&0x3f, lowByte(Addr), Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
 	if (LokDataUpdate[Slot].state < 0xFF)
 		LokDataUpdate[Slot].state++; //aktivit�t
 }
@@ -1478,7 +1478,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		//Daten senden:
 		setFunctions21to28(address, funcG5);	//funcG5 = F28 F27 F26 F25 F24 F23 F22 F21
 	}
-	getLocoStateFull(address, true);	//Alle aktiven Gerдte Senden!
+	//getLocoStateFull(address, true);	//Alle aktiven Gerдte Senden!
 	//setLocoStateExt(address);
 }
 //--------------------------------------------------------------------------------------------
@@ -1647,8 +1647,8 @@ void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, 
 //void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC);
 //--------------------------------------------------------------------------------------------
 void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataString, bool withXOR, uint8_t BC) {
-	uint8_t data[24]; 			//z21 send storage
-	
+	uint8_t data[DataLen]; // z21 send storage
+	ESP_LOGI(Z21_PARSER_TAG, "EthSend. Client=%d", client);
 	//--------------------------------------------        
 	//XOR bestimmen:
 	data[0] = DataLen & 0xFF;
@@ -1663,34 +1663,41 @@ void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataStr
 		data[i+4] = *dataString;
         dataString++;
     }
-   //--------------------------------------------        		
-   if (client > 0) {
-		if (notifyz21EthSend)
+   //--------------------------------------------
+	if (client > 0 && BC == Z21bcNone)
+	{
+		//if (notifyz21EthSend)
 			notifyz21EthSend(client, data, DataLen);
-   }
-   else {
-	uint8_t clientOut = client;
-	for (uint8_t i = 0; i < z21clientMAX; i++) {
-		if ( (ActIP[i].time > 0) && ( (BC & ActIP[i].BCFlag) > 0) ) {    //Boradcast & Noch aktiv
-
-		  if (BC != 0) {
-			if (BC == Z21bcAll_s)
-				clientOut = 0;	//ALL
-			else clientOut = ActIP[i].client;
-		  }
-		  
-		  //--------------------------------------------
-		  if (notifyz21EthSend)
-			  notifyz21EthSend(clientOut, data, DataLen);
-
-		  if (clientOut == 0){
-		  		ESP_LOGI(Z21_PARSER_TAG, "Eth bcast sended...");
-				return;
-		  }
-		}
+		ESP_LOGI(Z21_PARSER_TAG, "EthSend. Client>0");
 	}
-  }
-	//ESP_LOGI(Z21_PARSER_TAG, "Eth sended...");
+   else {
+	   uint8_t clientOut = 0; // client;
+	   for (uint8_t i = 0; i < z21clientMAX; i++)
+	   {
+		   if ((ActIP[i].time > 0) && ((BC & ActIP[i].BCFlag) > 0))
+		   { // Boradcast & Noch aktiv
+			   ESP_LOGI(Z21_PARSER_TAG, "EthSend. Parse client base. i=%d", i);
+			   if (BC != 0)
+			   {
+				   if (BC == Z21bcAll_s)
+					   clientOut = 0; // ALL
+				   else
+					   clientOut = ActIP[i].client;
+			   }
+
+			   if ((clientOut != client) || (clientOut == 0))
+			   { // wenn client > 0 und nicht Z21bcNone, sende an alle au�er den client!
+				   ESP_LOGI(Z21_PARSER_TAG, "EthSend. ClientOut=0");
+				   //--------------------------------------------
+				   //if (notifyz21EthSend)
+					   notifyz21EthSend(clientOut, data, DataLen);
+				   if (clientOut == 0)
+					   return;
+			   }
+		   }
+	   }
+   }
+   // ESP_LOGI(Z21_PARSER_TAG, "Eth sended...");
 }
 //--------------------------------------------------------------
 //Change Power Status
@@ -1725,7 +1732,7 @@ void notifyXNetPower(uint8_t State)
 
 //--------------------------------------------------------------------------------------------
 void notifyLokAll(uint8_t slot, uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, uint8_t Speed, uint8_t Direction, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool Req ) {
-	//ESP_LOGI(Z21_PARSER_TAG, "notifyLokAll...");
+	ESP_LOGI(Z21_PARSER_TAG, "notifyLokAll...");
 	uint8_t DB2 = Steps;
 	if (DB2 == 3) //nicht vorhanden!
 		DB2 = 4;
@@ -1748,7 +1755,7 @@ void notifyLokAll(uint8_t slot, uint8_t Adr_High, uint8_t Adr_Low, bool Busy, ui
 		//void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC)
 		EthSend(slot, 14, 0x40, data, true, 0x00); //Send Power und Funktions ask App
 	else
-		EthSend(0, 14, 0x40, data, true, 0x01); //Send Power und Funktions to all active Apps 
+		EthSend(0, 14, 0x40, data, true, true); //Send Power und Funktions to all active Apps 
 }
 
 //--------------------------------------------------------------------------------------------

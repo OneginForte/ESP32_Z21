@@ -276,11 +276,12 @@ void cb_xnet_parse (void *pvParameter)
 				if (Speed == 0) { //Lok auf Besetzt schalten
 					setLocoHalt (Addr);//Sende Lok HALT um Busy zu erzeugen!
 				}
+				//getLocoStateFull(Addr, true);
 			}
 			/*else {
 				//uint8_t Adr_MSB = XNetMsg[XNetdata2];
 				//uint8_t Adr_LSB = XNetMsg[XNetdata3];
-				
+
 				//uint16_t Addr = (Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
 				//ESP_LOGI(XNETP_TASK_TAG, "Antwort Addr:  %d", Addr);
 				//uint8_t Slot = LokStsgetSlot(Addr);
@@ -290,25 +291,26 @@ void cb_xnet_parse (void *pvParameter)
 								break;
 					case 0x11: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//27 Speed steps
 								break;
-					case 0x12: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//28 Speed steps	
+					case 0x12: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//28 Speed steps
 								break;
 					case 0x13: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//128 Speed steps
-								break;	
-					case 0x20: LokDataUpdate[Slot].f0 = XNetMsg[XNetdata4];//Fkt Group1			
 								break;
-					case 0x21: LokDataUpdate[Slot].f1 = XNetMsg[XNetdata4];//Fkt Group2			
+					case 0x20: LokDataUpdate[Slot].f0 = XNetMsg[XNetdata4];//Fkt Group1
 								break;
-					case 0x22: LokDataUpdate[Slot].f2 = XNetMsg[XNetdata4];//Fkt Group3			
-								break;	
-					case 0x23: LokDataUpdate[Slot].f3 = XNetMsg[XNetdata4];//Fkt Group4			
-								break;				
-					case 0x24: //Fkt Status			
-								break;	
-											
+					case 0x21: LokDataUpdate[Slot].f1 = XNetMsg[XNetdata4];//Fkt Group2
+								break;
+					case 0x22: LokDataUpdate[Slot].f2 = XNetMsg[XNetdata4];//Fkt Group3
+								break;
+					case 0x23: LokDataUpdate[Slot].f3 = XNetMsg[XNetdata4];//Fkt Group4
+								break;
+					case 0x24: //Fkt Status
+								break;
+
 				}
-				//getLocoStateFull(Addr, true);
+
+
 			}*/
-		break;
+			break;
 		case 0xE3:	//Antwort abgefrage Funktionen F13-F28
 			ESP_LOGI(XNETP_TASK_TAG, "Antwort abgefrage Funktionen F13-F28");
 			if (XNetMsg[XNetdata1] == 0x52 && XNetMsg[XNetlength] >= 6 && ReqFktAdr != 0) {	//Funktionszustadn F13 bis F28
@@ -438,7 +440,7 @@ bool getLocoInfo(uint16_t Addr)
 
 	bool ok = false;
 	
-	getLocoStateFull(Addr, false);
+	//getLocoStateFull(Addr, false);
 
 	uint8_t Slot = LokStsgetSlot(Addr);
 	if (LokDataUpdate[Slot].state < 0xFF)
@@ -722,10 +724,10 @@ void UpdateBusySlot(void)	//Fragt Zentrale nach aktuellen Zust�nden
 	else
 
 
-if (ReqLocoAdr != 0)
-{
-	ReqLocoAgain++;
-	if (ReqLocoAgain > 9)
+	if (ReqLocoAdr != 0)
+	{
+		ReqLocoAgain++;
+		if (ReqLocoAgain > 9)
 	{
 		unsigned char getLoco[] = {0xE3, 0x00, highByte(ReqLocoAdr) & 0x3F, lowByte(ReqLocoAdr), 0x00};
 		ESP_LOGI(XNETT_TASK_TAG, "UpdateBusySlot, ReqLocoAgain if != 0:  %d", ReqLocoAdr);

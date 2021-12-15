@@ -25,10 +25,7 @@ Funktionsumfang:
 uint8_t TrntFormat; // The Addressing of BasicAccessory Messages
 
 //Fahrstufen:
-#define Loco14 0x00  //FFF = 000 = 14 speed step
-#define Loco27 0x01  //FFF = 001 = 27 speed step
-#define Loco28 0x02  //FFF = 010 = 28 speed step
-#define Loco128 0x04 //FFF = 100 = 128 speed step
+
 
 #define lowByte(w)                     ((w) & 0xFF)
 #define highByte(w)                    (((w) >> 8) & 0xFF)

@@ -96,8 +96,8 @@ void cb_z21sender(void *pvParameters)
     //memset(&addr_str, 0x00, sizeof(addr_str));
     struct sockaddr_in dest_addr;
     dest_addr.sin_family = AF_INET;
-    int opt = 1;
-    setsockopt(global_sock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
+    //int opt = 1;
+    //setsockopt(global_sock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
 
         //while (1) {
 
@@ -106,21 +106,21 @@ void cb_z21sender(void *pvParameters)
             //}
                 ESP_LOGI(Z21_SENDER_TAG, "New message to UDP sender");
 
-                if (txBflag)
-                    {
-                    dest_addr.sin_port = htons(PORT);
-                    dest_addr.sin_addr.s_addr = htonl(INADDR_BROADCAST); // txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);                ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
+                //if (txBflag)
+                //    {
+                //   dest_addr.sin_port = htons(PORT);
+                //    dest_addr.sin_addr.s_addr = htonl(INADDR_BROADCAST); // txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);                ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                     //ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New broadcast!");
-                    }
-                else
-                    {
-                    dest_addr.sin_addr.s_addr = txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
-                    dest_addr.sin_port=txport;
+                //    }
+                //else
+                //    {
+                dest_addr.sin_addr.s_addr = txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
+                dest_addr.sin_port=txport;
                     //ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                     //ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s, %d:", addr_str, htons (dest_addr.sin_port));
-                    }
+                //    }
                 
-                txBflag=0;
+                //txBflag=0;
 
                 //ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, (uint8_t *)&Z21txBuffer, txBlen, ESP_LOG_INFO);
 
@@ -135,7 +135,7 @@ void cb_z21sender(void *pvParameters)
                     }
                     
                 //ESP_LOGI(Z21_SENDER_TAG, "%d bytes send.", txBlen);
-                    //memset(&Z21txBuffer,0,Z21_UDP_TX_MAX_SIZE);
+                //memset(&Z21txBuffer,0,Z21_UDP_TX_MAX_SIZE);
                 bzero(&Z21txBuffer, Z21_UDP_TX_MAX_SIZE);
                 txSendFlag = 0;
                 vTaskDelay(5 / portTICK_PERIOD_MS);
@@ -193,7 +193,7 @@ static void udp_server_task(void *pvParameters)
             listen(sock, 1);
             //xTaskCreate(udp_sender_task, "udp_client", 4096, NULL, 2, &xHandle2);
             ESP_LOGI(Z21_TASK_TAG, "Socket bound, port %d", PORT);
-            ESP_LOGI(Z21_TASK_TAG, "Waiting for data");
+            //ESP_LOGI(Z21_TASK_TAG, "Waiting for data");
             ESP_LOGI(Z21_TASK_TAG, "UDP server task started.");
             struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
             socklen_t socklenr = sizeof(source_addr);
@@ -473,7 +473,7 @@ void cb_z21_parse(void *pvParameter)
                         // Antwort: LAN_X_LOCO_INFO  Adr_MSB - Adr_LSB
                         // if (notifyz21getLocoState)
                         // notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
-                        getLocoInfo(Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
+                        //getLocoInfo(Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
                         // uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
                         ESP_LOGI(Z21_PARSER_TAG, "Adr:  %d", Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
                         returnLocoStateFull(client, Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]), false);
@@ -1083,7 +1083,7 @@ void app_main()
     TrntFormat = SwitchFormat;
 
         // initialize this instance's variables
-    Railpower = 0xFF; //Ausgangs undef.
+    Railpower = csNormal; // Ausgangs undef.
 
     XNetRun = false; //XNet ist inactive;
     LokStsclear();  //l�schen aktiver Loks in Slotserver
@@ -1257,33 +1257,42 @@ void notifyz21EthSend(uint8_t client, uint8_t * data, uint8_t datalen)
             
             // ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
             ip4_addr_t Addr;
-            while (txSendFlag)
-            {
-                //vTaskDelay(10 / portTICK_PERIOD_MS);
-            }
             ESP_LOGI(Z21_SENDER_TAG, "notifyz21EthSend. Client is %d, sending data:", client);
             if (client == 0)
             { // all stored
                 for (uint8_t i = 0; i < storedIP; i++)
                 {
-                    //txAddr=0.0.0.0;
-                    txBlen = datalen;
-                    // txport = mem[0].port;
-                    memcpy(Z21txBuffer, data, datalen);
-                    // memset(data,0,datalen);
-                    txBflag = 1;
-                    txSendFlag = 1;
-                    //Z21_send_message(MESSAGE_Z21_SENDER, NULL);
-                    if (cb_z21_ptr_arr[MESSAGE_Z21_SENDER])
-                        (*cb_z21_ptr_arr[MESSAGE_Z21_SENDER])(NULL);
+                    while (txSendFlag)
+                    {
+                        // vTaskDelay(10 / portTICK_PERIOD_MS);
+                    }
+                    if (mem[i].time > 0)
+                    { // noch aktiv?
+                        //IPAddress ip(mem[i].IP0, mem[i].IP1, mem[i].IP2, mem[i].IP3);
+                        IP4_ADDR(&Addr, mem[i].IP0, mem[i].IP1, mem[i].IP2, mem[i].IP3);
+                        txAddr = Addr;
+                        txBlen = datalen;
+                        // txport = mem[0].port;
+                        memcpy(Z21txBuffer, data, datalen);
+                        // memset(data,0,datalen);
+                        //txBflag = 1;
+                        txSendFlag = 1;
+                        // Z21_send_message(MESSAGE_Z21_SENDER, NULL);
+                        if (cb_z21_ptr_arr[MESSAGE_Z21_SENDER])
+                            (*cb_z21_ptr_arr[MESSAGE_Z21_SENDER])(NULL);
+                    }
                 }
             }
             else
             {
+                while (txSendFlag)
+                {
+                    // vTaskDelay(10 / portTICK_PERIOD_MS);
+                }
                 IP4_ADDR(&Addr, mem[client - 1].IP0, mem[client - 1].IP1, mem[client - 1].IP2, mem[client - 1].IP3);
                 txAddr = Addr;
                 txBlen = datalen;
-                txBflag = 0;
+                //txBflag = 0;
                 txport = mem[client - 1].port;
                 memcpy(Z21txBuffer, data, datalen);
                 txSendFlag = 1;
