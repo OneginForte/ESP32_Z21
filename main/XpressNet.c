@@ -276,40 +276,50 @@ void cb_xnet_parse (void *pvParameter)
 				if (Speed == 0) { //Lok auf Besetzt schalten
 					setLocoHalt (Addr);//Sende Lok HALT um Busy zu erzeugen!
 				}
-				//getLocoStateFull(Addr, true);
+				
 			}
-			/*else {
+			else {
 				//uint8_t Adr_MSB = XNetMsg[XNetdata2];
 				//uint8_t Adr_LSB = XNetMsg[XNetdata3];
+				if ((XNetMsg[XNetmsg]==0x01) && (XNetMsg[XNetdata1] !=0x0C))
+					{
+						uint16_t Addr = (Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
+						ESP_LOGI(XNETP_TASK_TAG, "Antwort 0xE4 Addr:  %d", Addr);
+						ESP_LOGE(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
+						uint8_t Slot = LokStsgetSlot(Addr);
 
-				//uint16_t Addr = (Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
-				//ESP_LOGI(XNETP_TASK_TAG, "Antwort Addr:  %d", Addr);
-				//uint8_t Slot = LokStsgetSlot(Addr);
-
-				switch (XNetMsg[XNetdata1]) {
-					case 0x10: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//14 Speed steps
-								break;
-					case 0x11: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//27 Speed steps
-								break;
-					case 0x12: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//28 Speed steps
-								break;
-					case 0x13: LokDataUpdate[Slot].speed = XNetMsg[XNetdata4];//128 Speed steps
-								break;
-					case 0x20: LokDataUpdate[Slot].f0 = XNetMsg[XNetdata4];//Fkt Group1
-								break;
-					case 0x21: LokDataUpdate[Slot].f1 = XNetMsg[XNetdata4];//Fkt Group2
-								break;
-					case 0x22: LokDataUpdate[Slot].f2 = XNetMsg[XNetdata4];//Fkt Group3
-								break;
-					case 0x23: LokDataUpdate[Slot].f3 = XNetMsg[XNetdata4];//Fkt Group4
-								break;
-					case 0x24: //Fkt Status
-								break;
-
-				}
-
-
-			}*/
+						switch (XNetMsg[XNetdata1])
+						{
+						case 0x10:
+							LokDataUpdate[Slot].speed = XNetMsg[XNetdata4]; // 14 Speed steps
+							break;
+						case 0x11:
+							LokDataUpdate[Slot].speed = XNetMsg[XNetdata4]; // 27 Speed steps
+							break;
+						case 0x12:
+							LokDataUpdate[Slot].speed = XNetMsg[XNetdata4]; // 28 Speed steps
+							break;
+						case 0x13:
+							LokDataUpdate[Slot].speed = XNetMsg[XNetdata4]; // 128 Speed steps
+							break;
+						case 0x20:
+							LokDataUpdate[Slot].f0 = XNetMsg[XNetdata4]; // Fkt Group1
+							break;
+						case 0x21:
+							LokDataUpdate[Slot].f1 = XNetMsg[XNetdata4]; // Fkt Group2
+							break;
+						case 0x22:
+							LokDataUpdate[Slot].f2 = XNetMsg[XNetdata4]; // Fkt Group3
+							break;
+						case 0x23:
+							LokDataUpdate[Slot].f3 = XNetMsg[XNetdata4]; // Fkt Group4
+							break;
+						case 0x24: // Fkt Status
+							break;
+						}
+						getLocoStateFull(Addr, true);
+					}
+			}
 			break;
 		case 0xE3:	//Antwort abgefrage Funktionen F13-F28
 			ESP_LOGI(XNETP_TASK_TAG, "Antwort abgefrage Funktionen F13-F28");
@@ -325,7 +335,7 @@ void cb_xnet_parse (void *pvParameter)
 					getLocoStateFull(Word(Adr_MSB, Adr_LSB), true);
 				}
 			}
-			if (XNetMsg[XNetdata1] == 0x40 && XNetMsg[XNetlength] >= 6) { 	// Locomotive is being operated by another device
+			if (XNetMsg[XNetdata1] == 0x40 && XNetMsg[XNetlength] >= 6) { 	//Locomotive is being operated by another device
 				LokStsSetBusy(Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
 				getLocoInfo(Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
 				ESP_LOGE(XNETP_TASK_TAG, "Busy by another device addr:  %d", Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
@@ -695,6 +705,7 @@ bool XNetSendadd(uint8_t *dataString, uint8_t byteCount)
 void UpdateBusySlot(void)	//Fragt Zentrale nach aktuellen Zust�nden
 {
 	//ESP_LOGI(XNETT_TASK_TAG, "UpdateBusySlot");
+	/*
 	if (ReqLocoAdr == 0) {
 		if (LokStsIsEmpty(SlotLast) == false && LokDataUpdate[SlotLast].state > 0 && LokStsBusy(SlotLast) == true)
 		{
@@ -722,7 +733,7 @@ void UpdateBusySlot(void)	//Fragt Zentrale nach aktuellen Zust�nden
 		
 	}
 	else
-
+*/
 
 	if (ReqLocoAdr != 0)
 	{
@@ -741,12 +752,12 @@ void UpdateBusySlot(void)	//Fragt Zentrale nach aktuellen Zust�nden
 	}
 
 	//Nichtnutzung von Slots erfassen:
-	for (int i = 0; i < SlotMax; i++) {
-		if (LokDataUpdate[i].state > 0)
-			LokDataUpdate[i].state--;
-		if (LokDataUpdate[i].state > 0)
-			LokDataUpdate[i].state--;
-	}
+	//for (int i = 0; i < SlotMax; i++) {
+	//	if (LokDataUpdate[i].state > 0)
+	//		LokDataUpdate[i].state--;
+	//	if (LokDataUpdate[i].state > 0)
+	//		LokDataUpdate[i].state--;
+	//}
 }
 
 //--------------------------------------------------------------------------------------------

@@ -139,7 +139,7 @@ void cb_z21sender(void *pvParameters)
                 bzero(&Z21txBuffer, Z21_UDP_TX_MAX_SIZE);
                 txSendFlag = 0;
                 vTaskDelay(5 / portTICK_PERIOD_MS);
-                return;
+                //return;
             //}
             //vTaskDelay(10 / portTICK_PERIOD_MS);
         //}
@@ -232,7 +232,7 @@ static void udp_server_task(void *pvParameters)
                        // receive(client, Z21rxBuffer, len);
                        vTaskDelay(5 / portTICK_PERIOD_MS);
                     }
-                    //vTaskDelay(10 / portTICK_PERIOD_MS);
+                    vTaskDelay(5 / portTICK_PERIOD_MS);
                 }
                 if (sock != -1)
                     {
@@ -846,31 +846,8 @@ void cb_z21_parse(void *pvParameter)
                 data[1] = 0x82;
                 EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
             }
-            //---------------------------------------------------------------------------------------
-            // check if IP is still used:
-            /*
-            unsigned long currentMillis = (unsigned long)(esp_timer_get_time() / 1000);
-            if ((currentMillis - z21IPpreviousMillis) > z21IPinterval)
-            {
-                z21IPpreviousMillis = currentMillis;
-                for (uint8_t i = 0; i < z21clientMAX; i++)
-                {
-                    if (ActIP[i].time > 0)
-                    {
-                        ActIP[i].time--; //Zeit herrunterrechnen
-                    }
-                    else
-                    {
-                        clearIP(i); //clear IP DATA
-                                                //send MESSAGE clear Client
-                    }
-                }
-            }
-            */
             z21rcvFlag = false;
-        //}
 
-        //vTaskDelay(100 / portTICK_PERIOD_MS);
 
 }
 
@@ -932,6 +909,7 @@ static void xnet_rx_task(void *arg)
                     //Z21_send_message(MESSAGE_XNET_SERVER, NULL);
                     if (cb_z21_ptr_arr[MESSAGE_XNET_SERVER])
                         (*cb_z21_ptr_arr[MESSAGE_XNET_SERVER])(NULL);
+                    vTaskDelay(2 / portTICK_PERIOD_MS);
                     // xnetreceive();
                     // data[pos_p] = 0;
                 }
