@@ -24,25 +24,21 @@ static const char *Z21_PARSER_TAG = "Z21_PARSER";
 
 // Function that handles the creation and setup of instances
 
-	void z21Class()
-		{
-			// initialize this instance's variables
-			z21IPpreviousMillis = 0;
-			Railpower = csTrackVoltageOff;
-			clearIPSlots();
-		}
-
-
-
+void z21Class()
+{
+	// initialize this instance's variables
+	z21IPpreviousMillis = 0;
+	Railpower = csTrackVoltageOff;
+	clearIPSlots();
+}
 
 //*********************************************************************************************
 // Determine and evaluate data
-void z21receive  ( void )
+void z21receive(void)
 {
-	
+
 	//  ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, packet, rxlen, ESP_LOG_INFO);
 	// uint8_t client, uint8_t *packet, uint8_t rxlen
-
 
 	if (z21rcvFlag)
 	{
@@ -197,11 +193,11 @@ void z21receive  ( void )
 
 				if (notifyz21AccessoryInfo)
 				{
-					data[0] = 0x43;													  // X-HEADER
-					data[1] = Z21rxBuffer[5];											  // High
-					data[2] = Z21rxBuffer[6];											  // Low
+					data[0] = 0x43;																// X-HEADER
+					data[1] = Z21rxBuffer[5];													// High
+					data[2] = Z21rxBuffer[6];													// Low
 					if (notifyz21AccessoryInfo((Z21rxBuffer[5] << 8) + Z21rxBuffer[6]) == true) // setCANDetector(uint16_t NID, uint16_t Adr, uint8_t port, uint8_t typ, uint16_t v1, uint16_t v2);
-						data[3] = 0x02;												  // active
+						data[3] = 0x02;															// active
 					else
 						data[3] = 0x01;											// inactive
 					EthSend(client, 0x09, LAN_X_Header, data, true, Z21bcNone); // BC new 23.04. !!! (old = 0)
@@ -333,7 +329,7 @@ void z21receive  ( void )
 			if (notifyz21RailPower)
 				notifyz21RailPower(Railpower); // Zustand Gleisspannung Antworten
 			ESP_LOGI(Z21_PARSER_TAG, "SET_BROADCASTFLAGS: ");
-			int* ptr = (int *)&bcflag;
+			int *ptr = (int *)&bcflag;
 			ESP_LOGI(Z21_PARSER_TAG, "%p", ptr);
 			//ESP_LOG_BUFFER_CHAR(Z21_PARSER_TAG, &bcflag, 4);
 			// 1=BC Power, Loco INFO, Trnt INFO; 2=BC �nderungen der R�ckmelder am R-Bus
@@ -355,53 +351,55 @@ void z21receive  ( void )
 		case (LAN_GET_LOCOMODE):
 			data[0] = Z21rxBuffer[4];
 			data[1] = Z21rxBuffer[5];
-			data[2] = 0;	//0=DCC Format; 1=MM Format
-			EthSend (client, 0x07, LAN_GET_LOCOMODE, data, false, Z21bcNone);
+			data[2] = 0; //0=DCC Format; 1=MM Format
+			EthSend(client, 0x07, LAN_GET_LOCOMODE, data, false, Z21bcNone);
 			break;
 		case (LAN_SET_LOCOMODE):
 			break;
 		case (LAN_GET_TURNOUTMODE):
-				data[0] = Z21rxBuffer[4];
+			data[0] = Z21rxBuffer[4];
 			data[1] = Z21rxBuffer[5];
-			data[2] = 0;	//0=DCC Format; 1=MM Format
-			EthSend (client, 0x07, LAN_GET_LOCOMODE, data, false, Z21bcNone);
+			data[2] = 0; //0=DCC Format; 1=MM Format
+			EthSend(client, 0x07, LAN_GET_LOCOMODE, data, false, Z21bcNone);
 			break;
 		case (LAN_SET_TURNOUTMODE):
 			break;
 		case (LAN_RMBUS_GETDATA):
-		if (notifyz21S88Data)
-		{
-			ESP_LOGI(Z21_PARSER_TAG, "RMBUS_GETDATA");
+			if (notifyz21S88Data)
+			{
+				ESP_LOGI(Z21_PARSER_TAG, "RMBUS_GETDATA");
 
-			//ask for group state 'Gruppenindex'
-			notifyz21S88Data(Z21rxBuffer[4]); //normal Antwort hier nur an den anfragenden Client! (Antwort geht hier an alle!)
-		}
+				//ask for group state 'Gruppenindex'
+				notifyz21S88Data(Z21rxBuffer[4]); //normal Antwort hier nur an den anfragenden Client! (Antwort geht hier an alle!)
+			}
 			break;
 		case (LAN_RMBUS_PROGRAMMODULE):
 			break;
 		case (LAN_SYSTEMSTATE_GETDATA):
 		{ //System state
-			ESP_LOGI(Z21_PARSER_TAG,"LAN_SYS-State");
+			ESP_LOGI(Z21_PARSER_TAG, "LAN_SYS-State");
 
-		if (notifyz21getSystemInfo)
-			notifyz21getSystemInfo(client);
-		break;
+			if (notifyz21getSystemInfo)
+				notifyz21getSystemInfo(client);
+			break;
 		}
 		case (LAN_RAILCOM_GETDATA):
 		{
-		uint16_t Adr = 0;
-		if (Z21rxBuffer[4] == 0x01){ 
-			//RailCom-Daten f�r die gegebene Lokadresse anfordern
-			//Adr = word(packet[6], packet[5]);
-			Adr = (((uint16_t)Z21rxBuffer[6]) << 8) | ((uint16_t)Z21rxBuffer[5]);
+			uint16_t Adr = 0;
+			if (Z21rxBuffer[4] == 0x01)
+			{
+				//RailCom-Daten f�r die gegebene Lokadresse anfordern
+				//Adr = word(packet[6], packet[5]);
+				Adr = (((uint16_t)Z21rxBuffer[6]) << 8) | ((uint16_t)Z21rxBuffer[5]);
 			}
-		if (notifyz21Railcom){		
-			Adr = notifyz21Railcom(); //return global Railcom Adr
+			if (notifyz21Railcom)
+			{
+				Adr = notifyz21Railcom(); //return global Railcom Adr
 			}
 
-			data[0] = Adr >> 8;					//LocoAddress
-			data[1] = Adr & 0xFF;				//LocoAddress
-			data[2] = 0x00;							//UINT32 ReceiveCounter Empfangsz�hler in Z21
+			data[0] = Adr >> 8;	  //LocoAddress
+			data[1] = Adr & 0xFF; //LocoAddress
+			data[2] = 0x00;		  //UINT32 ReceiveCounter Empfangsz�hler in Z21
 			data[3] = 0x00;
 			data[4] = 0x00;
 			data[5] = 0x00;
@@ -409,94 +407,94 @@ void z21receive  ( void )
 			data[7] = 0x00;
 			data[8] = 0x00;
 			data[9] = 0x00;
-				/*
+			/*
 			  data[10] = 0x00;	//UINT8 Reserved1 experimentell, siehe Anmerkung 
 			  data[11] = 0x00;	//UINT8 Reserved2 experimentell, siehe Anmerkung 
 			  data[12] = 0x00;	//UINT8 Reserved3 experimentell, siehe Anmerkung 
 			  */
-		EthSend(client, 0x0E, LAN_RAILCOM_DATACHANGED, data, false, Z21bcNone);
-		break;
+			EthSend(client, 0x0E, LAN_RAILCOM_DATACHANGED, data, false, Z21bcNone);
+			break;
 		}
 		case (LAN_LOCONET_FROM_LAN):
 		{
-		ESP_LOGI(Z21_PARSER_TAG, "LOCONET_FROM_LAN");
+			ESP_LOGI(Z21_PARSER_TAG, "LOCONET_FROM_LAN");
 
-		if (notifyz21LNSendPacket)
-		{
-			uint8_t LNdata[Z21rxBuffer[0] - 0x04]; //n Bytes
-			for (uint8_t i = 0; i < (Z21rxBuffer[0] - 0x04); i++)
-				LNdata[i] = Z21rxBuffer[0x04 + i];
-			notifyz21LNSendPacket(LNdata, Z21rxBuffer[0] - 0x04);
-			//Melden an andere LAN-Client das Meldung auf LocoNet-Bus geschrieben wurde
-			EthSend(client, Z21rxBuffer[0], LAN_LOCONET_FROM_LAN, Z21rxBuffer, false, Z21bcLocoNet_s); //LAN_LOCONET_FROM_LAN
-		}
-		break;
+			if (notifyz21LNSendPacket)
+			{
+				uint8_t LNdata[Z21rxBuffer[0] - 0x04]; //n Bytes
+				for (uint8_t i = 0; i < (Z21rxBuffer[0] - 0x04); i++)
+					LNdata[i] = Z21rxBuffer[0x04 + i];
+				notifyz21LNSendPacket(LNdata, Z21rxBuffer[0] - 0x04);
+				//Melden an andere LAN-Client das Meldung auf LocoNet-Bus geschrieben wurde
+				EthSend(client, Z21rxBuffer[0], LAN_LOCONET_FROM_LAN, Z21rxBuffer, false, Z21bcLocoNet_s); //LAN_LOCONET_FROM_LAN
+			}
+			break;
 		}
 		case (LAN_LOCONET_DISPATCH_ADDR):
 		{
-		if (notifyz21LNdispatch)
-		{
-			data[0] = Z21rxBuffer[4];
-			data[1] = Z21rxBuffer[5];
-			data[2] = notifyz21LNdispatch(Z21rxBuffer[5], Z21rxBuffer[4]); //dispatchSlot
-			ESP_LOGI(Z21_PARSER_TAG, "LOCONET_DISPATCH_ADDR ");
+			if (notifyz21LNdispatch)
+			{
+				data[0] = Z21rxBuffer[4];
+				data[1] = Z21rxBuffer[5];
+				data[2] = notifyz21LNdispatch(Z21rxBuffer[5], Z21rxBuffer[4]); //dispatchSlot
+				ESP_LOGI(Z21_PARSER_TAG, "LOCONET_DISPATCH_ADDR ");
 
-			EthSend(client, 0x07, LAN_LOCONET_DISPATCH_ADDR, data, false, Z21bcNone);
-		}
-		break;
+				EthSend(client, 0x07, LAN_LOCONET_DISPATCH_ADDR, data, false, Z21bcNone);
+			}
+			break;
 		}
 		case (LAN_LOCONET_DETECTOR):
-		if (notifyz21LNdetector)
-		{
-			ESP_LOGI(Z21_PARSER_TAG, "LOCONET_DETECTOR Abfrage");
-			uint16_t ADDR = (((uint16_t)Z21rxBuffer[6]) << 8) | ((uint16_t)Z21rxBuffer[5]);
-			notifyz21LNdetector(client, Z21rxBuffer[4], ADDR); //Anforderung Typ & Reportadresse
-		}
-		break;
+			if (notifyz21LNdetector)
+			{
+				ESP_LOGI(Z21_PARSER_TAG, "LOCONET_DETECTOR Abfrage");
+				uint16_t ADDR = (((uint16_t)Z21rxBuffer[6]) << 8) | ((uint16_t)Z21rxBuffer[5]);
+				notifyz21LNdetector(client, Z21rxBuffer[4], ADDR); //Anforderung Typ & Reportadresse
+			}
+			break;
 		case (LAN_CAN_DETECTOR):
-		if (notifyz21CANdetector)
-		{
-			ESP_LOGI(Z21_PARSER_TAG, "CAN_DETECTOR Abfrage");
-			uint16_t ADDR = (((uint16_t)Z21rxBuffer[6]) << 8) | ((uint16_t)Z21rxBuffer[5]);
-			notifyz21CANdetector(client, Z21rxBuffer[4], ADDR); //Anforderung Typ & CAN-ID
-		}
-		break;
+			if (notifyz21CANdetector)
+			{
+				ESP_LOGI(Z21_PARSER_TAG, "CAN_DETECTOR Abfrage");
+				uint16_t ADDR = (((uint16_t)Z21rxBuffer[6]) << 8) | ((uint16_t)Z21rxBuffer[5]);
+				notifyz21CANdetector(client, Z21rxBuffer[4], ADDR); //Anforderung Typ & CAN-ID
+			}
+			break;
 		case (0x12): //configuration read
-		// <-- 04 00 12 00
-		// 0e 00 12 00 01 00 01 03 01 00 03 00 00 00
-		data[0] = 0x0e;
-		data[1] = 0x00;
-		data[2] = 0x12;
-		data[3] = 0x00;
-		data[4] = 0x01;
-		data[5] = 0x00;
-		data[6] = 0x01;
-		data[7] = 0x03;
-		data[8] = 0x01;
-		data[9] = 0x00;
-		data[10] = 0x03;
-		data[11] = 0x00;
-		data[12] = 0x00;
-		//for (uint8_t i = 0; i < 10; i++)
-		//{
-		//data[i] = FSTORAGE.read(CONF1STORE + i);
-		//}
-		EthSend(client, 0x0e, 0x12, data, false, Z21bcNone);
-		ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(read) ");
+			// <-- 04 00 12 00
+			// 0e 00 12 00 01 00 01 03 01 00 03 00 00 00
+			data[0] = 0x0e;
+			data[1] = 0x00;
+			data[2] = 0x12;
+			data[3] = 0x00;
+			data[4] = 0x01;
+			data[5] = 0x00;
+			data[6] = 0x01;
+			data[7] = 0x03;
+			data[8] = 0x01;
+			data[9] = 0x00;
+			data[10] = 0x03;
+			data[11] = 0x00;
+			data[12] = 0x00;
+			//for (uint8_t i = 0; i < 10; i++)
+			//{
+			//data[i] = FSTORAGE.read(CONF1STORE + i);
+			//}
+			EthSend(client, 0x0e, 0x12, data, false, Z21bcNone);
+			ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(read) ");
 
-		break;
+			break;
 		case (0x13):
-		{ 	//configuration write
-		//<-- 0e 00 13 00 01 00 01 03 01 00 03 00 00 00
-		//0x0e = Length; 0x12 = Header
-		/* Daten:
+		{ //configuration write
+			//<-- 0e 00 13 00 01 00 01 03 01 00 03 00 00 00
+			//0x0e = Length; 0x12 = Header
+			/* Daten:
 			(0x01) RailCom: 0=aus/off, 1=ein/on
 			(0x00)
 			(0x01) Power-Button: 0=Gleisspannung aus, 1=Nothalt
 			(0x03) Auslese-Modus: 0=Nichts, 1=Bit, 2=Byte, 3=Beides
 			*/
-		ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(write) ");
-		/*
+			ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(write) ");
+			/*
 
 		
 		packet[4] = 0x0e;
@@ -519,48 +517,48 @@ void z21receive  ( void )
 		//	FSTORAGE.FSTORAGEMODE(CONF1STORE + i, packet[4 + i]);
 		//}
 		*/
-		//Request DCC to change
-		//if (notifyz21UpdateConf)
-		//	notifyz21UpdateConf();
-		break;
+			//Request DCC to change
+			//if (notifyz21UpdateConf)
+			//	notifyz21UpdateConf();
+			break;
 		}
 		case (0x16): //configuration read
-		{	//<-- 04 00 16 00
-		//14 00 16 00 19 06 07 01 05 14 88 13 10 27 32 00 50 46 20 4e
-		data[0] = 0x14;
-		data[1] = 0x00;
-		data[2] = 0x16;
-		data[3] = 0x00;
-		data[4] = 0x19;
-		data[5] = 0x06;
-		data[6] = 0x07;
-		data[7] = 0x01;
-		data[8] = 0x05;
-		data[9] = 0x14;
-		data[10] = 0x88;
-		data[11] = 0x13;
-		data[12] = 0x10;
-		data[13] = 0x27;
-		data[14] = 0x32;
-		data[15] = 0x00;
-		data[16] = 0x50;
-		data[17] = 0x46;
-		data[18] = 0x20;
-		data[19] = 0x4e;
-		// for (uint8_t i = 0; i < 16; i++)
-		//{
-		//	data[i] = FSTORAGE.read(CONF2STORE + i);
-		//}
-		EthSend(client, 0x14, 0x16, data, false, Z21bcNone);
-		ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(read) ");
-		
-		break;
+		{			 //<-- 04 00 16 00
+			//14 00 16 00 19 06 07 01 05 14 88 13 10 27 32 00 50 46 20 4e
+			data[0] = 0x14;
+			data[1] = 0x00;
+			data[2] = 0x16;
+			data[3] = 0x00;
+			data[4] = 0x19;
+			data[5] = 0x06;
+			data[6] = 0x07;
+			data[7] = 0x01;
+			data[8] = 0x05;
+			data[9] = 0x14;
+			data[10] = 0x88;
+			data[11] = 0x13;
+			data[12] = 0x10;
+			data[13] = 0x27;
+			data[14] = 0x32;
+			data[15] = 0x00;
+			data[16] = 0x50;
+			data[17] = 0x46;
+			data[18] = 0x20;
+			data[19] = 0x4e;
+			// for (uint8_t i = 0; i < 16; i++)
+			//{
+			//	data[i] = FSTORAGE.read(CONF2STORE + i);
+			//}
+			EthSend(client, 0x14, 0x16, data, false, Z21bcNone);
+			ESP_LOGI(Z21_PARSER_TAG, "Z21 Eins(read) ");
+
+			break;
 		}
 		case (0x17):
-		{ //configuration write
-		//<-- 14 00 17 00 19 06 07 01 05 14 88 13 10 27 32 00 50 46 20 4e
-		//0x14 = Length; 0x16 = Header(read), 0x17 = Header(write)
-		/* Daten:
+		{	//configuration write
+			//<-- 14 00 17 00 19 06 07 01 05 14 88 13 10 27 32 00 50 46 20 4e
+			//0x14 = Length; 0x16 = Header(read), 0x17 = Header(write)
+			/* Daten:
 			(0x19) Reset Packet (starten) (25-255)
 			(0x06) Reset Packet (fortsetzen) (6-64)
 			(0x07) Programmier-Packete (7-64)
@@ -609,17 +607,17 @@ void z21receive  ( void )
 			break;
 		}
 		default:
-		ESP_LOGI(Z21_PARSER_TAG, "UNKNOWN_COMMAND");
+			ESP_LOGI(Z21_PARSER_TAG, "UNKNOWN_COMMAND");
 
-		ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, Z21rxBuffer, sizeof(Z21rxBuffer), ESP_LOG_INFO);
+			ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, Z21rxBuffer, sizeof(Z21rxBuffer), ESP_LOG_INFO);
 
-		data[0] = 0x61;
-		data[1] = 0x82;
-		EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
+			data[0] = 0x61;
+			data[1] = 0x82;
+			EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
 		}
-	//---------------------------------------------------------------------------------------
-	//check if IP is still used:
-	/*
+		//---------------------------------------------------------------------------------------
+		//check if IP is still used:
+		/*
 	unsigned long currentMillis = (unsigned long)(esp_timer_get_time() / 1000);
 	if ((currentMillis - z21IPpreviousMillis) > z21IPinterval)
 	{
@@ -638,12 +636,9 @@ void z21receive  ( void )
 		}
 	}
 	*/
-	z21rcvFlag = false;
+		z21rcvFlag = false;
 	}
-	
-	
 }
-
 
 //--------------------------------------------------------------------------------------------
 //Convert local stored flag back into a Z21 Flag
@@ -721,7 +716,6 @@ void z21setPower(uint8_t state)
 	EthSend(0, 0x07, LAN_X_Header, data, true, Z21bcAll_s);
 	ESP_LOGI(Z21_PARSER_TAG, "set_X_BC_TRACK_POWER ");
 	//ZDebug.println(state, HEX);
-
 }
 
 //--------------------------------------------------------------------------------------------
@@ -736,50 +730,49 @@ uint8_t getPower()
 void setCVPOMBYTE(uint16_t CVAdr, uint8_t value)
 {
 	uint8_t data[5];
-	data[0] = 0x64;								 //X-Header
-	data[1] = 0x14;								 //DB0
+	data[0] = 0x64;				   //X-Header
+	data[1] = 0x14;				   //DB0
 	data[2] = (CVAdr >> 8) & 0x3F; //CV_MSB;
-	data[3] = CVAdr & 0xFF;				 //CV_LSB;
+	data[3] = CVAdr & 0xFF;		   //CV_LSB;
 	data[4] = value;
 	EthSend(0, 0x0A, LAN_X_Header, data, true, 0x00);
 }
 
 //--------------------------------------------------------------------------------------------
 //Zustand R�ckmeldung non - Z21 device - Busy!
-void setLocoStateExt (uint16_t Adr) 
+void setLocoStateExt(uint16_t Adr)
 {
 	ESP_LOGI(Z21_PARSER_TAG, "setLocoStateExt ");
 	uint8_t ldata[6];
 	if (notifyz21LocoState)
 		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
-	
-	uint8_t data[9]; 
-	data[0] = LAN_X_LOCO_INFO;  //0xEF X-HEADER
+
+	uint8_t data[9];
+	data[0] = LAN_X_LOCO_INFO; //0xEF X-HEADER
 	data[1] = (Adr >> 8) & 0x3F;
 	data[2] = Adr & 0xFF;
-	// Fahrstufeninformation: 0=14, 2=28, 4=128 
+	// Fahrstufeninformation: 0=14, 2=28, 4=128
 	if ((ldata[0] & 0x03) == DCCSTEP14)
-		data[3] = 0;	// 14 steps
+		data[3] = 0; // 14 steps
 	if ((ldata[0] & 0x03) == DCCSTEP28)
-		data[3] = 2;	// 28 steps
-	if ((ldata[0] & 0x03) == DCCSTEP128)		
-		data[3] = 4;	// 128 steps
+		data[3] = 2; // 28 steps
+	if ((ldata[0] & 0x03) == DCCSTEP128)
+		data[3] = 4; // 128 steps
 
 	ESP_LOGI(Z21_PARSER_TAG, "step= %d", data[3]);
 
 	data[3] = data[3] | 0x08; //BUSY!
-	
-	data[4] = (uint8_t)ldata[1];  // DSSS SSSS
-	data[5] = (uint8_t)ldata[2];  // F0, F4, F3, F2, F1
-	data[6] = (uint8_t)ldata[3];  // F5 - F12; Funktion F5 ist bit0 (LSB)
-	data[7] = (uint8_t)ldata[4];  // F13-F20
-	data[8] = (uint8_t)ldata[5];  // F21-F28
+
+	data[4] = (uint8_t)ldata[1]; // DSSS SSSS
+	data[5] = (uint8_t)ldata[2]; // F0, F4, F3, F2, F1
+	data[6] = (uint8_t)ldata[3]; // F5 - F12; Funktion F5 ist bit0 (LSB)
+	data[7] = (uint8_t)ldata[4]; // F13-F20
+	data[8] = (uint8_t)ldata[5]; // F21-F28
 
 	reqLocoBusy(Adr);
-	
-	EthSend(0, 14, LAN_X_Header, data, true, Z21bcAll_s | Z21bcNetAll_s);  //Send Loco Status und Funktions to all active Apps 
-}
 
+	EthSend(0, 14, LAN_X_Header, data, true, Z21bcAll_s | Z21bcNetAll_s); //Send Loco Status und Funktions to all active Apps
+}
 
 //--------------------------------------------------------------------------------------------
 // delete the stored IP-Address
@@ -865,7 +858,6 @@ void addBusySlot(uint8_t client, uint16_t adr)
 	}
 }
 
-
 //--------------------------------------------------------------------------------------------
 // used by non Z21 client
 void reqLocoBusy(uint16_t adr)
@@ -878,7 +870,6 @@ void reqLocoBusy(uint16_t adr)
 		}
 	}
 }
-
 
 // Store IP in list and return it's index
 
@@ -964,8 +955,10 @@ uint8_t LokStsgetSlot(uint16_t adr) // gibt Slot f�r Adresse zur�ck / erzeug
 	// kein Slot mehr vorhanden!
 	// start am Anfang mit dem �berschreiben vorhandender Slots
 	uint8_t zugriff = 0xFF;
-	for (int i = 0; i < SlotMax; i++) {
-		if (LokDataUpdate[i].state < zugriff) {
+	for (int i = 0; i < SlotMax; i++)
+	{
+		if (LokDataUpdate[i].state < zugriff)
+		{
 			Slot = i;
 			zugriff = LokDataUpdate[i].state;
 		}
@@ -977,7 +970,6 @@ uint8_t LokStsgetSlot(uint16_t adr) // gibt Slot f�r Adresse zur�ck / erzeug
 		slotFullNext = 0;
 	return Slot;
 }
-
 
 bool setSpeed14(uint16_t address, uint8_t speed)
 {
@@ -1048,7 +1040,7 @@ bool setSpeed28(uint16_t address, uint8_t speed)
 	*/
 	//speed_data_uint8_ts[0] |= speed & 0x1F;		   // 5 Bit Speed
 	//speed_data_uint8_ts[0] |= (speed & 0x80) >> 2; // Dir
-/*
+	/*
 	DCCPacket p(address);
 	p.addData(speed_data_uint8_ts, 1);
 
@@ -1074,11 +1066,10 @@ bool setSpeed128(uint16_t address, uint8_t speed)
 		return false;
 	}
 	uint8_t slot = LokStsgetSlot(address);
-	LokDataUpdate[slot].speed = speed;			   // write Speed and Dir into register to SAVE
+	LokDataUpdate[slot].speed = speed; // write Speed and Dir into register to SAVE
 	//if ((LokDataUpdate[slot].adr >> 14) != DCC128) // 3=>128steps, write into register
-	LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF);// | (DCC128 << 14);
+	LokDataUpdate[slot].adr = (LokDataUpdate[slot].adr & 0x3FFF); // | (DCC128 << 14);
 	LokDataUpdate[slot].mode = 0b1011;
-	
 
 	// uint8_t speed_data_uint8_ts[] = {0x3F, 0x00};
 
@@ -1169,16 +1160,16 @@ void LokStsSetNew(uint8_t Slot, uint16_t adr) // Neue Lok eintragen mit Adresse
 {
 
 	ESP_LOGI(Z21_PARSER_TAG, "LokStsSetNew: %d", adr);
-	LokDataUpdate[Slot].adr = adr; // | (DCCdefaultSteps << 14); // 0x4000; //0xC000;	// c = '3' => 128 Fahrstufen
-	LokDataUpdate[Slot].mode = 0b1011;	//Busy und 128 Fahrstufen
-	LokDataUpdate[Slot].speed = 0x80;						 // default direction is forward
+	LokDataUpdate[Slot].adr = adr;	   // | (DCCdefaultSteps << 14); // 0x4000; //0xC000;	// c = '3' => 128 Fahrstufen
+	LokDataUpdate[Slot].mode = 0b1011; //Busy und 128 Fahrstufen
+	LokDataUpdate[Slot].speed = 0x80;  // default direction is forward
 	LokDataUpdate[Slot].f0 = 0x00;
 	LokDataUpdate[Slot].f1 = 0x00;
 	LokDataUpdate[Slot].f2 = 0x00;
 	LokDataUpdate[Slot].f3 = 0x00;
 	LokDataUpdate[Slot].state = 0x00;
 
-// generate first drive information:
+	// generate first drive information:
 	//ESP_LOGI(Z21_PARSER_TAG, "LokStsSetNew exit: %d", LokDataUpdate[Slot].adr);
 	XnetSetSpeed(LokDataUpdate[Slot].adr, DCCdefaultSteps, LokDataUpdate[Slot].speed);
 }
@@ -1191,7 +1182,7 @@ void notifyz21LocoState(uint16_t Adr, uint8_t data[])
 
 //--------------------------------------------------------------------------------------------
 //Gibt aktuellen Lokstatus an Anfragenden Zuruck
-void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc) 
+void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 //bc = true => to inform also other client over the change.
 //bc = false => just ask about the loco state
 {
@@ -1205,71 +1196,74 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 	uint8_t ldata[6];
 	if (notifyz21LocoState)
 		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
-	
-	uint8_t data[9]; 
-	data[0] = LAN_X_LOCO_INFO;  //0xEF X-HEADER
+
+	uint8_t data[9];
+	data[0] = LAN_X_LOCO_INFO; //0xEF X-HEADER
 	data[1] = (Adr >> 8) & 0x3F;
 	data[2] = Adr & 0xFF;
-	// Fahrstufeninformation: 0=14, 2=28, 4=128 
+	// Fahrstufeninformation: 0=14, 2=28, 4=128
 	if ((ldata[0] & 0x03) == DCC14)
-		data[3] = Loco14;	// 14 steps
+		data[3] = Loco14; // 14 steps
 	if ((ldata[0] & 0x03) == DCC28)
-		data[3] = Loco28;	// 28 steps
-	if ((ldata[0] & 0x03) == DCC128)		
-		data[3] = Loco128;	// 128 steps
+		data[3] = Loco28; // 28 steps
+	if ((ldata[0] & 0x03) == DCC128)
+		data[3] = Loco128;	  // 128 steps
 	data[3] = data[3] | 0x08; //BUSY!
-		
-	data[4] = (char) ldata[1];	//DSSS SSSS
-	data[5] = (char) ldata[2];  //F0, F4, F3, F2, F1
-	data[6] = (char) ldata[3];  //F5 - F12; Funktion F5 ist bit0 (LSB)
-	data[7] = (char) ldata[4];  //F13-F20
-	data[8] = (char) ldata[5];  //F21-F28
+
+	data[4] = (char)ldata[1]; //DSSS SSSS
+	data[5] = (char)ldata[2]; //F0, F4, F3, F2, F1
+	data[6] = (char)ldata[3]; //F5 - F12; Funktion F5 ist bit0 (LSB)
+	data[7] = (char)ldata[4]; //F13-F20
+	data[8] = (char)ldata[5]; //F21-F28
 
 	//ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, (uint8_t *)&data, 9, ESP_LOG_INFO);
 	//Info to all:
-	for (uint8_t i = 0; i < z21clientMAX; i++) {
-		if (ActIP[i].client != client) {
-			if ((ActIP[i].BCFlag & (Z21bcAll_s | Z21bcNetAll_s)) > 0) {
+	for (uint8_t i = 0; i < z21clientMAX; i++)
+	{
+		if (ActIP[i].client != client)
+		{
+			if ((ActIP[i].BCFlag & (Z21bcAll_s | Z21bcNetAll_s)) > 0)
+			{
 				if (bc == true)
-					EthSend (ActIP[i].client, 14, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to BC Apps
-				//ESP_LOGI(Z21_PARSER_TAG, "to ALL!");
+					EthSend(ActIP[i].client, 14, LAN_X_Header, data, true, Z21bcNone); //Send Loco status und Funktions to BC Apps
+																					   //ESP_LOGI(Z21_PARSER_TAG, "to ALL!");
 			}
 		}
-		else { //Info to client that ask:
-			if (ActIP[i].adr == Adr) {
-				data[3] = data[3] & 0b111;	//clear busy flag!
+		else
+		{ //Info to client that ask:
+			if (ActIP[i].adr == Adr)
+			{
+				data[3] = data[3] & 0b111; //clear busy flag!
 			}
-			EthSend (client, 14, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to request App
+			EthSend(client, 14, LAN_X_Header, data, true, Z21bcNone); //Send Loco status und Funktions to request App
 			//ESP_LOGI(Z21_PARSER_TAG, "to Client!");
 			data[3] = data[3] | 0x08; //BUSY!
 		}
 	}
-	
 }
 
-
 //--------------------------------------------------------------------------------------------
-uint8_t getFunktion0to4(uint16_t address)	//gibt Funktionszustand - F0 F4 F3 F2 F1 zurьck
+uint8_t getFunktion0to4(uint16_t address) //gibt Funktionszustand - F0 F4 F3 F2 F1 zurьck
 {
 	return LokDataUpdate[LokStsgetSlot(address)].f0 & 0x1F;
 }
 
-uint8_t getFunktion5to8(uint16_t address)	//gibt Funktionszustand - F8 F7 F6 F5 zurьck
+uint8_t getFunktion5to8(uint16_t address) //gibt Funktionszustand - F8 F7 F6 F5 zurьck
 {
 	return LokDataUpdate[LokStsgetSlot(address)].f1 & 0x0F;
 }
 
-uint8_t getFunktion9to12(uint16_t address)	//gibt Funktionszustand - F12 F11 F10 F9 zurьck
+uint8_t getFunktion9to12(uint16_t address) //gibt Funktionszustand - F12 F11 F10 F9 zurьck
 {
 	return LokDataUpdate[LokStsgetSlot(address)].f1 >> 4;
 }
 
-uint8_t getFunktion13to20(uint16_t address)	//gibt Funktionszustand F20 - F13 zurьck
+uint8_t getFunktion13to20(uint16_t address) //gibt Funktionszustand F20 - F13 zurьck
 {
 	return LokDataUpdate[LokStsgetSlot(address)].f2;
 }
 
-uint8_t getFunktion21to28(uint16_t address)	//gibt Funktionszustand F28 - F21 zurьck
+uint8_t getFunktion21to28(uint16_t address) //gibt Funktionszustand F28 - F21 zurьck
 {
 	return LokDataUpdate[LokStsgetSlot(address)].f3;
 }
@@ -1277,60 +1271,56 @@ uint8_t getFunktion21to28(uint16_t address)	//gibt Funktionszustand F28 - F21 zu
 
 bool setFunctions0to4(uint16_t address, uint8_t functions)
 {
-	if (address == 0)	//check if Adr is ok?
+	if (address == 0) //check if Adr is ok?
 		return false;
 
+	uint8_t data[] = {0x80};
 
-  uint8_t data[] = { 0x80 };
-  
-  //Obnoxiously, the headlights (F0, AKA FL) are not controlled
-  //by bit 0, but in DCC via bit 4. !
-  data[0] |= functions & 0x1F;		//new - normal way of DCC! F0, F4, F3, F2, F1
+	//Obnoxiously, the headlights (F0, AKA FL) are not controlled
+	//by bit 0, but in DCC via bit 4. !
+	data[0] |= functions & 0x1F; //new - normal way of DCC! F0, F4, F3, F2, F1
 
+	LokDataUpdate[LokStsgetSlot(address)].f0 = functions & 0x1F; //write into register to SAVE
 
-
-  LokDataUpdate[LokStsgetSlot(address)].f0 = functions & 0x1F;	//write into register to SAVE
-
-  //return low_priority_queue.insertPacket(&p);
-  return true;
+	//return low_priority_queue.insertPacket(&p);
+	return true;
 }
-
 
 bool setFunctions5to8(uint16_t address, uint8_t functions)
 {
-	if (address == 0)	//check if Adr is ok?
+	if (address == 0) //check if Adr is ok?
 		return false;
 
-  uint8_t data[] = { 0xB0 };
-  data[0] |= functions & 0x0F;
+	uint8_t data[] = {0xB0};
+	data[0] |= functions & 0x0F;
 
-  LokDataUpdate[LokStsgetSlot(address)].f1 = (LokDataUpdate[LokStsgetSlot(address)].f1 | 0x0F) & (functions | 0xF0);	//write into register to SAVE
+	LokDataUpdate[LokStsgetSlot(address)].f1 = (LokDataUpdate[LokStsgetSlot(address)].f1 | 0x0F) & (functions | 0xF0); //write into register to SAVE
 
-  //return low_priority_queue.insertPacket(&p);
-  return true;
+	//return low_priority_queue.insertPacket(&p);
+	return true;
 }
 
 bool setFunctions9to12(uint16_t address, uint8_t functions)
 {
-	if (address == 0)	//check if Adr is ok?
+	if (address == 0) //check if Adr is ok?
 		return false;
 
-  //uint8_t data[] = { 0xA0 };
-  //least significant four functions (F5--F8)
-  //data[0] |= functions & 0x0F;
-  
-  LokDataUpdate[LokStsgetSlot(address)].f1 = (LokDataUpdate[LokStsgetSlot(address)].f1 | 0xF0) & ((functions << 4) | 0x0F);	//write into register to SAVE
+	//uint8_t data[] = { 0xA0 };
+	//least significant four functions (F5--F8)
+	//data[0] |= functions & 0x0F;
 
-  //return low_priority_queue.insertPacket(&p);
-  return true;
+	LokDataUpdate[LokStsgetSlot(address)].f1 = (LokDataUpdate[LokStsgetSlot(address)].f1 | 0xF0) & ((functions << 4) | 0x0F); //write into register to SAVE
+
+	//return low_priority_queue.insertPacket(&p);
+	return true;
 }
 
-bool setFunctions13to20(uint16_t address, uint8_t functions)	//F20 F19 F18 F17 F16 F15 F14 F13
+bool setFunctions13to20(uint16_t address, uint8_t functions) //F20 F19 F18 F17 F16 F15 F14 F13
 {
-	if (address == 0)	//check if Adr is ok?
+	if (address == 0) //check if Adr is ok?
 		return false;
 
-	//uint8_t data[] = { 0b11011110, 0x00 }; 
+	//uint8_t data[] = { 0b11011110, 0x00 };
 	//data[1] = functions;	//significant functions (F20--F13)
 
 	LokDataUpdate[LokStsgetSlot(address)].f2 = functions; //write into register to SAVE
@@ -1338,12 +1328,12 @@ bool setFunctions13to20(uint16_t address, uint8_t functions)	//F20 F19 F18 F17 F
 	return true;
 }
 
-bool setFunctions21to28(uint16_t address, uint8_t functions)	//F28 F27 F26 F25 F24 F23 F22 F21
+bool setFunctions21to28(uint16_t address, uint8_t functions) //F28 F27 F26 F25 F24 F23 F22 F21
 {
-	if (address == 0)	//check if Adr is ok?
+	if (address == 0) //check if Adr is ok?
 		return false;
 
-	//int8_t data[] = { 0b11011111, 0x00}; 
+	//int8_t data[] = { 0b11011111, 0x00};
 	//data[1] = functions; //significant functions (F28--F21)
 
 	LokDataUpdate[LokStsgetSlot(address)].f3 = functions; //write into register to SAVE
@@ -1377,30 +1367,32 @@ void getLocoStateFull(uint16_t Addr, bool bc)
 	uint8_t F3 = LokDataUpdate[Slot].f3;
 	//if (notifyLokAll)
 	//Nutzung protokollieren:
-		notifyLokAll(Slot, highByte(Addr)&0x3f, lowByte(Addr), Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
+	notifyLokAll(Slot, highByte(Addr) & 0x3f, lowByte(Addr), Busy, LokDataUpdate[Slot].mode & 0b11, LokDataUpdate[Slot].speed, Dir, F0, F1, F2, F3, bc);
 	if (LokDataUpdate[Slot].state < 0xFF)
 		LokDataUpdate[Slot].state++; //aktivit�t
 }
 
-
 //--------------------------------------------------------------------------------------------
 //Lokfunktion setzten
 void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
-{			//type => 0 = AUS; 1 = EIN; 2 = UM; 3 = error
-	bool ok = false;	//Funktion wurde nicht gesetzt!
-	bool fktbit = 0;	//neue zu дndernde fkt bit
-	if (type == 1)	//ein
+{					 //type => 0 = AUS; 1 = EIN; 2 = UM; 3 = error
+	bool ok = false; //Funktion wurde nicht gesetzt!
+	bool fktbit = 0; //neue zu дndernde fkt bit
+	if (type == 1)	 //ein
 		fktbit = 1;
 	uint8_t Slot = LokStsgetSlot(address);
 	uint8_t Adr_High = highByte(address);
 	uint8_t Adr_Low = lowByte(address);
 	//zu дnderndes bit bestimmen und neu setzten:
-	if (fkt <= 4) {
-		uint8_t func = LokDataUpdate[Slot].f0 & 0x1F;	//letztes Zustand der Funktionen 000 F0 F4..F1
-		if (type == 2) { //um
+	if (fkt <= 4)
+	{
+		uint8_t func = LokDataUpdate[Slot].f0 & 0x1F; //letztes Zustand der Funktionen 000 F0 F4..F1
+		if (type == 2)
+		{ //um
 			if (fkt == 0)
 				fktbit = !(bitRead(func, 4));
-			else fktbit = !(bitRead(func, fkt - 1));
+			else
+				fktbit = !(bitRead(func, fkt - 1));
 		}
 		if (fkt == 0)
 			bitWrite(func, 4, fktbit);
@@ -1410,16 +1402,17 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		//Daten �ber XNet senden:
 
 		uint8_t setLocoFunc[] = {0xE4, 0x20, Adr_High, Adr_Low, func, 0x00}; //Gruppe1 = 0 0 0 F0 F4 F3 F2 F1
-		if (address> 99)
+		if (address > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
 		ok = XNettransmit(setLocoFunc, 6);
 
-		setFunctions0to4(address, func);	//func = 0 0 0 F0 F4 F3 F2 F1
+		setFunctions0to4(address, func); //func = 0 0 0 F0 F4 F3 F2 F1
 	}
-	else if ((fkt >= 5) && (fkt <= 8)) {
-		uint8_t funcG2 = LokDataUpdate[Slot].f1 & 0x0F;	//letztes Zustand der Funktionen 0000 F8..F5
-		if (type == 2) //um
+	else if ((fkt >= 5) && (fkt <= 8))
+	{
+		uint8_t funcG2 = LokDataUpdate[Slot].f1 & 0x0F; //letztes Zustand der Funktionen 0000 F8..F5
+		if (type == 2)									//um
 			fktbit = !(bitRead(funcG2, fkt - 5));
 		bitWrite(funcG2, fkt - 5, fktbit);
 		//Daten �ber XNet senden:
@@ -1430,23 +1423,26 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		getXOR(setLocoFunc, 6);
 		ok = XNettransmit(setLocoFunc, 6);
 		//Daten senden:
-		setFunctions5to8(address, funcG2);	//funcG2 = 0 0 0 0 F8 F7 F6 F5
+		setFunctions5to8(address, funcG2); //funcG2 = 0 0 0 0 F8 F7 F6 F5
 	}
-	else if ((fkt >= 9) && (fkt <= 12)) {
-		uint8_t funcG3 = LokDataUpdate[Slot].f1 >> 4;	//letztes Zustand der Funktionen 0000 F12..F9
-		if (type == 2) //um
+	else if ((fkt >= 9) && (fkt <= 12))
+	{
+		uint8_t funcG3 = LokDataUpdate[Slot].f1 >> 4; //letztes Zustand der Funktionen 0000 F12..F9
+		if (type == 2)								  //um
 			fktbit = !(bitRead(funcG3, fkt - 9));
 		bitWrite(funcG3, fkt - 9, fktbit);
 		//Daten �ber XNet senden:
 		uint8_t setLocoFunc[] = {0xE4, 0x22, Adr_High, Adr_Low, funcG3, 0x00}; //Gruppe3 = 0 0 0 0 F12 F11 F10 F9
-		
-		if (address > 99) setLocoFunc[2] = Adr_High | 0xC0;
+
+		if (address > 99)
+			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
 		ok = XNettransmit(setLocoFunc, 6);
 		//Daten senden:
-		setFunctions9to12(address, funcG3); 	//funcG3 = 0 0 0 0 F12 F11 F10 F9
+		setFunctions9to12(address, funcG3); //funcG3 = 0 0 0 0 F12 F11 F10 F9
 	}
-	else if ((fkt >= 13) && (fkt <= 20)) {
+	else if ((fkt >= 13) && (fkt <= 20))
+	{
 		uint8_t funcG4 = LokDataUpdate[Slot].f2;
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG4, fkt - 13));
@@ -1455,28 +1451,29 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 		//unsigned char setLocoFunc[] = {0xE4, 0x23, Adr_High, Adr_Low, funcG4, 0x00};	//Gruppe4 = F20 F19 F18 F17 F16 F15 F14 F13
 		uint8_t setLocoFunc[] = {0xE4, 0xF3, Adr_High, Adr_Low, funcG4, 0x00}; //Gruppe4 = F20 F19 F18 F17 F16 F15 F14 F13
 		//0xF3 = undocumented command is used when a mulitMAUS is controlling functions f20..f13.
-		
+
 		if (address > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
 		ok = XNettransmit(setLocoFunc, 6);
 		//Daten senden:
-		setFunctions13to20(address, funcG4);	//funcG4 = F20 F19 F18 F17 F16 F15 F14 F13
+		setFunctions13to20(address, funcG4); //funcG4 = F20 F19 F18 F17 F16 F15 F14 F13
 	}
-	else if ((fkt >= 21) && (fkt <= 28)) {
+	else if ((fkt >= 21) && (fkt <= 28))
+	{
 		uint8_t funcG5 = LokDataUpdate[Slot].f3;
 		if (type == 2) //um
 			fktbit = !(bitRead(funcG5, fkt - 21));
 		bitWrite(funcG5, fkt - 21, fktbit);
 		//Daten �ber XNet senden:
 		uint8_t setLocoFunc[] = {0xE4, 0x28, Adr_High, Adr_Low, funcG5, 0x00}; //Gruppe5 = F28 F27 F26 F25 F24 F23 F22 F21
-		
+
 		if (address > 99)
 			setLocoFunc[2] = Adr_High | 0xC0;
 		getXOR(setLocoFunc, 6);
 		ok = XNettransmit(setLocoFunc, 6);
 		//Daten senden:
-		setFunctions21to28(address, funcG5);	//funcG5 = F28 F27 F26 F25 F24 F23 F22 F21
+		setFunctions21to28(address, funcG5); //funcG5 = F28 F27 F26 F25 F24 F23 F22 F21
 	}
 	//getLocoStateFull(address, true);	//Alle aktiven Gerдte Senden!
 	//setLocoStateExt(address);
@@ -1484,7 +1481,7 @@ void setLocoFunc(uint16_t address, uint8_t type, uint8_t fkt)
 //--------------------------------------------------------------------------------------------
 void notifyz21LocoFkt(uint16_t Adr, uint8_t state, uint8_t fkt)
 {
-  setLocoFunc(Adr, state, fkt); 
+	setLocoFunc(Adr, state, fkt);
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1492,9 +1489,9 @@ void notifyz21LocoFkt(uint16_t Adr, uint8_t state, uint8_t fkt)
 void setS88Data(uint8_t *data, uint8_t modules)
 {
 	// split data into 11 uint8_ts blocks (1 packet address + 10 data)
-	uint8_t MAdr = 1;  // module number in packet
+	uint8_t MAdr = 1;	  // module number in packet
 	uint8_t datasend[11]; // array holding the data to be sent (1 packet address + 10 modules data)
-	datasend[0] = 0;	 // fisrt byte is the packet address
+	datasend[0] = 0;	  // fisrt byte is the packet address
 	for (uint8_t m = 0; m < modules; m++)
 	{
 		datasend[MAdr] = data[m];
@@ -1503,8 +1500,8 @@ void setS88Data(uint8_t *data, uint8_t modules)
 		if (MAdr >= 11)
 		{
 			EthSend(0, 0x0F, LAN_RMBUS_DATACHANGED, datasend, false, Z21bcRBus_s); //RMBUS_DATACHANED
-			MAdr = 1;																															 // reset the module number in packet
-			datasend[0]++;																												 //increment the next packet's address
+			MAdr = 1;															   // reset the module number in packet
+			datasend[0]++;														   //increment the next packet's address
 		}
 	}
 	if (MAdr < 11 && MAdr > 1) // if we still have a partial packet, fill it with 0 and send
@@ -1512,7 +1509,7 @@ void setS88Data(uint8_t *data, uint8_t modules)
 		while (MAdr < 11)
 		{
 			datasend[MAdr] = 0x00; // 0 values
-			MAdr++;								 // next module address
+			MAdr++;				   // next module address
 		}
 		EthSend(0, 0x0F, LAN_RMBUS_DATACHANGED, datasend, false, Z21bcRBus_s); //RMBUS_DATACHANED
 	}
@@ -1529,7 +1526,7 @@ void setLNDetector(uint8_t client, uint8_t *data, uint8_t DataLen)
 //LN Meldungen weiterleiten
 void setLNMessage(uint8_t *data, uint8_t DataLen, uint8_t bcType, bool TX)
 {
-	if (TX)																																 //Send by Z21 or Receive a Packet?
+	if (TX)																	 //Send by Z21 or Receive a Packet?
 		EthSend(0, 0x04 + DataLen, LAN_LOCONET_Z21_TX, data, false, bcType); //LAN_LOCONET_Z21_TX
 	else
 		EthSend(0, 0x04 + DataLen, LAN_LOCONET_Z21_RX, data, false, bcType); //LAN_LOCONET_Z21_RX
@@ -1559,8 +1556,8 @@ void setTrntInfo(uint16_t Adr, bool State)
 {
 	uint8_t data[4];
 	data[0] = LAN_X_TURNOUT_INFO; //0x43 X-HEADER
-	data[1] = Adr >> 8;						//High
-	data[2] = Adr & 0xFF;					//Low
+	data[1] = Adr >> 8;			  //High
+	data[2] = Adr & 0xFF;		  //Low
 	data[3] = State + 1;
 	//  if (State == true)
 	//    data[3] = 2;
@@ -1573,8 +1570,8 @@ void setTrntInfo(uint16_t Adr, bool State)
 void setCVReturn(uint16_t CV, uint8_t value)
 {
 	uint8_t data[5];
-	data[0] = 0x64;			 //X-Header
-	data[1] = 0x14;			 //DB0
+	data[0] = 0x64;		 //X-Header
+	data[1] = 0x14;		 //DB0
 	data[2] = CV >> 8;	 //CV_MSB;
 	data[3] = CV & 0xFF; //CV_LSB;
 	data[4] = value;
@@ -1607,38 +1604,40 @@ void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, 
 {
 	uint8_t data[16];
 	data[0] = maincurrent & 0xFF; //MainCurrent mA
-	data[1] = maincurrent >> 8;		//MainCurrent mA
-	data[2] = data[0];						//ProgCurrent mA
-	data[3] = data[1];						//ProgCurrent mA
-	data[4] = data[0];						//FilteredMainCurrent
-	data[5] = data[1];						//FilteredMainCurrent
-	data[6] = temp & 0xFF;				//Temperature
-	data[7] = temp >> 8;					//Temperature
+	data[1] = maincurrent >> 8;	  //MainCurrent mA
+	data[2] = data[0];			  //ProgCurrent mA
+	data[3] = data[1];			  //ProgCurrent mA
+	data[4] = data[0];			  //FilteredMainCurrent
+	data[5] = data[1];			  //FilteredMainCurrent
+	data[6] = temp & 0xFF;		  //Temperature
+	data[7] = temp >> 8;		  //Temperature
 	data[8] = mainvoltage & 0xFF; //SupplyVoltage
-	data[9] = mainvoltage >> 8;		//SupplyVoltage
-	data[10] = data[8];						//VCCVoltage
-	data[11] = data[9];						//VCCVoltage
-	data[12] = Railpower;					//CentralState
-																/*Bitmasken f�r CentralState: 
+	data[9] = mainvoltage >> 8;	  //SupplyVoltage
+	data[10] = data[8];			  //VCCVoltage
+	data[11] = data[9];			  //VCCVoltage
+	data[12] = Railpower;		  //CentralState
+								  /*Bitmasken f�r CentralState: 
 	#define csEmergencyStop  0x01 // Der Nothalt ist eingeschaltet 
 	#define csTrackVoltageOff  0x02 // Die Gleisspannung ist abgeschaltet 
 	#define csShortCircuit  0x04 // Kurzschluss 
 	#define csProgrammingModeActive 0x20 // Der Programmiermodus ist aktiv 	
 */
-	data[13] = 0x00;							//CentralStateEx
-																/* Bitmasken f�r CentralStateEx: 
+	data[13] = 0x00;			  //CentralStateEx
+								  /* Bitmasken f�r CentralStateEx: 
 	#define cseHighTemperature  0x01 // zu hohe Temperatur 
 	#define csePowerLost  0x02 // zu geringe Eingangsspannung 
 	#define cseShortCircuitExternal 0x04 // am externen Booster-Ausgang 
 	#define cseShortCircuitInternal 0x08 // am Hauptgleis oder Programmiergleis 	
 */
-	data[14] = 0x00;							//reserved
-	data[15] = 0x00;							//reserved
-	if (client > 0){
-	EthSend(client, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcNone);	//only to the request client
-	}else
+	data[14] = 0x00;			  //reserved
+	data[15] = 0x00;			  //reserved
+	if (client > 0)
 	{
-	EthSend(0, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcSystemInfo_s); //all that select this message (Abo)
+		EthSend(client, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcNone); //only to the request client
+	}
+	else
+	{
+		EthSend(0, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcSystemInfo_s); //all that select this message (Abo)
 	}
 }
 
@@ -1646,92 +1645,95 @@ void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, 
 // Functions only available to other functions in this library *******************************************************
 //void EthSend(uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC);
 //--------------------------------------------------------------------------------------------
-void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataString, bool withXOR, uint8_t BC) {
+void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataString, bool withXOR, uint8_t BC)
+{
 	uint8_t data[DataLen]; // z21 send storage
 	ESP_LOGI(Z21_PARSER_TAG, "EthSend. Client=%d", client);
-	//--------------------------------------------        
+	//--------------------------------------------
 	//XOR bestimmen:
 	data[0] = DataLen & 0xFF;
 	data[1] = DataLen >> 8;
 	data[2] = Header & 0xFF;
 	data[3] = Header >> 8;
-	data[DataLen - 1] = 0;	//XOR
+	data[DataLen - 1] = 0; //XOR
 
-    for (uint8_t i = 0; i < (DataLen-5+!withXOR); i++) { //Ohne Length und Header und XOR
-        if (withXOR)
-			data[DataLen-1] = data[DataLen-1] ^ *dataString;
-		data[i+4] = *dataString;
-        dataString++;
-    }
-   //--------------------------------------------
+	for (uint8_t i = 0; i < (DataLen - 5 + !withXOR); i++)
+	{ //Ohne Length und Header und XOR
+		if (withXOR)
+			data[DataLen - 1] = data[DataLen - 1] ^ *dataString;
+		data[i + 4] = *dataString;
+		dataString++;
+	}
+	//--------------------------------------------
 	if (client > 0 && BC == Z21bcNone)
 	{
 		//if (notifyz21EthSend)
-			notifyz21EthSend(client, data, DataLen);
+		notifyz21EthSend(client, data, DataLen);
 		ESP_LOGI(Z21_PARSER_TAG, "EthSend. Client>0");
 	}
-   else {
-	   uint8_t clientOut = 0; // client;
-	   for (uint8_t i = 0; i < z21clientMAX; i++)
-	   {
-		   if ((ActIP[i].time > 0) && ((BC & ActIP[i].BCFlag) > 0))
-		   { // Boradcast & Noch aktiv
-			   ESP_LOGI(Z21_PARSER_TAG, "EthSend. Parse client base. i=%d", i);
-			   if (BC != 0)
-			   {
-				   if (BC == Z21bcAll_s)
-					   clientOut = 0; // ALL
-				   else
-					   clientOut = ActIP[i].client;
-			   }
+	else
+	{
+		uint8_t clientOut = 0; // client;
+		for (uint8_t i = 0; i < z21clientMAX; i++)
+		{
+			if ((ActIP[i].time > 0) && ((BC & ActIP[i].BCFlag) > 0))
+			{ // Boradcast & Noch aktiv
+				ESP_LOGI(Z21_PARSER_TAG, "EthSend. Parse client base. i=%d", i);
+				if (BC != 0)
+				{
+					if (BC == Z21bcAll_s)
+						clientOut = 0; // ALL
+					else
+						clientOut = ActIP[i].client;
+				}
 
-			   if ((clientOut != client) || (clientOut == 0))
-			   { // wenn client > 0 und nicht Z21bcNone, sende an alle au�er den client!
-				   ESP_LOGI(Z21_PARSER_TAG, "EthSend. ClientOut=0");
-				   //--------------------------------------------
-				   //if (notifyz21EthSend)
-					   notifyz21EthSend(clientOut, data, DataLen);
-				   if (clientOut == 0)
-					   return;
-			   }
-		   }
-	   }
-   }
-   // ESP_LOGI(Z21_PARSER_TAG, "Eth sended...");
+				if ((clientOut != client) || (clientOut == 0))
+				{ // wenn client > 0 und nicht Z21bcNone, sende an alle au�er den client!
+					ESP_LOGI(Z21_PARSER_TAG, "EthSend. ClientOut=0");
+					//--------------------------------------------
+					//if (notifyz21EthSend)
+					notifyz21EthSend(clientOut, data, DataLen);
+					if (clientOut == 0)
+						return;
+				}
+			}
+		}
+	}
+	// ESP_LOGI(Z21_PARSER_TAG, "Eth sended...");
 }
 //--------------------------------------------------------------
 //Change Power Status
 void notifyXNetPower(uint8_t State)
 {
-		uint8_t data[] = {0x61, 0x00};
-		switch (State)
-		{
-		case csNormal:
-			data[1] = 0x01;
-			break;
-		case csTrackVoltageOff:
-			data[1] = 0x00;
-			break;
-		case csServiceMode:
-			data[1] = 0x02;
-			break;
-		case csShortCircuit:
-			data[1] = 0x08;
-			break;
-		case csEmergencyStop:
-			data[0] = 0x81;
-			data[1] = 0x00;
-			break;
-		default:
-			return;
-		}
-		EthSend(0, 0x07, LAN_X_Header, data, true, Z21bcAll);
-		//EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
-	
+	uint8_t data[] = {0x61, 0x00};
+	switch (State)
+	{
+	case csNormal:
+		data[1] = 0x01;
+		break;
+	case csTrackVoltageOff:
+		data[1] = 0x00;
+		break;
+	case csServiceMode:
+		data[1] = 0x02;
+		break;
+	case csShortCircuit:
+		data[1] = 0x08;
+		break;
+	case csEmergencyStop:
+		data[0] = 0x81;
+		data[1] = 0x00;
+		break;
+	default:
+		return;
+	}
+	EthSend(0, 0x07, LAN_X_Header, data, true, Z21bcAll);
+	//EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
 }
 
 //--------------------------------------------------------------------------------------------
-void notifyLokAll(uint8_t slot, uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, uint8_t Speed, uint8_t Direction, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool Req ) {
+void notifyLokAll(uint8_t slot, uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, uint8_t Speed, uint8_t Direction, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool Req)
+{
 	ESP_LOGI(Z21_PARSER_TAG, "notifyLokAll...");
 	uint8_t DB2 = Steps;
 	if (DB2 == 3) //nicht vorhanden!
@@ -1755,7 +1757,7 @@ void notifyLokAll(uint8_t slot, uint8_t Adr_High, uint8_t Adr_Low, bool Busy, ui
 		//void EthSend (uint8_t client, unsigned int DataLen, unsigned int Header, uint8_t *dataString, bool withXOR, uint8_t BC)
 		EthSend(slot, 14, 0x40, data, true, 0x00); //Send Power und Funktions ask App
 	else
-		EthSend(0, 14, 0x40, data, true, true); //Send Power und Funktions to all active Apps 
+		EthSend(0, 14, 0x40, data, true, true); //Send Power und Funktions to all active Apps
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1792,7 +1794,6 @@ void globalPower(uint8_t state)
 
 			z21setPower(Railpower); //shut down via GO/STOP just for the Roco Booster
 			XpressNetsetPower(Railpower);
-			
 
 			break;
 		case csEmergencyStop:
