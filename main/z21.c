@@ -244,15 +244,15 @@ void z21receive(void)
 					// notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
 					//getLocoInfo(Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
 					// uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
-					ESP_LOGI(Z21_PARSER_TAG, "Adr:  %d", Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
+					//ESP_LOGI(Z21_PARSER_TAG, "Adr:  %d", Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
 					returnLocoStateFull(client, Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]), false);
 					// Antwort via "setLocoStateFull"!
 				}
 				break;
 			case LAN_X_SET_LOCO:
 				// setLocoBusy:
-				ESP_LOGI(Z21_PARSER_TAG, "LAN_X_SET_LOCO aka setLocoBusy: %d", Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
-				ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, Z21rxBuffer, rxlen, ESP_LOG_INFO);
+				//ESP_LOGI(Z21_PARSER_TAG, "LAN_X_SET_LOCO aka setLocoBusy: %d", Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
+				//ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, Z21rxBuffer, rxlen, ESP_LOG_INFO);
 				// uint16_t WORD = (((uint16_t)Z21rxBuffer[6] & 0x3F) << 8) | ((uint16_t)Z21rxBuffer[7]);
 
 				addBusySlot(client, Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
@@ -330,7 +330,7 @@ void z21receive(void)
 				notifyz21RailPower(Railpower); // Zustand Gleisspannung Antworten
 			ESP_LOGI(Z21_PARSER_TAG, "SET_BROADCASTFLAGS: ");
 			int *ptr = (int *)&bcflag;
-			ESP_LOGI(Z21_PARSER_TAG, "%p", ptr);
+			//ESP_LOGI(Z21_PARSER_TAG, "%p", ptr);
 			//ESP_LOG_BUFFER_CHAR(Z21_PARSER_TAG, &bcflag, 4);
 			// 1=BC Power, Loco INFO, Trnt INFO; 2=BC �nderungen der R�ckmelder am R-Bus
 
@@ -1107,7 +1107,7 @@ void XnetSetSpeed(uint16_t Adr, uint8_t Steps, uint8_t Speed)
 	// 0xE4 | Ident | AH | AL | RV | XOr
 	// Ident: 0x10 = F14; 0x11 = F27; 0x12 = F28; 0x13 = F128
 	// RV = RVVV VVVV Dirction and Speed
-	ESP_LOGI(Z21_PARSER_TAG, "XnetSetSpeed: %d", Adr);
+	//ESP_LOGI(Z21_PARSER_TAG, "XnetSetSpeed: %d", Adr);
 	uint8_t v = Speed;
 	if (Steps == DCC28)
 	{
@@ -1159,7 +1159,7 @@ bool dccsetSpeed(uint16_t address, uint8_t speed)
 void LokStsSetNew(uint8_t Slot, uint16_t adr) // Neue Lok eintragen mit Adresse
 {
 
-	ESP_LOGI(Z21_PARSER_TAG, "LokStsSetNew: %d", adr);
+	//ESP_LOGI(Z21_PARSER_TAG, "LokStsSetNew: %d", adr);
 	LokDataUpdate[Slot].adr = adr;	   // | (DCCdefaultSteps << 14); // 0x4000; //0xC000;	// c = '3' => 128 Fahrstufen
 	LokDataUpdate[Slot].mode = 0b1011; //Busy und 128 Fahrstufen
 	LokDataUpdate[Slot].speed = 0x80;  // default direction is forward
@@ -1192,7 +1192,7 @@ void returnLocoStateFull(uint8_t client, uint16_t Adr, bool bc)
 		return;
 	}
 
-	ESP_LOGI(Z21_PARSER_TAG, "returnLocoStateFull:");
+	//ESP_LOGI(Z21_PARSER_TAG, "returnLocoStateFull:");
 	uint8_t ldata[6];
 	if (notifyz21LocoState)
 		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
@@ -1357,7 +1357,7 @@ void getLocoStateFull(uint16_t adr)
 //Gibt aktuellen Lokstatus an Anfragenden Zur�ck
 void getLocoStateFull(uint16_t Addr, bool bc)
 {
-	ESP_LOGI(Z21_PARSER_TAG, "getLocoStateFull... %d", Addr);
+	//ESP_LOGI(Z21_PARSER_TAG, "getLocoStateFull... %d", Addr);
 	uint8_t Slot = LokStsgetSlot(Addr);
 	uint8_t Busy = bitRead(LokDataUpdate[Slot].mode, 3); //Kennung 0000 B0FF -> B=Busy(1), F=Fahrstufen (0=14, 1=27, 2=28, 3=128)
 	uint8_t Dir = bitRead(LokDataUpdate[Slot].f0, 5);
@@ -1648,7 +1648,7 @@ void sendSystemInfo(uint8_t client, uint16_t maincurrent, uint16_t mainvoltage, 
 void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataString, bool withXOR, uint8_t BC)
 {
 	uint8_t data[DataLen]; // z21 send storage
-	ESP_LOGI(Z21_PARSER_TAG, "EthSend. Client=%d", client);
+	//ESP_LOGI(Z21_PARSER_TAG, "EthSend. Client=%d", client);
 	//--------------------------------------------
 	//XOR bestimmen:
 	data[0] = DataLen & 0xFF;
@@ -1669,7 +1669,7 @@ void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataStr
 	{
 		//if (notifyz21EthSend)
 		notifyz21EthSend(client, data, DataLen);
-		ESP_LOGI(Z21_PARSER_TAG, "EthSend. Client>0");
+		//ESP_LOGI(Z21_PARSER_TAG, "EthSend. Client>0 %d", client);
 	}
 	else
 	{
@@ -1678,7 +1678,7 @@ void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataStr
 		{
 			if ((ActIP[i].time > 0) && ((BC & ActIP[i].BCFlag) > 0))
 			{ // Boradcast & Noch aktiv
-				ESP_LOGI(Z21_PARSER_TAG, "EthSend. Parse client base. i=%d", i);
+				//ESP_LOGI(Z21_PARSER_TAG, "EthSend. Parse client base. i=%d", i);
 				if (BC != 0)
 				{
 					if (BC == Z21bcAll_s)
@@ -1689,7 +1689,7 @@ void EthSend(uint8_t client, uint16_t DataLen, uint16_t Header, uint8_t *dataStr
 
 				if ((clientOut != client) || (clientOut == 0))
 				{ // wenn client > 0 und nicht Z21bcNone, sende an alle au�er den client!
-					ESP_LOGI(Z21_PARSER_TAG, "EthSend. ClientOut=0");
+					//ESP_LOGI(Z21_PARSER_TAG, "EthSend. ClientOut=0");
 					//--------------------------------------------
 					//if (notifyz21EthSend)
 					notifyz21EthSend(clientOut, data, DataLen);
@@ -1734,7 +1734,7 @@ void notifyXNetPower(uint8_t State)
 //--------------------------------------------------------------------------------------------
 void notifyLokAll(uint8_t slot, uint8_t Adr_High, uint8_t Adr_Low, bool Busy, uint8_t Steps, uint8_t Speed, uint8_t Direction, uint8_t F0, uint8_t F1, uint8_t F2, uint8_t F3, bool Req)
 {
-	ESP_LOGI(Z21_PARSER_TAG, "notifyLokAll...");
+	//ESP_LOGI(Z21_PARSER_TAG, "notifyLokAll...");
 	uint8_t DB2 = Steps;
 	if (DB2 == 3) //nicht vorhanden!
 		DB2 = 4;

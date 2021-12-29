@@ -90,13 +90,14 @@ void cb_z21sender(void *pvParameters)
 {
     struct sockaddr_in dest_addr;
     dest_addr.sin_family = AF_INET;
-
-    ESP_LOGI(Z21_SENDER_TAG, "New message to UDP sender");
+    //char addr_strr[16];
+    //memset(&addr_str, 0x00, sizeof(addr_str));
+    //ESP_LOGI(Z21_SENDER_TAG, "New message to UDP sender");
 
     dest_addr.sin_addr.s_addr = txAddr.addr; //(HOST_IP_ADDR);htonl(INADDR_ANY);
     dest_addr.sin_port = txport;
-    //ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
-    //ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s, %d:", addr_str, htons (dest_addr.sin_port));
+    //ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&dest_addr)->sin_addr), addr_strr, sizeof(addr_strr) - 1);
+    //ESP_LOGI(Z21_SENDER_TAG, "Hurrah! New message to %s, %d:", addr_strr, htons (dest_addr.sin_port));
     //ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, (uint8_t *)&Z21txBuffer, txBlen, ESP_LOG_INFO);
 
     int err = sendto(global_sock, (uint8_t *)&Z21txBuffer, txBlen, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
@@ -114,7 +115,7 @@ void cb_z21sender(void *pvParameters)
     bzero(&Z21txBuffer, Z21_UDP_TX_MAX_SIZE);
     txSendFlag = 0;
     vTaskDelay(5 / portTICK_PERIOD_MS);
-
+    //free(addr_str);
 }
 
 static void udp_server_task(void *pvParameters)
@@ -181,8 +182,8 @@ static void udp_server_task(void *pvParameters)
                     ip4addr_ntoa_r((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr), addr_str, sizeof(addr_str) - 1);
                     uint16_t from_port = (((struct sockaddr_in *)&source_addr)->sin_port);
                     z21client = Z21addIP(ip4_addr1((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr2((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr3((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), ip4_addr4((const ip4_addr_t *)&(((struct sockaddr_in *)&source_addr)->sin_addr)), from_port);
-                    ESP_LOGI(Z21_TASK_TAG, "Recieve from UDP");
-                    ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&rx_buffer, Len, ESP_LOG_INFO);
+                    //ESP_LOGI(Z21_TASK_TAG, "Recieve from UDP");
+                    //ESP_LOG_BUFFER_HEXDUMP(Z21_TASK_TAG, (uint8_t *)&rx_buffer, Len, ESP_LOG_INFO);
                     while (z21rcvFlag)
                     {
                         //   vTaskDelay(5 / portTICK_PERIOD_MS);
@@ -197,7 +198,7 @@ static void udp_server_task(void *pvParameters)
                         (*cb_z21_ptr_arr[MESSAGE_Z21_SERVER])(NULL);
 
                     // receive(client, Z21rxBuffer, len);
-                    vTaskDelay(5 / portTICK_PERIOD_MS);
+                    vTaskDelay (10 / portTICK_PERIOD_MS);
                 }
                 vTaskDelay(5 / portTICK_PERIOD_MS);
             }
@@ -233,20 +234,20 @@ void cb_z21_parse(void *pvParameter)
     static const char *Z21_PARSER_TAG = "Z21_PARSER";
     esp_log_level_set(Z21_PARSER_TAG, ESP_LOG_INFO);
     //ESP_LOGI(Z21_PARSER_TAG, "Z21 Parser task start.");
-    uint8_t rxlen;
+    //uint8_t rxlen;
     uint8_t client;
     uint8_t data[16];
 
     //if (z21rcvFlag)
     //{
 
-    rxlen = z21RcvLen;
+    //rxlen = z21RcvLen;
     client = z21client;
     addIPToSlot(client, 0);
     // send a reply, to the IP address and port that sent us the packet we received
     int header = (Z21rxBuffer[3] << 8) + Z21rxBuffer[2];
     // z21 send storage
-    ESP_LOGI(Z21_PARSER_TAG, "Hello in Z21 parser!");
+    //ESP_LOGI(Z21_PARSER_TAG, "Hello in Z21 parser!");
     //#if defined(ESP32)
     // portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
     //#endif
@@ -431,8 +432,8 @@ void cb_z21_parse(void *pvParameter)
                 notifyz21RailPower(csEmergencyStop);
             break;
         case LAN_X_GET_LOCO_INFO:
-            ESP_LOGI(Z21_PARSER_TAG, "LAN_X_GET_LOCO_INFO");
-            ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, Z21rxBuffer, rxlen, ESP_LOG_INFO);
+            //ESP_LOGI(Z21_PARSER_TAG, "LAN_X_GET_LOCO_INFO");
+            //ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, Z21rxBuffer, rxlen, ESP_LOG_INFO);
             if (Z21rxBuffer[5] == 0xF0)
             { // DB0
                 // ZDebug.print("X_GET_LOCO_INFO: ");
@@ -441,15 +442,15 @@ void cb_z21_parse(void *pvParameter)
                 // notifyz21getLocoState(((packet[6] & 0x3F) << 8) + packet[7], false);
                 //getLocoInfo(Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
                 // uint16_t WORD = (((uint16_t)packet[6] & 0x3F) << 8) | ((uint16_t)packet[7]);
-                ESP_LOGI(Z21_PARSER_TAG, "Adr:  %d", Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
+                //ESP_LOGI(Z21_PARSER_TAG, "Adr:  %d", Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
                 returnLocoStateFull(client, Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]), false);
                 // Antwort via "setLocoStateFull"!
             }
             break;
         case LAN_X_SET_LOCO:
             // setLocoBusy:
-            ESP_LOGI(Z21_PARSER_TAG, "LAN_X_SET_LOCO aka setLocoBusy: %d", Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
-            ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, Z21rxBuffer, rxlen, ESP_LOG_INFO);
+            //ESP_LOGI(Z21_PARSER_TAG, "LAN_X_SET_LOCO aka setLocoBusy: %d", Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
+            //ESP_LOG_BUFFER_HEXDUMP(Z21_PARSER_TAG, Z21rxBuffer, rxlen, ESP_LOG_INFO);
             // uint16_t WORD = (((uint16_t)Z21rxBuffer[6] & 0x3F) << 8) | ((uint16_t)Z21rxBuffer[7]);
 
             addBusySlot(client, Word(Z21rxBuffer[6] & 0x3F, Z21rxBuffer[7]));
@@ -526,8 +527,8 @@ void cb_z21_parse(void *pvParameter)
         if (notifyz21RailPower)
             notifyz21RailPower(Railpower); // Zustand Gleisspannung Antworten
         ESP_LOGI(Z21_PARSER_TAG, "SET_BROADCASTFLAGS: ");
-        int *ptr = (int *)&bcflag;
-        ESP_LOGI(Z21_PARSER_TAG, "%p", ptr);
+        //int *ptr = (int *)&bcflag;
+        //ESP_LOGI(Z21_PARSER_TAG, "%p", ptr);
         // ESP_LOG_BUFFER_CHAR(Z21_PARSER_TAG, &bcflag, 4);
         //  1=BC Power, Loco INFO, Trnt INFO; 2=BC �nderungen der R�ckmelder am R-Bus
 
@@ -830,8 +831,8 @@ static void xnet_rx_task(void *arg)
         {
             pos_p = 0;
             rxb = rxBytes;
-            portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
-            portENTER_CRITICAL(&myMutex);
+            //portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
+            //portENTER_CRITICAL(&myMutex);
             if (data[0] <= rxb)
             {
 
@@ -842,11 +843,11 @@ static void xnet_rx_task(void *arg)
                     switch (XNetMsg[3])
                     {
                     case 0xA0: // XNet bridge is offline!
-                        ESP_LOGI(RX_TASK_TAG, "XnetRun false");
+                        //ESP_LOGI(RX_TASK_TAG, "XnetRun false");
                         XNetRun = false;
                         break;
                     case 0xA1: // Xnet bridge is online!
-                        ESP_LOGI(RX_TASK_TAG, "XnetRun true");
+                        //ESP_LOGI(RX_TASK_TAG, "XnetRun true");
                         XNetRun = true;
                         break;
                     case 0xA2: // Answer from Stop Xnet request
@@ -870,22 +871,22 @@ static void xnet_rx_task(void *arg)
                         // vTaskDelay(pdMS_TO_TICKS(1));
                         //vTaskDelay(10 / portTICK_PERIOD_MS);
                     }
-                    ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", data[pos_p]);
-                    ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data + pos_p, data[pos_p], ESP_LOG_INFO);
+                    //ESP_LOGI(RX_TASK_TAG, "Read from XNET %d bytes:", data[pos_p]);
+                    //ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data + pos_p, data[pos_p], ESP_LOG_INFO);
                     DataReady = true;
                     //Z21_send_message(MESSAGE_XNET_SERVER, NULL);
                     if (cb_z21_ptr_arr[MESSAGE_XNET_SERVER])
                         (*cb_z21_ptr_arr[MESSAGE_XNET_SERVER])(NULL);
-                    //vTaskDelay(2 / portTICK_PERIOD_MS);
+                    vTaskDelay(5 / portTICK_PERIOD_MS);
                 }
 
                 rxb = rxb - data[pos_p];
                 pos_p = pos_p + data[pos_p];
             }
-            portEXIT_CRITICAL(&myMutex);
+            //portEXIT_CRITICAL(&myMutex);
         }
 
-        //vTaskDelay(10 / portTICK_PERIOD_MS);
+        vTaskDelay(5 / portTICK_PERIOD_MS);
     }
     free(data);
     vTaskDelete(NULL);
@@ -1172,9 +1173,10 @@ void notifyz21RailPower(uint8_t State)
 //--------------------------------------------------------------------------------------------
 void notifyz21EthSend(uint8_t client, uint8_t *data, uint8_t datalen)
 {
-    // ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
+    
     ip4_addr_t Addr;
-    ESP_LOGI(Z21_SENDER_TAG, "notifyz21EthSend. Client is %d, sending data:", client);
+    //ESP_LOGI(Z21_SENDER_TAG, "notifyz21EthSend. Client is %d, sending data:", client);
+    //ESP_LOG_BUFFER_HEXDUMP(Z21_SENDER_TAG, data, datalen, ESP_LOG_INFO);
     while (txSendFlag)
         {
             // vTaskDelay(10 / portTICK_PERIOD_MS);

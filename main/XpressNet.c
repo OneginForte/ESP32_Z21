@@ -274,7 +274,7 @@ void cb_xnet_parse(void *pvParameter)
 				//ESP_LOGI(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
 				if ((XNetMsg[XNetlength] >= 7) && (ReqLocoAdr != 0) && (bitRead(XNetMsg[XNetdata1], 3) != 0))
 				{ //&& ((XNetMsg[XNetdata1] >> 4) != 0)
-					ESP_LOGE(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
+					//ESP_LOGE(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
 					uint16_t Addr = ReqLocoAdr;
 					ReqLocoAdr = 0;
 					uint8_t Steps = XNetMsg[XNetdata1]; //0000 BFFF - B=Busy; F=Fahrstufen
@@ -316,8 +316,8 @@ void cb_xnet_parse(void *pvParameter)
 					if ((XNetMsg[XNetmsg] == 0x01) && (XNetMsg[XNetdata1] != 0x0C))
 					{
 						uint16_t Addr = (Word(XNetMsg[XNetdata2] & 0x3F, XNetMsg[XNetdata3]));
-						ESP_LOGI(XNETP_TASK_TAG, "Antwort 0xE4 Addr:  %d", Addr);
-						ESP_LOGE(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
+						//ESP_LOGI(XNETP_TASK_TAG, "Antwort 0xE4 Addr:  %d", Addr);
+						//ESP_LOGE(XNETP_TASK_TAG, "Antwort ReqLocoAdr:  %d", ReqLocoAdr);
 						uint8_t Slot = LokStsgetSlot(Addr);
 
 						switch (XNetMsg[XNetdata1])
@@ -572,8 +572,8 @@ bool setLocoHalt(uint16_t Addr)
 //Lokdaten setzten
 bool setLocoDrive(uint16_t Addr, uint8_t Steps, uint8_t Speed)
 {
-	ESP_LOGI(XNETT_TASK_TAG, "setLocoDrive %d", Addr);
-	ESP_LOGI(XNETT_TASK_TAG, "Steps %d", Steps);
+	//ESP_LOGI(XNETT_TASK_TAG, "setLocoDrive %d", Addr);
+	//ESP_LOGI(XNETT_TASK_TAG, "Steps %d", Steps);
 	bool ok = false;
 	unsigned char setLoco[] = {0xE4, 0x13, highByte(Addr), lowByte(Addr), Speed, 0x00};
 	if (Addr > 99)
