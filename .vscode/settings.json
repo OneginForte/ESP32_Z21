@@ -12,5 +12,6 @@
         "*.inc": "cpp",
         "uart.h": "c",
         "esp_int_wdt.h": "c"
-    }
+    },
+    "idf.adapterTargetName": "esp32"
 }

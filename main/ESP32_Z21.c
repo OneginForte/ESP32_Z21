@@ -169,7 +169,7 @@ static void udp_server_task(void *pvParameters)
             while (1)
             {
 
-                int Len = recvfrom(sock, rx_buffer, Z21_UDP_RX_MAX_SIZE, 0, (struct sockaddr *)&source_addr, &socklenr);
+                ssize_t Len = recvfrom(sock, rx_buffer, Z21_UDP_RX_MAX_SIZE, 0, (struct sockaddr *)&source_addr, &socklenr);
                 // Error occurred during receiving
                 if (Len < 0)
                 {
